@@ -9,6 +9,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -16,13 +17,18 @@ import android.widget.TextView;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.core.widget.NestedScrollView;
 
 import com.termux.R;
 import com.termux.shared.errors.Errno;
+import com.termux.shared.logger.Logger;
 import com.termux.shared.shell.command.ExecutionCommand;
 import com.termux.shared.shell.command.ExecutionCommand.Runner;
 import com.termux.shared.termux.TermuxConstants;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.termux.shared.termux.TermuxConstants.TERMUX_APP.TERMUX_SERVICE;
@@ -35,14 +41,21 @@ public class DriverActivity extends AppCompatActivity {
     private static final String ACTION_DRIVER_RESULT = "com.termux.app.action.DRIVER_RESULT";
     private static final int OUTPUT_PREVIEW_LIMIT = 400;
     private static final AtomicInteger REQUEST_CODES = new AtomicInteger();
+    private static final String LOG_TAG = "DriverActivity";
+    private static final String LOGCAT_COMMAND_TAG = Logger.getDefaultLogTag() + "Command";
 
     private EditText commandInput;
     private TextView statusView;
     private Button executeButton;
+    private NestedScrollView logsContainer;
+    private TextView logsView;
+    private final StringBuilder logBuffer = new StringBuilder();
 
     private boolean bootstrapReady;
     private boolean bootstrapInProgress;
     private boolean receiverRegistered;
+    private LogcatWatcher logcatWatcher;
+    private String activeCommand;
 
     private final BroadcastReceiver resultReceiver = new BroadcastReceiver() {
         @Override
@@ -66,6 +79,8 @@ public class DriverActivity extends AppCompatActivity {
         commandInput = findViewById(R.id.driver_command_input);
         statusView = findViewById(R.id.driver_status_view);
         executeButton = findViewById(R.id.driver_execute_button);
+        logsContainer = findViewById(R.id.driver_logs_container);
+        logsView = findViewById(R.id.driver_logs_view);
 
         statusView.setText(R.string.driver_status_bootstrapping);
         executeButton.setEnabled(false);
@@ -85,6 +100,7 @@ public class DriverActivity extends AppCompatActivity {
     protected void onStop() {
         super.onStop();
         unregisterResultReceiver();
+        stopLogcatWatcher();
     }
 
     private void executeCommand(String rawCommand) {
@@ -99,7 +115,10 @@ public class DriverActivity extends AppCompatActivity {
             return;
         }
 
-        String command = rawCommand.trim();
+        resetLogs();
+        String command = adjustCommand(rawCommand.trim());
+        activeCommand = command;
+        appendConsoleLine("Executing: " + command);
 
         Uri executableUri = new Uri.Builder()
             .scheme(TERMUX_SERVICE.URI_SCHEME_SERVICE_EXECUTE)
@@ -113,6 +132,7 @@ public class DriverActivity extends AppCompatActivity {
         execIntent.putExtra(TERMUX_SERVICE.EXTRA_SHELL_CREATE_MODE, ExecutionCommand.ShellCreateMode.ALWAYS.getMode());
         execIntent.putExtra(TERMUX_SERVICE.EXTRA_COMMAND_LABEL, getString(R.string.driver_command_label, command));
         execIntent.putExtra(TERMUX_SERVICE.EXTRA_PENDING_INTENT, createResultPendingIntent());
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_BACKGROUND_CUSTOM_LOG_LEVEL, String.valueOf(Logger.LOG_LEVEL_VERBOSE));
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             ContextCompat.startForegroundService(this, execIntent);
@@ -120,6 +140,7 @@ public class DriverActivity extends AppCompatActivity {
             startService(execIntent);
         }
 
+        startLogcatWatcher(command);
         statusView.setText(getString(R.string.driver_status_executing, command));
         executeButton.setEnabled(false);
         commandInput.getText().clear();
@@ -135,6 +156,19 @@ public class DriverActivity extends AppCompatActivity {
             flags |= 0x02000000; // PendingIntent.FLAG_MUTABLE
         }
         return PendingIntent.getBroadcast(this, requestCode, resultIntent, flags);
+    }
+
+    private String adjustCommand(String command) {
+        String normalized = command;
+        if (command.startsWith("pkg install") && !command.contains("-y")) {
+            normalized = command.replaceFirst("pkg install", "pkg install -y");
+            appendConsoleLine("Auto-appended -y to pkg install for non-interactive execution.");
+        } else if (command.startsWith("apt install") && !command.contains("-y")) {
+            normalized = command.replaceFirst("apt install", "apt install -y");
+            appendConsoleLine("Auto-appended -y to apt install for non-interactive execution.");
+        }
+        Logger.logInfo(LOG_TAG, "Executing command: " + normalized);
+        return normalized;
     }
 
     private void ensureBootstrapSetup() {
@@ -155,22 +189,27 @@ public class DriverActivity extends AppCompatActivity {
         bootstrapReady = true;
         bootstrapInProgress = false;
         executeButton.setEnabled(true);
+        stopLogcatWatcher();
 
         if (extras.errCode == Errno.ERRNO_SUCCESS.getCode()) {
             String output = !extras.stdout.isEmpty() ? extras.stdout : extras.stderr;
             output = trimOutput(output);
             if (output.isEmpty()) {
                 statusView.setText(getString(R.string.driver_status_success_no_output, extras.exitCode));
+                Logger.logInfo(LOG_TAG, "Command finished (exit " + extras.exitCode + ") with no output");
             } else {
                 statusView.setText(getString(R.string.driver_status_success, extras.exitCode, output));
+                Logger.logInfo(LOG_TAG, "Command finished (exit " + extras.exitCode + "): " + output);
             }
         } else {
             String message = !extras.errmsg.isEmpty() ? extras.errmsg : extras.stderr;
             message = trimOutput(message);
             if (!extras.stderr.isEmpty() && !extras.stderr.equals(message)) {
                 statusView.setText(getString(R.string.driver_status_error_with_output, extras.errCode, message, trimOutput(extras.stderr)));
+                Logger.logError(LOG_TAG, "Command failed (err " + extras.errCode + "): " + message + " | stderr: " + trimOutput(extras.stderr));
             } else {
                 statusView.setText(getString(R.string.driver_status_error, extras.errCode, message.isEmpty() ? "Unknown error" : message));
+                Logger.logError(LOG_TAG, "Command failed (err " + extras.errCode + "): " + (message.isEmpty() ? "Unknown error" : message));
             }
         }
     }
@@ -194,6 +233,8 @@ public class DriverActivity extends AppCompatActivity {
         bootstrapInProgress = false;
         executeButton.setEnabled(true);
         statusView.setText(R.string.driver_status_result_missing);
+        stopLogcatWatcher();
+        Logger.logWarn(LOG_TAG, "Command finished but no result bundle was returned");
     }
 
     private void unregisterResultReceiver() {
@@ -204,6 +245,52 @@ public class DriverActivity extends AppCompatActivity {
             // Receiver already unregistered; ignore.
         }
         receiverRegistered = false;
+    }
+
+    private void resetLogs() {
+        logBuffer.setLength(0);
+        if (logsView != null) {
+            logsView.setText("");
+        }
+    }
+
+    private void appendConsoleLine(String line) {
+        if (TextUtils.isEmpty(line) || logsView == null) return;
+        if (logBuffer.length() > 0) logBuffer.append('\n');
+        logBuffer.append(line);
+        logsView.setText(logBuffer.toString());
+        if (logsContainer != null) {
+            logsContainer.post(() -> logsContainer.fullScroll(View.FOCUS_DOWN));
+        }
+    }
+
+    private void startLogcatWatcher(String command) {
+        stopLogcatWatcher();
+        logcatWatcher = new LogcatWatcher(command, new LogcatWatcher.Callback() {
+            @Override
+            public void onLine(String line) {
+                runOnUiThread(() -> appendConsoleLine(line));
+            }
+
+            @Override
+            public void onError(String message) {
+                runOnUiThread(() -> appendConsoleLine(message));
+            }
+        });
+        logcatWatcher.start();
+    }
+
+    private void stopLogcatWatcher() {
+        if (logcatWatcher != null) {
+            logcatWatcher.stopWatching();
+            logcatWatcher = null;
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopLogcatWatcher();
     }
 
     private static final class BundleExtras {
@@ -238,6 +325,99 @@ public class DriverActivity extends AppCompatActivity {
         private static String getString(Bundle bundle, String key) {
             String value = bundle.getString(key, "");
             return value == null ? "" : value;
+        }
+    }
+
+    private static final class LogcatWatcher {
+
+        interface Callback {
+            void onLine(String line);
+            void onError(String message);
+        }
+
+        private final String commandTrigger;
+        private final Callback callback;
+        private Process process;
+        private Thread thread;
+        private volatile boolean running;
+        private boolean capturing;
+
+        LogcatWatcher(String commandTrigger, Callback callback) {
+            this.commandTrigger = commandTrigger;
+            this.callback = callback;
+        }
+
+        void start() {
+            running = true;
+            thread = new Thread(() -> {
+                try {
+                    ProcessBuilder builder = new ProcessBuilder("logcat",
+                        "--pid=" + android.os.Process.myPid(),
+                        "-v", "brief");
+                    process = builder.start();
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                        String line;
+                        while (running && (line = reader.readLine()) != null) {
+                            handleLine(line);
+                        }
+                    }
+                } catch (IOException e) {
+                    if (callback != null) {
+                        callback.onError("Logcat watcher error: " + e.getMessage());
+                    }
+                }
+            }, "LogcatWatcher");
+            thread.start();
+        }
+
+        void stopWatching() {
+            running = false;
+            if (process != null) {
+                process.destroy();
+            }
+            if (thread != null) {
+                try {
+                    thread.join(200);
+                } catch (InterruptedException ignored) {
+                }
+            }
+        }
+
+        private void handleLine(String raw) {
+            if (TextUtils.isEmpty(raw)) return;
+            if (!capturing) {
+                if (raw.contains(DriverActivity.LOG_TAG) && raw.contains("Executing command: " + commandTrigger)) {
+                    capturing = true;
+                } else {
+                    return;
+                }
+            }
+
+            String sanitized = sanitize(raw);
+            if (sanitized != null && callback != null) {
+                callback.onLine(sanitized);
+            }
+        }
+
+        private String sanitize(String raw) {
+            if (raw.contains(LOGCAT_COMMAND_TAG)) {
+                String message = extractMessage(raw);
+                if (message.startsWith("[") && message.contains("]")) {
+                    message = message.substring(message.indexOf(']') + 1).trim();
+                }
+                return message;
+            } else if (raw.contains(DriverActivity.LOG_TAG) || raw.contains("Termux." + DriverActivity.LOG_TAG)) {
+                return extractMessage(raw);
+            }
+            return null;
+        }
+
+        private String extractMessage(String raw) {
+            int idx = raw.indexOf(": ");
+            if (idx >= 0 && idx + 2 < raw.length()) {
+                return raw.substring(idx + 2);
+            }
+            return raw;
         }
     }
 }
