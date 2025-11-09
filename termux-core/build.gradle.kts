@@ -25,7 +25,7 @@ validateVersionName(libraryVersionName)
 val androidExtension = extensions.getByType<LibraryExtension>()
 
 android {
-    namespace = "com.termux"
+    namespace = "com.termux.core"
     compileSdk = project.property("compileSdkVersion").toString().toInt()
     ndkVersion = System.getenv("JITPACK_NDK_VERSION") ?: project.property("ndkVersion").toString()
 
