@@ -111,8 +111,7 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
     public void onCreate() {
         Logger.logVerbose(LOG_TAG, "onCreate");
 
-        // Get Termux app SharedProperties without loading from disk since TermuxApplication handles
-        // load and TermuxActivity handles reloads
+        // Get Termux app SharedProperties without loading from disk since TermuxCore handles
         mProperties = TermuxAppSharedProperties.getProperties();
 
         mShellManager = TermuxShellManager.getShellManager();
