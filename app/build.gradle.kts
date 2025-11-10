@@ -65,5 +65,7 @@ dependencies {
     implementation("androidx.core:core:1.6.0")
     implementation(project(":termux-core"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:1.1.5")
 }
