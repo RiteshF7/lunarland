@@ -47,6 +47,7 @@ public class DriverActivity extends AppCompatActivity {
     private EditText commandInput;
     private TextView statusView;
     private Button executeButton;
+    private Button launchTermuxButton;
     private NestedScrollView logsContainer;
     private TextView logsView;
     private final StringBuilder logBuffer = new StringBuilder();
@@ -79,11 +80,16 @@ public class DriverActivity extends AppCompatActivity {
         commandInput = findViewById(R.id.driver_command_input);
         statusView = findViewById(R.id.driver_status_view);
         executeButton = findViewById(R.id.driver_execute_button);
+        launchTermuxButton = findViewById(R.id.driver_launch_termux_button);
         logsContainer = findViewById(R.id.driver_logs_container);
         logsView = findViewById(R.id.driver_logs_view);
 
         statusView.setText(R.string.driver_status_bootstrapping);
         executeButton.setEnabled(false);
+        if (launchTermuxButton != null) {
+            launchTermuxButton.setEnabled(false);
+            launchTermuxButton.setOnClickListener(view -> launchTermuxActivity());
+        }
 
         executeButton.setOnClickListener(view -> executeCommand(commandInput.getText().toString()));
         commandInput.requestFocus();
@@ -175,10 +181,16 @@ public class DriverActivity extends AppCompatActivity {
         if (bootstrapReady || bootstrapInProgress) return;
         bootstrapInProgress = true;
         statusView.setText(R.string.driver_status_bootstrapping);
+        if (launchTermuxButton != null) {
+            launchTermuxButton.setEnabled(false);
+        }
         TermuxInstaller.setupBootstrapIfNeeded(this, () -> runOnUiThread(() -> {
             bootstrapInProgress = false;
             bootstrapReady = true;
             executeButton.setEnabled(true);
+            if (launchTermuxButton != null) {
+                launchTermuxButton.setEnabled(true);
+            }
             if (TextUtils.isEmpty(commandInput.getText())) {
                 statusView.setText(R.string.driver_status_ready);
             }
@@ -189,6 +201,9 @@ public class DriverActivity extends AppCompatActivity {
         bootstrapReady = true;
         bootstrapInProgress = false;
         executeButton.setEnabled(true);
+        if (launchTermuxButton != null) {
+            launchTermuxButton.setEnabled(true);
+        }
         stopLogcatWatcher();
 
         if (extras.errCode == Errno.ERRNO_SUCCESS.getCode()) {
@@ -232,6 +247,9 @@ public class DriverActivity extends AppCompatActivity {
         bootstrapReady = true;
         bootstrapInProgress = false;
         executeButton.setEnabled(true);
+        if (launchTermuxButton != null) {
+            launchTermuxButton.setEnabled(true);
+        }
         statusView.setText(R.string.driver_status_result_missing);
         stopLogcatWatcher();
         Logger.logWarn(LOG_TAG, "Command finished but no result bundle was returned");
@@ -285,6 +303,11 @@ public class DriverActivity extends AppCompatActivity {
             logcatWatcher.stopWatching();
             logcatWatcher = null;
         }
+    }
+
+    private void launchTermuxActivity() {
+        Intent intent = new Intent(this, TermuxActivity.class);
+        startActivity(intent);
     }
 
     @Override

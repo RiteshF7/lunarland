@@ -14,5 +14,6 @@
     <string name="driver_status_result_missing">Command finished but no result was returned.</string>
     <string name="driver_command_label">Driver command: %1$s</string>
     <string name="driver_error_empty_command">Command cannot be empty</string>
+    <string name="driver_launch_termux">Open Termux</string>
 </resources>
 

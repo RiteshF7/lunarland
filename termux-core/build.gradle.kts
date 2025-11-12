@@ -106,7 +106,7 @@ val downloadBootstraps = tasks.register("downloadBootstraps") {
         when (packageVariant) {
             "apt-android-7" -> {
                 val version = "2022.04.28-r5+$packageVariant"
-                downloadBootstrap("aarch64", "4a51a7eb209fe82efc24d52e3cccc13165f27377290687cb82038cbd8e948430", version)
+                downloadBootstrap("aarch64", "f0689e6a36534b582d3772d24319bc069ec24dc70368512068397a2ec5f5f837", version)
                 downloadBootstrap("arm", "6459a786acbae50d4c8a36fa1c3de6a4dd2d482572f6d54f73274709bd627325", version)
                 downloadBootstrap("i686", "919d212b2f19e08600938db4079e794e947365022dbfd50ac342c50fcedcd7be", version)
                 downloadBootstrap("x86_64", "61b02fdc03ea4f5d9da8d8cf018013fdc6659e6da6cbf44e9b24d1c623580b89", version)
