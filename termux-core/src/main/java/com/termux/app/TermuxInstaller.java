@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.res.AssetManager;
 import android.os.Build;
 import android.os.Environment;
 import android.system.Os;
@@ -27,6 +28,8 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,6 +63,8 @@ import static com.termux.shared.termux.TermuxConstants.TERMUX_STAGING_PREFIX_DIR
 final class TermuxInstaller {
 
     private static final String LOG_TAG = "TermuxInstaller";
+    private static final String LUNAR_ADB_AGENT_ASSET = "lunaradbagent.zip";
+    private static final String LUNAR_ADB_AGENT_RELATIVE_PATH = "usr/local/lunaradbagent";
 
     /** Performs bootstrap setup if necessary. */
     static void setupBootstrapIfNeeded(final Activity activity, final Runnable whenDone) {
@@ -221,6 +226,16 @@ final class TermuxInstaller {
                     // Recreate env file since termux prefix was wiped earlier
                     TermuxShellEnvironment.writeEnvironmentToFile(activity);
 
+                    try {
+                        installLunarAdbAgentBundle(activity);
+                    } catch (FileNotFoundException e) {
+                        Logger.logInfo(LOG_TAG, "LunarAdbAgent bundle not bundled with assets, skipping install.");
+                    } catch (Exception e) {
+                        showBootstrapErrorDialog(activity, whenDone,
+                            "Failed to install LunarAdbAgent bundle: " + Logger.getStackTracesMarkdownString(null, Logger.getStackTracesStringArray(e)));
+                        return;
+                    }
+
                     activity.runOnUiThread(whenDone);
 
                 } catch (final Exception e) {
@@ -373,6 +388,87 @@ final class TermuxInstaller {
 
     private static Error ensureDirectoryExists(File directory) {
         return FileUtils.createDirectoryFile(directory.getAbsolutePath());
+    }
+
+    private static void installLunarAdbAgentBundle(Activity activity) throws Exception {
+        AssetManager assetManager = activity.getAssets();
+        try (InputStream assetStream = assetManager.open(LUNAR_ADB_AGENT_ASSET);
+             ZipInputStream zipInput = new ZipInputStream(assetStream)) {
+            File targetRoot = new File(TERMUX_PREFIX_DIR_PATH, LUNAR_ADB_AGENT_RELATIVE_PATH);
+
+            Error error = FileUtils.deleteFile("LunarAdbAgent directory", targetRoot.getAbsolutePath(), true);
+            if (error != null) {
+                throw new Exception(Error.getErrorMarkdownString(error));
+            }
+
+            error = ensureDirectoryExists(targetRoot);
+            if (error != null) {
+                throw new Exception(Error.getErrorMarkdownString(error));
+            }
+
+            ZipEntry zipEntry;
+            final byte[] buffer = new byte[8096];
+            while ((zipEntry = zipInput.getNextEntry()) != null) {
+                String entryName = zipEntry.getName();
+                if (entryName.contains("..") || entryName.startsWith("/")) {
+                    throw new SecurityException("Illegal entry in lunaradbagent bundle: " + entryName);
+                }
+
+                File targetFile = new File(targetRoot, entryName);
+                if (zipEntry.isDirectory()) {
+                    error = ensureDirectoryExists(targetFile);
+                    if (error != null) {
+                        throw new Exception(Error.getErrorMarkdownString(error));
+                    }
+                    setFilePermissions(targetFile, true);
+                } else {
+                    error = ensureDirectoryExists(targetFile.getParentFile());
+                    if (error != null) {
+                        throw new Exception(Error.getErrorMarkdownString(error));
+                    }
+
+                    try (FileOutputStream outputStream = new FileOutputStream(targetFile)) {
+                        int readBytes;
+                        while ((readBytes = zipInput.read(buffer)) != -1) {
+                            outputStream.write(buffer, 0, readBytes);
+                        }
+                    }
+
+                    if (shouldBeExecutable(entryName)) {
+                        setFilePermissions(targetFile, false);
+                    } else {
+                        setRegularFilePermissions(targetFile);
+                    }
+                }
+
+                zipInput.closeEntry();
+            }
+        }
+    }
+
+    private static boolean shouldBeExecutable(String entryName) {
+        return entryName.startsWith("bin/")
+            || entryName.endsWith(".sh")
+            || entryName.endsWith(".py")
+            || entryName.contains("/bin/");
+    }
+
+    private static void setFilePermissions(File targetFile, boolean directory) {
+        try {
+            //noinspection OctalInteger
+            Os.chmod(targetFile.getAbsolutePath(), directory ? 0755 : 0755);
+        } catch (Exception e) {
+            Logger.logError(LOG_TAG, "Failed to set permissions on " + targetFile.getAbsolutePath() + ": " + e.getMessage());
+        }
+    }
+
+    private static void setRegularFilePermissions(File targetFile) {
+        try {
+            //noinspection OctalInteger
+            Os.chmod(targetFile.getAbsolutePath(), 0644);
+        } catch (Exception e) {
+            Logger.logError(LOG_TAG, "Failed to set regular file permissions on " + targetFile.getAbsolutePath() + ": " + e.getMessage());
+        }
     }
 
     public static byte[] loadZipBytes() {
