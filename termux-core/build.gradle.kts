@@ -106,18 +106,18 @@ val downloadBootstraps = tasks.register("downloadBootstraps") {
         when (packageVariant) {
             "apt-android-7" -> {
                 val version = "2022.04.28-r5+$packageVariant"
-                downloadBootstrap("aarch64", "f0689e6a36534b582d3772d24319bc069ec24dc70368512068397a2ec5f5f837", version)
-                downloadBootstrap("arm", "6459a786acbae50d4c8a36fa1c3de6a4dd2d482572f6d54f73274709bd627325", version)
-                downloadBootstrap("i686", "919d212b2f19e08600938db4079e794e947365022dbfd50ac342c50fcedcd7be", version)
-                downloadBootstrap("x86_64", "61b02fdc03ea4f5d9da8d8cf018013fdc6659e6da6cbf44e9b24d1c623580b89", version)
+                prepareBootstrap("aarch64", "ee87171b8ec44a6d47c90b24eb6215f95be243a11671040221f7291bf0b062d1", version)
+                prepareBootstrap("arm", "1fa5d45d183f744a79cd994753131dd097f8bf648d6e17ef5eb72892aa23fc0d", version)
+                prepareBootstrap("i686", "83b801d0c07959af89f4820aa0db82214b046f08b8cab1020015943c8c251bf7", version)
+                prepareBootstrap("x86_64", "0b54d3c12f6e1515b5a39d983d0609eafe1369f97d0ae776dbd6cecbc661a1cf", version)
             }
 
             "apt-android-5" -> {
                 val version = "2022.04.28-r6+$packageVariant"
-                downloadBootstrap("aarch64", "913609d439415c828c5640be1b0561467e539cb1c7080662decaaca2fb4820e7", version)
-                downloadBootstrap("arm", "26bfb45304c946170db69108e5eb6e3641aad751406ce106c80df80cad2eccf8", version)
-                downloadBootstrap("i686", "46dcfeb5eef67ba765498db9fe4c50dc4690805139aa0dd141a9d8ee0693cd27", version)
-                downloadBootstrap("x86_64", "615b590679ee6cd885b7fd2ff9473c845e920f9b422f790bb158c63fe42b8481", version)
+                prepareBootstrap("aarch64", "ee87171b8ec44a6d47c90b24eb6215f95be243a11671040221f7291bf0b062d1", version)
+                prepareBootstrap("arm", "1fa5d45d183f744a79cd994753131dd097f8bf648d6e17ef5eb72892aa23fc0d", version)
+                prepareBootstrap("i686", "83b801d0c07959af89f4820aa0db82214b046f08b8cab1020015943c8c251bf7", version)
+                prepareBootstrap("x86_64", "0b54d3c12f6e1515b5a39d983d0609eafe1369f97d0ae776dbd6cecbc661a1cf", version)
             }
 
             else -> throw GradleException("Unsupported TERMUX_PACKAGE_VARIANT \"$packageVariant\"")
@@ -151,6 +151,33 @@ private fun validateVersionName(versionName: String) {
     if (!Pattern.matches("^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?\$", versionName)) {
         throw GradleException("The versionName '$versionName' is not a valid version as per semantic version '2.0.0' spec in the format 'major.minor.patch(-prerelease)(+buildmetadata)'. https://semver.org/spec/v2.0.0.html.")
     }
+}
+
+private fun prepareBootstrap(arch: String, expectedChecksum: String, version: String) {
+    if (copyLocalBootstrap(arch)) {
+        return
+    }
+    downloadBootstrap(arch, expectedChecksum, version)
+}
+
+private fun copyLocalBootstrap(arch: String): Boolean {
+    val localDir = File(projectDir, "../app/src/main/assets/bootstrap")
+    val localFile = File(localDir, "bootstrap-$arch.zip")
+    if (!localFile.exists()) {
+        return false
+    }
+
+    val target = File(projectDir, "src/main/cpp/bootstrap-$arch.zip")
+    target.parentFile?.mkdirs()
+
+    if (!target.exists() || localFile.length() != target.length() || localFile.lastModified() > target.lastModified()) {
+        localFile.copyTo(target, overwrite = true)
+        logger.quiet("Using locally generated bootstrap archive for $arch from ${localFile.absolutePath}")
+    } else {
+        logger.quiet("Keeping existing bootstrap archive for $arch at ${target.absolutePath}")
+    }
+
+    return true
 }
 
 private fun downloadBootstrap(arch: String, expectedChecksum: String, version: String) {
