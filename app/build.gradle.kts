@@ -22,12 +22,13 @@ android {
         manifestPlaceholders["TERMUX_STYLING_APP_NAME"] = "Termux:Styling"
         manifestPlaceholders["TERMUX_TASKER_APP_NAME"] = "Termux:Tasker"
         manifestPlaceholders["TERMUX_WIDGET_APP_NAME"] = "Termux:Widget"
-
+        // No ABI filter here so the APK supports all configured ABIs (arm64, arm, x86, x86_64).
+        
         // For development builds, only package native libraries for the emulator/device ABI
         // to keep APK size smaller. Adjust the ABI below if you test on a different arch.
-        ndk {
-            abiFilters += listOf("x86_64")
-        }
+        //ndk {
+        //    abiFilters += listOf("x86_64")
+        //}
     }
 
     signingConfigs {
