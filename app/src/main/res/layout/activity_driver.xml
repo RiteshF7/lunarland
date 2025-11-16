@@ -30,6 +30,13 @@
         android:layout_marginTop="12dp"
         android:text="@string/driver_launch_termux" />
 
+    <Button
+        android:id="@+id/driver_open_task_executor_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/task_executor_open_button" />
+
     <TextView
         android:id="@+id/driver_status_view"
         android:layout_width="match_parent"

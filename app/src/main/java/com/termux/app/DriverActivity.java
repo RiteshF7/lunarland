@@ -83,12 +83,18 @@ public class DriverActivity extends AppCompatActivity {
         launchTermuxButton = findViewById(R.id.driver_launch_termux_button);
         logsContainer = findViewById(R.id.driver_logs_container);
         logsView = findViewById(R.id.driver_logs_view);
+        Button taskExecutorButton = findViewById(R.id.driver_open_task_executor_button);
 
         statusView.setText(R.string.driver_status_bootstrapping);
         executeButton.setEnabled(false);
         if (launchTermuxButton != null) {
             launchTermuxButton.setEnabled(false);
             launchTermuxButton.setOnClickListener(view -> launchTermuxActivity());
+        }
+        if (taskExecutorButton != null) {
+            taskExecutorButton.setOnClickListener(view ->
+                startActivity(new Intent(this, TaskExecutorActivity.class))
+            );
         }
 
         executeButton.setOnClickListener(view -> executeCommand(commandInput.getText().toString()));

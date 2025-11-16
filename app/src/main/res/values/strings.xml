@@ -15,5 +15,15 @@
     <string name="driver_command_label">Driver command: %1$s</string>
     <string name="driver_error_empty_command">Command cannot be empty</string>
     <string name="driver_launch_termux">Open Termux</string>
+    <string name="task_executor_title">Task Executor</string>
+    <string name="task_executor_status_initial">Preparing session…</string>
+    <string name="task_executor_status_ready">Session ready</string>
+    <string name="task_executor_status_finished">Session finished (exit %1$d)</string>
+    <string name="task_executor_status_failed">Session error: %1$s</string>
+    <string name="task_executor_command_hint">Enter a command to run in the persistent shell</string>
+    <string name="task_executor_execute_button">Execute</string>
+    <string name="task_executor_reset_button">Reset Session</string>
+    <string name="task_executor_open_button">Open Task Executor</string>
+    <string name="task_executor_install_button">Setup DroidRun</string>
 </resources>
 

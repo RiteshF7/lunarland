@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/task_executor_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/task_executor_status_initial"
+        android:textAppearance="?android:attr/textAppearanceMedium" />
+
+    <ScrollView
+        android:id="@+id/task_executor_output_container"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="12dp"
+        android:overScrollMode="ifContentScrolls">
+
+        <TextView
+            android:id="@+id/task_executor_output"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:textIsSelectable="true"
+            android:typeface="monospace" />
+    </ScrollView>
+
+    <EditText
+        android:id="@+id/task_executor_command_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:hint="@string/task_executor_command_hint"
+        android:imeOptions="actionSend"
+        android:inputType="text"
+        android:maxLines="1" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/task_executor_install_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/task_executor_install_button"
+            android:enabled="false" />
+
+        <Button
+            android:id="@+id/task_executor_reset_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="@string/task_executor_reset_button"
+            android:enabled="false" />
+
+        <Button
+            android:id="@+id/task_executor_execute_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="@string/task_executor_execute_button"
+            android:enabled="false" />
+    </LinearLayout>
+
+</LinearLayout>
+

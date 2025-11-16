@@ -64,6 +64,8 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.3.1")
     implementation("androidx.core:core:1.6.0")
     implementation(project(":termux-core"))
+    implementation(project(":termux-shared"))
+    implementation(project(":terminal-emulator"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:1.1.5")
 }
