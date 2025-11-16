@@ -25,5 +25,6 @@
     <string name="task_executor_reset_button">Reset Session</string>
     <string name="task_executor_open_button">Open Task Executor</string>
     <string name="task_executor_install_button">Setup DroidRun</string>
+    <string name="task_executor_initsetup_button">Init Setup</string>
 </resources>
 

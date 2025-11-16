@@ -49,6 +49,7 @@ public class TaskExecutorActivity extends AppCompatActivity implements TermuxSes
     private Button executeButton;
     private Button resetButton;
     private Button installButton;
+    private Button initSetupButton;
     private TextView statusView;
     private TextView outputView;
     private ScrollView outputScrollView;
@@ -67,6 +68,7 @@ public class TaskExecutorActivity extends AppCompatActivity implements TermuxSes
         executeButton = findViewById(R.id.task_executor_execute_button);
         resetButton = findViewById(R.id.task_executor_reset_button);
         installButton = findViewById(R.id.task_executor_install_button);
+        initSetupButton = findViewById(R.id.task_executor_initsetup_button);
         statusView = findViewById(R.id.task_executor_status);
         outputView = findViewById(R.id.task_executor_output);
         outputScrollView = findViewById(R.id.task_executor_output_container);
@@ -74,6 +76,7 @@ public class TaskExecutorActivity extends AppCompatActivity implements TermuxSes
         executeButton.setOnClickListener(v -> dispatchCommand());
         resetButton.setOnClickListener(v -> restartSession());
         installButton.setOnClickListener(v -> runInstallScript());
+        initSetupButton.setOnClickListener(v -> runInitSetupScript());
         commandInput.setOnEditorActionListener((textView, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEND) {
                 dispatchCommand();
@@ -185,6 +188,7 @@ public class TaskExecutorActivity extends AppCompatActivity implements TermuxSes
         executeButton.setEnabled(enabled);
         resetButton.setEnabled(true);
         installButton.setEnabled(enabled);
+        initSetupButton.setEnabled(enabled);
         commandInput.setEnabled(enabled);
     }
 
@@ -266,6 +270,40 @@ public class TaskExecutorActivity extends AppCompatActivity implements TermuxSes
             statusView.setText(getString(R.string.task_executor_status_finished, code));
             resetButton.setEnabled(true);
         });
+    }
+
+    private void runInitSetupScript() {
+        if (terminalSession == null || sessionFinished) {
+            return;
+        }
+
+        new Thread(() -> {
+            try {
+                String scriptPath = extractScriptFromAssets("setup_lunar_adb_agent.sh");
+                if (scriptPath != null) {
+                    // Place script into a bin directory on PATH, ensure executable, then run it.
+                    String command =
+                        "mkdir -p \"$HOME/bin\" && " +
+                        "cp '" + scriptPath + "' \"$HOME/bin/setup_lunar_adb_agent.sh\" && " +
+                        "chmod +x \"$HOME/bin/setup_lunar_adb_agent.sh\" && " +
+                        "bash \"$HOME/bin/setup_lunar_adb_agent.sh\"";
+                    mainHandler.post(() -> {
+                        if (terminalSession != null && !sessionFinished) {
+                            terminalSession.write(command);
+                            terminalSession.write("\n");
+                        }
+                    });
+                } else {
+                    mainHandler.post(() -> {
+                        Logger.logError(LOG_TAG, "Failed to extract Lunar ADB agent setup script from assets");
+                        statusView.setText("Failed to load Lunar ADB agent setup script");
+                    });
+                }
+            } catch (Exception e) {
+                Logger.logStackTraceWithMessage(LOG_TAG, "Error running Lunar ADB agent setup script", e);
+                mainHandler.post(() -> statusView.setText("Error: " + e.getMessage()));
+            }
+        }).start();
     }
 
     private class TaskExecutorSessionClient extends TermuxTerminalSessionClientBase {
