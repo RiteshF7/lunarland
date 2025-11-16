@@ -22,3 +22,6 @@ allprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
+// Apply bootstrap upload task
+apply(from = "gradle/upload-bootstraps.gradle.kts")

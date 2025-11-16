@@ -26,6 +26,7 @@ import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -33,6 +34,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+
+import com.termux.app.bootstrap.BootstrapArchDetector;
+import com.termux.app.bootstrap.BootstrapConfig;
+import com.termux.app.bootstrap.BootstrapDownloader;
 
 import static com.termux.shared.termux.TermuxConstants.TERMUX_PREFIX_DIR;
 import static com.termux.shared.termux.TermuxConstants.TERMUX_PREFIX_DIR_PATH;
@@ -157,8 +162,15 @@ final class TermuxInstaller {
                     final byte[] buffer = new byte[8096];
                     final List<Pair<String, String>> symlinks = new ArrayList<>(50);
 
-                    final byte[] zipBytes = loadZipBytes();
-                    try (ZipInputStream zipInput = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
+                    // Load bootstrap from runtime download or fallback to embedded
+                    // Normal path: do not force re-download, will reuse cached bootstrap if present.
+                    InputStream zipInputStream = loadBootstrapInputStream(activity);
+                    if (zipInputStream == null) {
+                        showBootstrapErrorDialog(activity, whenDone, "Failed to load bootstrap archive");
+                        return;
+                    }
+                    
+                    try (ZipInputStream zipInput = new ZipInputStream(zipInputStream)) {
                         ZipEntry zipEntry;
                         while ((zipEntry = zipInput.getNextEntry()) != null) {
                             if (zipEntry.getName().equals("SYMLINKS.txt")) {
@@ -376,12 +388,114 @@ final class TermuxInstaller {
         return FileUtils.createDirectoryFile(directory.getAbsolutePath());
     }
 
-    public static byte[] loadZipBytes() {
-        // Only load the shared library when necessary to save memory usage.
-        System.loadLibrary("termux-bootstrap");
-        return getZip();
+    /**
+     * Loads bootstrap ZIP as an InputStream, preferring a runtime-downloaded file from GitHub
+     * and falling back to the embedded bootstrap if needed.
+     *
+     * This default variant does NOT force a re-download; it will reuse a cached bootstrap
+     * if present. Use {@link #loadBootstrapInputStream(Context, boolean)} with
+     * {@code forceDownload = true} to always refresh from the remote release.
+     */
+    public static InputStream loadBootstrapInputStream(Context context) {
+        return loadBootstrapInputStream(context, false);
     }
 
-    public static native byte[] getZip();
+    /**
+     * Loads bootstrap ZIP as an InputStream with optional forced re-download.
+     *
+     * Flow:
+     * 1. Detects device arch.
+     * 2. If {@code forceDownload} is true, deletes any existing local bootstrap and attempts
+     *    a fresh download from GitHub.
+     * 3. If {@code forceDownload} is false, first tries an existing local bootstrap; if missing,
+     *    attempts to download from GitHub.
+     * 4. If all of the above fail, falls back to the embedded native bootstrap.
+     *
+     * @param context Android context for accessing files directory
+     * @param forceDownload If true, ignore cached bootstrap and always fetch the latest from remote
+     * @return InputStream for the bootstrap ZIP, or null if loading failed completely
+     */
+    public static InputStream loadBootstrapInputStream(Context context, boolean forceDownload) {
+        String arch = BootstrapArchDetector.detectArch();
+
+        File localBootstrap = null;
+
+        // If forceDownload is requested, delete any existing local bootstrap first
+        if (forceDownload) {
+            localBootstrap = BootstrapDownloader.getLocalBootstrapFile(context, arch);
+            if (localBootstrap != null && localBootstrap.exists()) {
+                boolean deleted = localBootstrap.delete();
+                Logger.logInfo(LOG_TAG,
+                    "Force download requested, deleting existing bootstrap for arch \"" + arch +
+                        "\" at " + localBootstrap.getAbsolutePath() + " -> deleted=" + deleted);
+            }
+        } else {
+            // 1) Try an existing, previously downloaded bootstrap if version matches
+            String expectedVersion = BootstrapConfig.getBootstrapVersion();
+            String localVersion = BootstrapDownloader.getLocalBootstrapVersion(context, arch);
+
+            localBootstrap = BootstrapDownloader.getLocalBootstrapFile(context, arch);
+
+            boolean versionMatches = expectedVersion == null || expectedVersion.isEmpty()
+                || (localVersion != null && expectedVersion.equals(localVersion));
+
+            if (!versionMatches && localBootstrap != null && localBootstrap.exists()) {
+                Logger.logInfo(LOG_TAG,
+                    "Local bootstrap for arch \"" + arch + "\" is outdated " +
+                        "(local version=\"" + localVersion + "\", expected=\"" + expectedVersion + "\"). " +
+                        "Will attempt to download a fresh bootstrap.");
+                localBootstrap = null;
+            }
+
+            if (versionMatches && localBootstrap != null && localBootstrap.exists()) {
+                try {
+                    Logger.logInfo(LOG_TAG,
+                        "Using existing runtime-downloaded bootstrap for arch \"" + arch + "\" from "
+                            + localBootstrap.getAbsolutePath() +
+                            (localVersion != null ? (" (version=\"" + localVersion + "\")") : ""));
+                    return new FileInputStream(localBootstrap);
+                } catch (Exception e) {
+                    Logger.logError(LOG_TAG,
+                        "Failed to open existing local bootstrap file: " + e.getMessage());
+                }
+            }
+        }
+
+        // 2) Attempt to download a fresh bootstrap from GitHub
+        try {
+            Logger.logInfo(LOG_TAG,
+                (forceDownload
+                    ? "Force downloading bootstrap for arch \"" + arch + "\" from remote release."
+                    : "No valid local bootstrap found, attempting download for arch \"" + arch + "\"."));
+
+            com.termux.shared.errors.Error downloadError =
+                BootstrapDownloader.downloadBootstrap(context, arch, null);
+
+            if (downloadError == null) {
+                // Re-query to ensure we open the file that was just downloaded
+                localBootstrap = BootstrapDownloader.getLocalBootstrapFile(context, arch);
+                if (localBootstrap != null && localBootstrap.exists()) {
+                    Logger.logInfo(LOG_TAG,
+                        "Successfully downloaded bootstrap for arch \"" + arch + "\" to "
+                            + localBootstrap.getAbsolutePath());
+                    return new FileInputStream(localBootstrap);
+                } else {
+                    Logger.logError(LOG_TAG,
+                        "Bootstrap download reported success but local file is missing or empty.");
+                }
+            } else {
+                Logger.logError(LOG_TAG,
+                    "Failed to download bootstrap from GitHub: "
+                        + com.termux.shared.errors.Error.getErrorMarkdownString(downloadError));
+            }
+        } catch (Exception e) {
+            Logger.logError(LOG_TAG, "Unexpected exception while downloading bootstrap: " + e.getMessage());
+        }
+
+        // No local or remote bootstrap could be loaded.
+        // Return null so caller displays an appropriate error dialog.
+        Logger.logError(LOG_TAG, "Failed to load bootstrap archive from remote source.");
+        return null;
+    }
 
 }

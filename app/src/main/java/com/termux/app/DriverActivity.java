@@ -185,22 +185,24 @@ public class DriverActivity extends AppCompatActivity {
 
     private void ensureBootstrapSetup() {
         if (bootstrapReady || bootstrapInProgress) return;
-        bootstrapInProgress = true;
-        statusView.setText(R.string.driver_status_bootstrapping);
-        if (launchTermuxButton != null) {
-            launchTermuxButton.setEnabled(false);
-        }
-        TermuxInstaller.setupBootstrapIfNeeded(this, () -> runOnUiThread(() -> {
-            bootstrapInProgress = false;
+        
+        // Check if bootstrap prefix exists
+        if (com.termux.shared.termux.file.TermuxFileUtils.isTermuxPrefixDirectoryAccessible(false, false) == null &&
+            !com.termux.shared.termux.file.TermuxFileUtils.isTermuxPrefixDirectoryEmpty()) {
             bootstrapReady = true;
             executeButton.setEnabled(true);
             if (launchTermuxButton != null) {
                 launchTermuxButton.setEnabled(true);
             }
-            if (TextUtils.isEmpty(commandInput.getText())) {
-                statusView.setText(R.string.driver_status_ready);
-            }
-        }));
+            statusView.setText(R.string.driver_status_ready);
+            return;
+        }
+        
+        // Bootstrap not installed - redirect to BootstrapSetupActivity
+        Intent intent = new Intent(this, BootstrapSetupActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
 
     private void handleCommandResult(BundleExtras extras) {

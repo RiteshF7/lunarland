@@ -5,44 +5,32 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LUNAR_DIR="${PROJECT_ROOT}/lunar-adb-agent"
 
-echo "[1/5] Creating lunar-adb-agent directory..."
+CLEAN_CLONE=false
+for arg in "$@"; do
+  if [ "$arg" = "--clean" ]; then
+    CLEAN_CLONE=true
+  fi
+done
+
+if [ "$CLEAN_CLONE" = true ] && [ -d "${LUNAR_DIR}" ]; then
+  echo "[1/3] --clean passed, removing existing lunar-adb-agent directory..."
+  rm -rf "${LUNAR_DIR}"
+fi
+
+echo "[2/3] Creating lunar-adb-agent directory..."
 mkdir -p "${LUNAR_DIR}"
 cd "${LUNAR_DIR}"
 
-echo "[2/5] Cloning / updating droidrun and adbutils repositories..."
-if [ ! -d "droidrun/.git" ]; then
-  git clone https://github.com/droidrun/droidrun.git
+echo "[3/3] Cloning / updating lunar-adb-agent repository..."
+if [ ! -d ".git" ]; then
+  git clone https://github.com/RiteshF7/lunar-adb-agent.git .
 else
-  (cd droidrun && git pull --ff-only || true)
+  git pull --ff-only || true
 fi
 
-if [ ! -d "adbutils/.git" ]; then
-  git clone https://github.com/droidrun/adbutils.git
-else
-  (cd adbutils && git pull --ff-only || true)
-fi
-
-echo "[3/5] Ensuring Python and pip are ready..."
-python -m pip install --upgrade pip
-
-echo "[4/5] Installing droidrun with Google Gemini extras (droidrun[google])..."
-python -m pip install "droidrun[google]"
-
 echo
-echo "[INFO] To use Google Gemini with droidrun, ensure GOOGLE_API_KEY is set, e.g.:"
-echo "  export GOOGLE_API_KEY=\"your_gemini_api_key\""
+echo "lunar-adb-agent repository is ready in:"
+echo "  ${LUNAR_DIR}"
 echo
-
-echo "[5/5] Verifying droidrun CLI is available..."
-droidrun --help >/dev/null
-
-echo
-echo "Droidrun environment for Google Gemini is ready."
-echo "From now on you can run (inside this repo):"
-echo "  cd \"${LUNAR_DIR}\""
-echo "  export GOOGLE_API_KEY=your_key_here"
-echo "  droidrun setup   # to install DroidRun Portal and prepare a device"
-echo "  droidrun run     # to run natural language commands"
-
-
+echo "You can now follow the README in that repository to run the agent."
 

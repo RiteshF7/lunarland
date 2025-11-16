@@ -22,6 +22,12 @@ android {
         manifestPlaceholders["TERMUX_STYLING_APP_NAME"] = "Termux:Styling"
         manifestPlaceholders["TERMUX_TASKER_APP_NAME"] = "Termux:Tasker"
         manifestPlaceholders["TERMUX_WIDGET_APP_NAME"] = "Termux:Widget"
+
+        // For development builds, only package native libraries for the emulator/device ABI
+        // to keep APK size smaller. Adjust the ABI below if you test on a different arch.
+        ndk {
+            abiFilters += listOf("x86_64")
+        }
     }
 
     signingConfigs {
@@ -47,6 +53,11 @@ android {
         jniLibs {
             useLegacyPackaging = true
         }
+    }
+
+    aaptOptions {
+        // Don't try to recompress already-compressed bootstrap zips; this saves memory during :compressDebugAssets.
+        noCompress("zip")
     }
 
     compileOptions {
