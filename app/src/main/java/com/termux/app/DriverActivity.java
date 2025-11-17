@@ -57,6 +57,7 @@ public class DriverActivity extends AppCompatActivity {
     private Button executeButton;
     private Button launchTermuxButton;
     private Button installLunarButton;
+    private Button launchLunarHomeScreenButton;
     private NestedScrollView logsContainer;
     private TextView logsView;
     private final StringBuilder logBuffer = new StringBuilder();
@@ -117,6 +118,7 @@ public class DriverActivity extends AppCompatActivity {
         executeButton = findViewById(R.id.driver_execute_button);
         launchTermuxButton = findViewById(R.id.driver_launch_termux_button);
         installLunarButton = findViewById(R.id.driver_install_lunar_button);
+        launchLunarHomeScreenButton = findViewById(R.id.driver_launch_lunar_homescreen_button);
         logsContainer = findViewById(R.id.driver_logs_container);
         logsView = findViewById(R.id.driver_logs_view);
         Button taskExecutorButton = findViewById(R.id.driver_open_task_executor_button);
@@ -146,6 +148,12 @@ public class DriverActivity extends AppCompatActivity {
         }
         if (installLunarButton != null) {
             installLunarButton.setOnClickListener(view -> performInstallLunar());
+        }
+        if (launchLunarHomeScreenButton != null) {
+            launchLunarHomeScreenButton.setOnClickListener(view -> {
+                Intent intent = new Intent(this, LunarHomeScreenActivity.class);
+                startActivity(intent);
+            });
         }
 
         executeButton.setOnClickListener(view -> executeCommand(commandInput.getText().toString()));

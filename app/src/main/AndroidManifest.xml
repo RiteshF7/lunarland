@@ -41,6 +41,12 @@
             android:theme="@style/Theme.AppCompat.DayNight.NoActionBar"
             android:screenOrientation="portrait" />
 
+        <activity
+            android:name=".app.LunarHomeScreenActivity"
+            android:exported="false"
+            android:label="Lunar UI HomeScreen"
+            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
+
     </application>
 
 </manifest>

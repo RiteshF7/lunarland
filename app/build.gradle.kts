@@ -70,6 +70,14 @@ android {
     kotlinOptions {
         jvmTarget = "1.8"
     }
+    
+    buildFeatures {
+        compose = true
+    }
+    
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.14"
+    }
 }
 
 dependencies {
@@ -80,6 +88,17 @@ dependencies {
     implementation(project(":termux-core"))
     implementation(project(":termux-shared"))
     implementation(project(":terminal-emulator"))
+    implementation(project(":lunar-ui"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
+    // Compose dependencies for lunar-ui
+    val composeBom = platform("androidx.compose:compose-bom:2024.09.00")
+    implementation(composeBom)
+    implementation("androidx.activity:activity-compose")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:1.1.5")
+}
+
+configurations.all {
+    exclude(group = "com.google.guava", module = "listenablefuture")
 }

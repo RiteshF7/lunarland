@@ -1,0 +1,123 @@
+================================================================================
+TERMUX-APP BUILD CONFIGURATION VERSION INFORMATION
+================================================================================
+Generated: November 2025
+Purpose: Reference document for build tool versions used in this project
+
+================================================================================
+CORE BUILD TOOLS
+================================================================================
+
+Gradle Version: 8.13
+- Location: gradle/wrapper/gradle-wrapper.properties
+- Distribution URL: https://services.gradle.org/distributions/gradle-8.13-bin.zip
+
+Android Gradle Plugin (AGP): 8.11.1
+- Location: build.gradle.kts (buildscript dependencies)
+- Classpath: com.android.tools.build:gradle:8.11.1
+
+Kotlin Version: 1.9.24
+- Location: build.gradle.kts (buildscript dependencies)
+- Classpath: org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24
+- Kotlin Standard Library: org.jetbrains.kotlin:kotlin-stdlib:1.9.24
+
+================================================================================
+ANDROID SDK CONFIGURATION
+================================================================================
+
+compileSdkVersion: 36
+minSdkVersion: 21
+targetSdkVersion: 28
+NDK Version: 22.1.7171670
+- Location: gradle.properties
+
+================================================================================
+COMPOSE CONFIGURATION
+================================================================================
+
+Compose Compiler Extension Version: 1.5.14
+- Location: app/build.gradle.kts, lunar-ui/build.gradle.kts
+- Compatible with: Kotlin 1.9.24
+- Note: Updated from 1.5.8 to 1.5.14 for Kotlin 1.9.24 compatibility
+
+Compose BOM Version: 2024.09.00
+- Location: app/build.gradle.kts, lunar-ui/build.gradle.kts
+- Platform: androidx.compose:compose-bom:2024.09.00
+
+Compose Dependencies (via BOM):
+- androidx.activity:activity-compose
+- androidx.compose.ui:ui
+- androidx.compose.material3:material3
+- androidx.compose.runtime:runtime
+
+================================================================================
+KEY DEPENDENCIES
+================================================================================
+
+AndroidX Core KTX: 1.17.0
+AndroidX Activity Compose: 1.11.0
+AndroidX Lifecycle Runtime KTX: 2.9.4
+AndroidX Lifecycle Runtime Compose: 2.9.4
+
+KotlinX Libraries:
+- kotlinx-datetime: 0.6.0
+- kotlinx-collections-immutable: 0.3.7
+
+Desugar JDK Libs: 1.1.5
+
+================================================================================
+MODULE CONFIGURATION
+================================================================================
+
+Project Modules:
+- :app (Application module)
+- :termux-core
+- :termux-shared
+- :terminal-emulator
+- :terminal-view
+- :lunar-ui (NEW - Integrated Lunar UI module)
+
+================================================================================
+JAVA CONFIGURATION
+================================================================================
+
+Java Source Compatibility: VERSION_1_8
+Java Target Compatibility: VERSION_1_8
+Kotlin JVM Target: "1.8"
+Core Library Desugaring: Enabled
+
+================================================================================
+IMPORTANT NOTES
+================================================================================
+
+1. Compose Compiler Compatibility:
+   - Version 1.5.14 is required for Kotlin 1.9.24
+   - Earlier version 1.5.8 caused compatibility errors
+
+2. Dependency Conflicts Resolved:
+   - Excluded com.google.guava:listenablefuture to resolve duplicate class
+     conflict with guava-24.1-jre
+   - Location: app/build.gradle.kts (configurations.all)
+
+3. Build Fixes Applied:
+   - Removed deprecated setAppCacheEnabled() from HelpActivity.java
+   - Updated Compose Compiler from 1.5.8 to 1.5.14
+
+4. Lunar UI Integration:
+   - Package name: lunar.land.ui
+   - Namespace: lunar.land.ui
+   - Successfully integrated as library module
+   - Compose enabled in both app and lunar-ui modules
+
+================================================================================
+COMPATIBILITY MATRIX
+================================================================================
+
+Kotlin 1.9.24 <-> Compose Compiler 1.5.14 ✓
+Gradle 8.13 <-> AGP 8.11.1 ✓
+AGP 8.11.1 <-> compileSdk 36 ✓
+
+================================================================================
+END OF VERSION INFORMATION
+================================================================================
+

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LunarUI</string>
+    <string name="ok">OK</string>
+    <string name="go_back">Go Back</string>
+    <string name="search">Search</string>
+    <string name="clear">Clear</string>
+    <string name="cancel">Cancel</string>
+    <string name="update">Update</string>
+    <string name="confirm">Confirm</string>
+    <string name="follow_system">Follow System</string>
+    <string name="not_white">Not White</string>
+    <string name="said_dark">Said Dark</string>
+    <string name="start">Start</string>
+    <string name="center">Center</string>
+    <string name="end">End</string>
+    <string name="new_moon">New Moon</string>
+    <string name="waxing_crescent">Waxing Crescent</string>
+    <string name="first_quarter">First Quarter</string>
+    <string name="waxing_gibbous">Waxing Gibbous</string>
+    <string name="full_moon">Full Moon</string>
+    <string name="waning_gibbous">Waning Gibbous</string>
+    <string name="last_quarter">Last Quarter</string>
+    <string name="waning_crescent">Waning Crescent</string>
+    <string name="next_phase_is_on_date">next %1$s is on %2$s</string>
+</resources>
+
