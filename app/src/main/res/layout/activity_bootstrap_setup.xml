@@ -34,10 +34,212 @@
         android:layout_marginBottom="24dp" />
 
     <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.4"
+        android:layout_marginBottom="16dp"
+        android:maxHeight="300dp">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Setup Steps:"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <Button
+                    android:id="@+id/step_check_bootstrap"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="1. Check Bootstrap"
+                    android:layout_marginEnd="4dp" />
+                <Button
+                    android:id="@+id/step_skip_check_bootstrap"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Skip"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginEnd="4dp" />
+                <Button
+                    android:id="@+id/step_rerun_check_bootstrap"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Rerun"
+                    android:layout_marginStart="4dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <Button
+                    android:id="@+id/step_detect_arch"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="2. Detect Architecture"
+                    android:layout_marginEnd="4dp" />
+                <Button
+                    android:id="@+id/step_skip_detect_arch"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Skip"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginEnd="4dp" />
+                <Button
+                    android:id="@+id/step_rerun_detect_arch"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Rerun"
+                    android:layout_marginStart="4dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <Button
+                    android:id="@+id/step_check_local"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="3. Check Local File"
+                    android:layout_marginEnd="4dp" />
+                <Button
+                    android:id="@+id/step_skip_check_local"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Skip"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginEnd="4dp" />
+                <Button
+                    android:id="@+id/step_rerun_check_local"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Rerun"
+                    android:layout_marginStart="4dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <Button
+                    android:id="@+id/step_download"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="4. Download Bootstrap"
+                    android:layout_marginEnd="4dp" />
+                <Button
+                    android:id="@+id/step_skip_download"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Skip"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginEnd="4dp" />
+                <Button
+                    android:id="@+id/step_rerun_download"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Rerun"
+                    android:layout_marginStart="4dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <Button
+                    android:id="@+id/step_install"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="5. Install Bootstrap"
+                    android:layout_marginEnd="4dp" />
+                <Button
+                    android:id="@+id/step_skip_install"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Skip"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginEnd="4dp" />
+                <Button
+                    android:id="@+id/step_rerun_install"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Rerun"
+                    android:layout_marginStart="4dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                <Button
+                    android:id="@+id/step_download_lunar"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="6. Download Lunar Agent"
+                    android:layout_marginEnd="4dp" />
+                <Button
+                    android:id="@+id/step_skip_download_lunar"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Skip"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginEnd="4dp" />
+                <Button
+                    android:id="@+id/step_rerun_download_lunar"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Rerun"
+                    android:layout_marginStart="4dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <ScrollView
         android:id="@+id/bootstrap_setup_log_container"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_weight="0.6"
         android:layout_marginBottom="16dp"
         android:background="#F5F5F5"
         android:padding="12dp">
@@ -66,6 +268,13 @@
         android:layout_height="wrap_content"
         android:text="@string/bootstrap_setup_retry"
         android:visibility="gone" />
+
+    <Button
+        android:id="@+id/bootstrap_setup_home_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Go to Home"
+        android:layout_marginTop="16dp" />
 
 </LinearLayout>
 
