@@ -18,6 +18,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.widget.NestedScrollView;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.termux.R;
 import com.termux.shared.errors.Errno;
@@ -57,6 +58,9 @@ public class DriverActivity extends AppCompatActivity {
     private boolean receiverRegistered;
     private LogcatWatcher logcatWatcher;
     private String activeCommand;
+    
+    // ViewModel instance
+    private DriverViewModel viewModel;
 
     private final BroadcastReceiver resultReceiver = new BroadcastReceiver() {
         @Override
@@ -77,6 +81,10 @@ public class DriverActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_driver);
 
+        // Initialize ViewModel - this survives configuration changes
+        viewModel = new ViewModelProvider(this).get(DriverViewModel.class);
+        Logger.logInfo(LOG_TAG, "ViewModel initialized: " + viewModel.getViewModelStatus());
+
         commandInput = findViewById(R.id.driver_command_input);
         statusView = findViewById(R.id.driver_status_view);
         executeButton = findViewById(R.id.driver_execute_button);
@@ -85,10 +93,22 @@ public class DriverActivity extends AppCompatActivity {
         logsView = findViewById(R.id.driver_logs_view);
         Button taskExecutorButton = findViewById(R.id.driver_open_task_executor_button);
 
-        statusView.setText(R.string.driver_status_bootstrapping);
-        executeButton.setEnabled(false);
+        // Restore state from ViewModel if available
+        if (viewModel.isBootstrapReady()) {
+            bootstrapReady = true;
+            executeButton.setEnabled(true);
+            if (launchTermuxButton != null) {
+                launchTermuxButton.setEnabled(true);
+            }
+            statusView.setText(getString(R.string.driver_status_ready) + " - " + viewModel.getViewModelStatus());
+        } else {
+            statusView.setText(R.string.driver_status_bootstrapping);
+            executeButton.setEnabled(false);
+            if (launchTermuxButton != null) {
+                launchTermuxButton.setEnabled(false);
+            }
+        }
         if (launchTermuxButton != null) {
-            launchTermuxButton.setEnabled(false);
             launchTermuxButton.setOnClickListener(view -> launchTermuxActivity());
         }
         if (taskExecutorButton != null) {
@@ -130,7 +150,12 @@ public class DriverActivity extends AppCompatActivity {
         resetLogs();
         String command = adjustCommand(rawCommand.trim());
         activeCommand = command;
+        
+        // Update ViewModel with command execution
+        viewModel.setCommandExecuting(true);
+        viewModel.setLastExecutedCommand(command);
         appendConsoleLine("Executing: " + command);
+        appendConsoleLine("ViewModel Status: " + viewModel.getViewModelStatus());
 
         Uri executableUri = new Uri.Builder()
             .scheme(TERMUX_SERVICE.URI_SCHEME_SERVICE_EXECUTE)
@@ -190,11 +215,15 @@ public class DriverActivity extends AppCompatActivity {
         if (com.termux.shared.termux.file.TermuxFileUtils.isTermuxPrefixDirectoryAccessible(false, false) == null &&
             !com.termux.shared.termux.file.TermuxFileUtils.isTermuxPrefixDirectoryEmpty()) {
             bootstrapReady = true;
+            
+            // Update ViewModel
+            viewModel.setBootstrapReady(true);
+            
             executeButton.setEnabled(true);
             if (launchTermuxButton != null) {
                 launchTermuxButton.setEnabled(true);
             }
-            statusView.setText(R.string.driver_status_ready);
+            statusView.setText(getString(R.string.driver_status_ready) + " - " + viewModel.getViewModelStatus());
             return;
         }
         
@@ -208,6 +237,11 @@ public class DriverActivity extends AppCompatActivity {
     private void handleCommandResult(BundleExtras extras) {
         bootstrapReady = true;
         bootstrapInProgress = false;
+        
+        // Update ViewModel
+        viewModel.setBootstrapReady(true);
+        viewModel.setCommandExecuting(false);
+        
         executeButton.setEnabled(true);
         if (launchTermuxButton != null) {
             launchTermuxButton.setEnabled(true);
@@ -217,21 +251,33 @@ public class DriverActivity extends AppCompatActivity {
         if (extras.errCode == Errno.ERRNO_SUCCESS.getCode()) {
             String output = !extras.stdout.isEmpty() ? extras.stdout : extras.stderr;
             output = trimOutput(output);
+            
+            // Store output in ViewModel
+            viewModel.setLastCommandOutput(output);
+            
             if (output.isEmpty()) {
-                statusView.setText(getString(R.string.driver_status_success_no_output, extras.exitCode));
+                String status = getString(R.string.driver_status_success_no_output, extras.exitCode);
+                statusView.setText(status + " - " + viewModel.getViewModelStatus());
                 Logger.logInfo(LOG_TAG, "Command finished (exit " + extras.exitCode + ") with no output");
             } else {
-                statusView.setText(getString(R.string.driver_status_success, extras.exitCode, output));
+                String status = getString(R.string.driver_status_success, extras.exitCode, output);
+                statusView.setText(status + " - " + viewModel.getViewModelStatus());
                 Logger.logInfo(LOG_TAG, "Command finished (exit " + extras.exitCode + "): " + output);
             }
         } else {
             String message = !extras.errmsg.isEmpty() ? extras.errmsg : extras.stderr;
             message = trimOutput(message);
+            
+            // Store error in ViewModel
+            viewModel.setLastCommandOutput(message);
+            
             if (!extras.stderr.isEmpty() && !extras.stderr.equals(message)) {
-                statusView.setText(getString(R.string.driver_status_error_with_output, extras.errCode, message, trimOutput(extras.stderr)));
+                String status = getString(R.string.driver_status_error_with_output, extras.errCode, message, trimOutput(extras.stderr));
+                statusView.setText(status + " - " + viewModel.getViewModelStatus());
                 Logger.logError(LOG_TAG, "Command failed (err " + extras.errCode + "): " + message + " | stderr: " + trimOutput(extras.stderr));
             } else {
-                statusView.setText(getString(R.string.driver_status_error, extras.errCode, message.isEmpty() ? "Unknown error" : message));
+                String status = getString(R.string.driver_status_error, extras.errCode, message.isEmpty() ? "Unknown error" : message);
+                statusView.setText(status + " - " + viewModel.getViewModelStatus());
                 Logger.logError(LOG_TAG, "Command failed (err " + extras.errCode + "): " + (message.isEmpty() ? "Unknown error" : message));
             }
         }
