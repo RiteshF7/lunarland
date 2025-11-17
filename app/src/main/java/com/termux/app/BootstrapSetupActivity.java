@@ -1,6 +1,13 @@
 package com.termux.app;
 
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.res.AssetManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -10,15 +17,28 @@ import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import com.termux.R;
 import com.termux.app.bootstrap.BootstrapArchDetector;
 import com.termux.app.bootstrap.BootstrapConfig;
 import com.termux.app.bootstrap.BootstrapDownloader;
 import com.termux.shared.errors.Error;
+import com.termux.shared.errors.Errno;
 import com.termux.shared.logger.Logger;
+import com.termux.shared.shell.command.ExecutionCommand;
+import com.termux.shared.shell.command.ExecutionCommand.Runner;
 import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.termux.file.TermuxFileUtils;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static com.termux.shared.termux.TermuxConstants.TERMUX_APP.TERMUX_SERVICE;
 
 /**
  * Activity responsible for downloading and installing bootstrap packages from GitHub.
@@ -67,6 +87,14 @@ public class BootstrapSetupActivity extends AppCompatActivity {
     private String detectedArch = null;
     private java.io.File localBootstrapFile = null;
     private boolean bootstrapAlreadyInstalled = false;
+    private boolean pipInstallInProgress = false;
+    private boolean verificationInProgress = false;
+    private boolean pipCheckInProgress = false;
+    private boolean pipInstallInProgressState = false;
+    private File pendingWheelFileForBootstrap = null;
+    private static final AtomicInteger PIP_INSTALL_REQUEST_CODES = new AtomicInteger();
+    private static final String ACTION_PIP_INSTALL_RESULT = "com.termux.app.action.PIP_INSTALL_RESULT";
+    private BroadcastReceiver pipInstallReceiver;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -126,9 +154,28 @@ public class BootstrapSetupActivity extends AppCompatActivity {
         stepInstall.setOnClickListener(v -> performInstall());
         stepSkipInstall.setOnClickListener(v -> skipInstall());
         stepRerunInstall.setOnClickListener(v -> rerunInstall());
-        stepDownloadLunar.setOnClickListener(v -> performDownloadLunar());
-        stepSkipDownloadLunar.setOnClickListener(v -> skipDownloadLunar());
-        stepRerunDownloadLunar.setOnClickListener(v -> rerunDownloadLunar());
+        stepDownloadLunar.setOnClickListener(v -> performInstallLunar());
+        stepSkipDownloadLunar.setOnClickListener(v -> skipInstallLunar());
+        stepRerunDownloadLunar.setOnClickListener(v -> rerunInstallLunar());
+
+        // Register BroadcastReceiver for pip install results
+        pipInstallReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                Bundle bundle = intent.getBundleExtra(TERMUX_SERVICE.EXTRA_PLUGIN_RESULT_BUNDLE);
+                if (bundle != null) {
+                    String stdout = bundle.getString(TERMUX_SERVICE.EXTRA_PLUGIN_RESULT_BUNDLE_STDOUT, "");
+                    String stderr = bundle.getString(TERMUX_SERVICE.EXTRA_PLUGIN_RESULT_BUNDLE_STDERR, "");
+                    String errmsg = bundle.getString(TERMUX_SERVICE.EXTRA_PLUGIN_RESULT_BUNDLE_ERRMSG, "");
+                    int exitCode = bundle.getInt(TERMUX_SERVICE.EXTRA_PLUGIN_RESULT_BUNDLE_EXIT_CODE, -1);
+                    int errCode = bundle.getInt(TERMUX_SERVICE.EXTRA_PLUGIN_RESULT_BUNDLE_ERR, Errno.ERRNO_FAILED.getCode());
+
+                    runOnUiThread(() -> handlePipInstallResult(stdout, stderr, errmsg, exitCode, errCode));
+                }
+            }
+        };
+        IntentFilter filter = new IntentFilter(ACTION_PIP_INSTALL_RESULT);
+        registerReceiver(pipInstallReceiver, filter);
 
         appendLog("Select steps to perform or skip. Setup will not start automatically.");
     }
@@ -159,6 +206,13 @@ public class BootstrapSetupActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         executor.shutdownNow();
+        if (pipInstallReceiver != null) {
+            try {
+                unregisterReceiver(pipInstallReceiver);
+            } catch (Exception e) {
+                Logger.logWarn(LOG_TAG, "Failed to unregister pip install receiver: " + e.getMessage());
+            }
+        }
     }
 
     private void performCheckBootstrap() {
@@ -473,57 +527,67 @@ public class BootstrapSetupActivity extends AppCompatActivity {
         performInstall();
     }
 
-    private void performDownloadLunar() {
-        if (isSetupInProgress) {
+    private void performInstallLunar() {
+        if (isSetupInProgress || pipInstallInProgress) {
             Logger.logWarn(LOG_TAG, "Setup already in progress");
             return;
         }
 
         isSetupInProgress = true;
+        pipInstallInProgress = true;
         updateErrorVisibility(false);
-        appendLog("Downloading lunar-adb-agent...");
+        appendLog("Installing Lunar Agent (droidrun)...");
         disableButton(stepDownloadLunar);
 
         executor.execute(() -> {
             try {
-                java.io.File lunarDir = new java.io.File(
-                    TermuxConstants.TERMUX_HOME_DIR_PATH, "lunar-adb-agent");
-                if (!lunarDir.exists() && !lunarDir.mkdirs()) {
-                    Logger.logError(LOG_TAG,
-                        "Failed to create lunar-adb-agent directory at " + lunarDir.getAbsolutePath());
-                    showError("Failed to create lunar-adb-agent directory");
-                    runOnUiThread(() -> enableButton(stepDownloadLunar));
+                // Step 1: Extract wheel file from assets
+                appendLog("Extracting wheel file from assets...");
+                File wheelFile = extractWheelFromAssets();
+                if (wheelFile == null || !wheelFile.exists()) {
+                    String errorMsg = "Failed to extract wheel file from assets";
+                    Logger.logError(LOG_TAG, errorMsg);
+                    showError(errorMsg);
+                    runOnUiThread(() -> {
+                        enableButton(stepDownloadLunar);
+                        pipInstallInProgress = false;
+                    });
+                    isSetupInProgress = false;
                     return;
                 }
-                downloadLunarAdbAgent(lunarDir);
-                runOnUiThread(() -> {
-                    stepDownloadLunar.setText("6. Download Lunar Agent ✓");
-                    showRerunButton(stepDownloadLunar, stepSkipDownloadLunar, stepRerunDownloadLunar);
-                });
+                appendLog("Wheel file extracted to: " + wheelFile.getAbsolutePath());
+
+                // Step 2: Ensure pip is installed globally
+                appendLog("Checking if pip is installed...");
+                ensurePipInstalled(wheelFile);
             } catch (Exception e) {
                 Logger.logStackTraceWithMessage(LOG_TAG,
-                    "Failed to set up lunar-adb-agent", e);
-                showError("Failed to download lunar-adb-agent: " + e.getMessage());
-                runOnUiThread(() -> enableButton(stepDownloadLunar));
-            } finally {
+                    "Failed to install lunar-adb-agent", e);
+                showError("Failed to install lunar-adb-agent: " + e.getMessage());
+                runOnUiThread(() -> {
+                    enableButton(stepDownloadLunar);
+                    pipInstallInProgress = false;
+                });
                 isSetupInProgress = false;
             }
         });
     }
 
-    private void skipDownloadLunar() {
-        appendLog("Skipped: Download Lunar Agent");
-        stepDownloadLunar.setText("6. Download Lunar Agent (Skipped)");
+    private void skipInstallLunar() {
+        appendLog("Skipped: Install Lunar Agent");
+        stepDownloadLunar.setText("6. Install Lunar Agent (Skipped)");
         showRerunButton(stepDownloadLunar, stepSkipDownloadLunar, stepRerunDownloadLunar);
     }
 
-    private void rerunDownloadLunar() {
-        appendLog("Rerunning: Download Lunar Agent");
-        stepDownloadLunar.setText("6. Download Lunar Agent");
+    private void rerunInstallLunar() {
+        appendLog("Rerunning: Install Lunar Agent");
+        pipInstallInProgress = false;
+        verificationInProgress = false;
+        stepDownloadLunar.setText("6. Install Lunar Agent");
         hideRerunButton(stepDownloadLunar, stepSkipDownloadLunar, stepRerunDownloadLunar);
         stepDownloadLunar.setEnabled(true);
         stepSkipDownloadLunar.setEnabled(true);
-        performDownloadLunar();
+        performInstallLunar();
     }
 
     private void disableButton(Button button) {
@@ -590,94 +654,349 @@ public class BootstrapSetupActivity extends AppCompatActivity {
     }
 
     /**
-     * Downloads the lunar-adb-agent repository archive to the given directory,
-     * mirroring the behavior of setup_lunar_adb_agent.sh but implemented in
-     * Java so we don't rely on a shell script for network operations.
+     * Extracts the droidrun wheel file from assets to the home directory.
      */
-    private void downloadLunarAdbAgent(java.io.File lunarDir) throws Exception {
-        final String archiveUrl = "https://github.com/RiteshF7/lunar-adb-agent/archive/refs/heads/main.zip";
-        final String archiveFileName = "lunar-adb-agent.zip";
-
-        java.io.File archiveFile = new java.io.File(lunarDir, archiveFileName);
-
-        java.net.URL url = new java.net.URL(archiveUrl);
-        java.net.HttpURLConnection connection = (java.net.HttpURLConnection) url.openConnection();
-        connection.setConnectTimeout(30000);
-        connection.setReadTimeout(60000);
-        connection.setInstanceFollowRedirects(true);
-
-        int response = connection.getResponseCode();
-        if (response != java.net.HttpURLConnection.HTTP_OK) {
-            throw new RuntimeException("HTTP error " + response +
-                " while downloading lunar-adb-agent archive");
-        }
-
-        byte[] buffer = new byte[8192];
-        try (java.io.InputStream in = connection.getInputStream();
-             java.io.FileOutputStream out = new java.io.FileOutputStream(archiveFile)) {
-            int read;
-            while ((read = in.read(buffer)) != -1) {
-                out.write(buffer, 0, read);
-            }
-        } finally {
-            connection.disconnect();
-        }
-
-        appendLog("Extracting lunar-adb-agent archive...");
-
-        // Use java.util.zip to extract the archive
-        try (java.util.zip.ZipInputStream zipIn =
-                 new java.util.zip.ZipInputStream(new java.io.FileInputStream(archiveFile))) {
-            java.util.zip.ZipEntry entry;
-            while ((entry = zipIn.getNextEntry()) != null) {
-                String name = entry.getName();
-                // Skip directory entries; they'll be created as needed
-                java.io.File outFile = new java.io.File(lunarDir, name);
-                if (entry.isDirectory()) {
-                    if (!outFile.exists() && !outFile.mkdirs()) {
-                        Logger.logError(LOG_TAG,
-                            "Failed to create directory while extracting lunar-adb-agent: " +
-                                outFile.getAbsolutePath());
-                    }
-                } else {
-                    java.io.File parent = outFile.getParentFile();
-                    if (parent != null && !parent.exists() && !parent.mkdirs()) {
-                        Logger.logError(LOG_TAG,
-                            "Failed to create parent directory while extracting lunar-adb-agent: " +
-                                parent.getAbsolutePath());
-                    }
-                    try (java.io.FileOutputStream fos = new java.io.FileOutputStream(outFile)) {
-                        int len;
-                        while ((len = zipIn.read(buffer)) > 0) {
-                            fos.write(buffer, 0, len);
-                        }
-                    }
-                }
-                zipIn.closeEntry();
-            }
-        }
-
-        // Flatten "lunar-adb-agent-<branch>" directory into lunarDir
-        java.io.File[] dirs = lunarDir.listFiles(java.io.File::isDirectory);
-        if (dirs != null) {
-            for (java.io.File dir : dirs) {
-                if (dir.getName().startsWith("lunar-adb-agent-")) {
-                    for (java.io.File child : dir.listFiles()) {
-                        child.renameTo(new java.io.File(lunarDir, child.getName()));
-                    }
-                    dir.delete();
-                    break;
+    private File extractWheelFromAssets() {
+        final String wheelAssetName = "droidrun-0.4.7-py3-none-any.whl";
+        File wheelFile = new File(TermuxConstants.TERMUX_HOME_DIR_PATH, wheelAssetName);
+        
+        try {
+            AssetManager assetManager = getAssets();
+            
+            // Create parent directory if it doesn't exist
+            File parentDir = wheelFile.getParentFile();
+            if (parentDir != null && !parentDir.exists()) {
+                if (!parentDir.mkdirs()) {
+                    Logger.logError(LOG_TAG, "Failed to create parent directory: " + parentDir.getAbsolutePath());
+                    return null;
                 }
             }
+
+            // Copy asset to file
+            InputStream inputStream = assetManager.open(wheelAssetName);
+            OutputStream outputStream = new FileOutputStream(wheelFile);
+            
+            byte[] buffer = new byte[8192];
+            int length;
+            while ((length = inputStream.read(buffer)) > 0) {
+                outputStream.write(buffer, 0, length);
+            }
+            
+            outputStream.close();
+            inputStream.close();
+            
+            Logger.logInfo(LOG_TAG, "Extracted wheel file to: " + wheelFile.getAbsolutePath());
+            return wheelFile;
+        } catch (IOException e) {
+            Logger.logStackTraceWithMessage(LOG_TAG, "Failed to extract wheel file from assets", e);
+            return null;
+        }
+    }
+
+    /**
+     * Ensures pip is installed globally before proceeding with installation.
+     */
+    private void ensurePipInstalled(File wheelFile) {
+        pendingWheelFileForBootstrap = wheelFile;
+        pipCheckInProgress = true;
+        // Check if pip is available, if not install it
+        String checkCommand = "python -m pip --version 2>&1 || echo 'PIP_NOT_FOUND'";
+        
+        Logger.logInfo(LOG_TAG, "Checking pip installation with command: " + checkCommand);
+        appendLog("Checking pip installation...");
+        
+        Uri executableUri = new Uri.Builder()
+            .scheme(TERMUX_SERVICE.URI_SCHEME_SERVICE_EXECUTE)
+            .path(TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/bin/sh")
+            .build();
+
+        Intent execIntent = new Intent(TERMUX_SERVICE.ACTION_SERVICE_EXECUTE, executableUri);
+        execIntent.setClass(this, TermuxService.class);
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_RUNNER, Runner.APP_SHELL.getName());
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_ARGUMENTS, new String[]{"-c", checkCommand});
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_SHELL_CREATE_MODE, ExecutionCommand.ShellCreateMode.ALWAYS.getMode());
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_COMMAND_LABEL, "Check pip installation");
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_PENDING_INTENT, createPipInstallPendingIntent());
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_BACKGROUND_CUSTOM_LOG_LEVEL, String.valueOf(Logger.LOG_LEVEL_VERBOSE));
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            ContextCompat.startForegroundService(this, execIntent);
+        } else {
+            startService(execIntent);
+        }
+    }
+
+    /**
+     * Installs pip globally using pkg if it's not already installed.
+     */
+    private void installPipGlobally() {
+        pipCheckInProgress = false;
+        pipInstallInProgressState = true;
+        appendLog("Installing pip and build tools globally using pkg...");
+        
+        // Install pip and essential build tools using pkg (Termux package manager)
+        // Build tools are needed for compiling some Python packages
+        // Also install common Python packages from Termux packages if available to avoid building from source:
+        // - numpy, pandas, scipy, scikit-learn: data science libraries
+        // - cryptography: security library
+        // - lxml: XML parser
+        // - pillow: image processing
+        // - patchelf: system package (needed for building some Python packages like numpy)
+        // If any package is not available, fall back to installing just build tools
+        String installCommand = "pkg install -y python-pip autoconf automake libtool make clang cmake patchelf " +
+                               "python-numpy python-pandas python-scipy python-scikit-learn " +
+                               "python-cryptography python-lxml python-pillow 2>&1 || " +
+                               "pkg install -y python-pip autoconf automake libtool make clang cmake patchelf";
+        
+        Logger.logInfo(LOG_TAG, "Installing pip and packages with command: " + installCommand);
+        
+        Uri executableUri = new Uri.Builder()
+            .scheme(TERMUX_SERVICE.URI_SCHEME_SERVICE_EXECUTE)
+            .path(TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/bin/sh")
+            .build();
+
+        Intent execIntent = new Intent(TERMUX_SERVICE.ACTION_SERVICE_EXECUTE, executableUri);
+        execIntent.setClass(this, TermuxService.class);
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_RUNNER, Runner.APP_SHELL.getName());
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_ARGUMENTS, new String[]{"-c", installCommand});
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_SHELL_CREATE_MODE, ExecutionCommand.ShellCreateMode.ALWAYS.getMode());
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_COMMAND_LABEL, "Install pip globally");
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_PENDING_INTENT, createPipInstallPendingIntent());
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_BACKGROUND_CUSTOM_LOG_LEVEL, String.valueOf(Logger.LOG_LEVEL_VERBOSE));
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            ContextCompat.startForegroundService(this, execIntent);
+        } else {
+            startService(execIntent);
+        }
+    }
+
+    /**
+     * Installs the wheel file using pip with [google] extra via TermuxService.
+     * Installs globally (not user-specific) so it persists across sessions.
+     */
+    private void installWheelWithPip(File wheelFile) {
+        String wheelPath = wheelFile.getAbsolutePath();
+        // Use python -m pip without --user flag to install globally
+        // Upgrade pip, wheel, setuptools first, then install wheel file, then google extra
+        // Use --prefer-binary to prefer pre-built wheels over building from source
+        // Both installs are global (system-wide) in Termux
+        // Ensure PATH includes Termux bin directory for autotools, and install packages
+        // Use --prefer-binary to prefer pre-built wheels, but allow building if needed
+        String command = "export PATH=$PREFIX/bin:$PATH && " +
+                         "python -m pip install --upgrade pip wheel setuptools && " +
+                         "python -m pip install \"" + wheelPath + "\" && " +
+                         "python -m pip install --prefer-binary \"droidrun[google]\"";
+        
+        Logger.logInfo(LOG_TAG, "Installing droidrun wheel with command: " + command);
+        Logger.logInfo(LOG_TAG, "Wheel file path: " + wheelPath);
+        appendLog("Executing: " + command);
+        
+        Uri executableUri = new Uri.Builder()
+            .scheme(TERMUX_SERVICE.URI_SCHEME_SERVICE_EXECUTE)
+            .path(TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/bin/sh")
+            .build();
+
+        Intent execIntent = new Intent(TERMUX_SERVICE.ACTION_SERVICE_EXECUTE, executableUri);
+        execIntent.setClass(this, TermuxService.class);
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_RUNNER, Runner.APP_SHELL.getName());
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_ARGUMENTS, new String[]{"-c", command});
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_SHELL_CREATE_MODE, ExecutionCommand.ShellCreateMode.ALWAYS.getMode());
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_COMMAND_LABEL, "Install droidrun[google]");
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_PENDING_INTENT, createPipInstallPendingIntent());
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_BACKGROUND_CUSTOM_LOG_LEVEL, String.valueOf(Logger.LOG_LEVEL_VERBOSE));
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            ContextCompat.startForegroundService(this, execIntent);
+        } else {
+            startService(execIntent);
+        }
+    }
+
+    /**
+     * Creates a PendingIntent for pip install command results.
+     */
+    private PendingIntent createPipInstallPendingIntent() {
+        Intent resultIntent = new Intent(ACTION_PIP_INSTALL_RESULT).setPackage(getPackageName());
+        int requestCode = PIP_INSTALL_REQUEST_CODES.incrementAndGet();
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Build.VERSION.SDK_INT < 31) {
+            flags |= PendingIntent.FLAG_IMMUTABLE;
+        } else if (Build.VERSION.SDK_INT >= 31) {
+            flags |= PendingIntent.FLAG_MUTABLE;
+        }
+        return PendingIntent.getBroadcast(this, requestCode, resultIntent, flags);
+    }
+
+    /**
+     * Handles the result of pip install command execution and verification.
+     */
+    private void handlePipInstallResult(String stdout, String stderr, String errmsg, int exitCode, int errCode) {
+        Logger.logVerbose(LOG_TAG, "handlePipInstallResult - exitCode: " + exitCode + ", errCode: " + errCode);
+        Logger.logVerbose(LOG_TAG, "handlePipInstallResult - pipCheckInProgress: " + pipCheckInProgress + ", pipInstallInProgressState: " + pipInstallInProgressState + ", verificationInProgress: " + verificationInProgress);
+        
+        appendLog("Command stdout: " + stdout);
+        Logger.logVerbose(LOG_TAG, "Command stdout: " + stdout);
+        
+        if (!stderr.isEmpty()) {
+            appendLog("Command stderr: " + stderr);
+            Logger.logError(LOG_TAG, "Command stderr: " + stderr);
+        }
+        if (!errmsg.isEmpty()) {
+            appendLog("Command error: " + errmsg);
+            Logger.logError(LOG_TAG, "Command error: " + errmsg);
         }
 
-        // Delete the archive file
-        if (!archiveFile.delete()) {
-            Logger.logInfo(LOG_TAG,
-                "Failed to delete lunar-adb-agent archive file: " + archiveFile.getAbsolutePath());
+        if (pipCheckInProgress) {
+            // This is a pip check result
+            Logger.logInfo(LOG_TAG, "Pip check result - exitCode: " + exitCode + ", stdout: " + stdout.substring(0, Math.min(200, stdout.length())));
+            pipCheckInProgress = false;
+            if (exitCode == 0 && !stdout.contains("PIP_NOT_FOUND") && !stderr.contains("No module named pip")) {
+                // Pip is installed, proceed with wheel installation
+                Logger.logInfo(LOG_TAG, "Pip is already installed. Proceeding with droidrun installation...");
+                appendLog("Pip is already installed. Proceeding with droidrun installation...");
+                if (pendingWheelFileForBootstrap != null) {
+                    appendLog("Installing droidrun with Google Gemini support...");
+                    installWheelWithPip(pendingWheelFileForBootstrap);
+                }
+            } else {
+                // Pip is not installed, install it first
+                Logger.logInfo(LOG_TAG, "Pip is not installed. Installing pip and build tools globally...");
+                appendLog("Pip is not installed. Installing pip and build tools globally...");
+                installPipGlobally();
+            }
+        } else if (pipInstallInProgressState) {
+            // This is a pip installation result
+            Logger.logInfo(LOG_TAG, "Pip installation result - exitCode: " + exitCode);
+            Logger.logVerbose(LOG_TAG, "Pip installation stdout: " + stdout.substring(0, Math.min(500, stdout.length())));
+            if (!stderr.isEmpty()) {
+                Logger.logError(LOG_TAG, "Pip installation stderr: " + stderr.substring(0, Math.min(500, stderr.length())));
+            }
+            pipInstallInProgressState = false;
+            if (exitCode == 0) {
+                Logger.logInfo(LOG_TAG, "Pip and build tools installed successfully. Proceeding with droidrun installation...");
+                appendLog("Pip and build tools installed successfully. Proceeding with droidrun installation...");
+                if (pendingWheelFileForBootstrap != null) {
+                    appendLog("Installing droidrun with Google Gemini support...");
+                    installWheelWithPip(pendingWheelFileForBootstrap);
+                }
+            } else {
+                String errorMsg = "Failed to install pip/build tools with exit code " + exitCode;
+                if (!stderr.isEmpty()) {
+                    errorMsg += ": " + stderr;
+                    Logger.logError(LOG_TAG, "Full pip installation stderr: " + stderr);
+                }
+                Logger.logError(LOG_TAG, errorMsg);
+                showError(errorMsg);
+                runOnUiThread(() -> {
+                    enableButton(stepDownloadLunar);
+                    pipInstallInProgress = false;
+                });
+                isSetupInProgress = false;
+                pendingWheelFileForBootstrap = null;
+            }
+        } else if (verificationInProgress) {
+            // This is a verification result
+            verificationInProgress = false;
+            if (exitCode == 0 && stdout.contains("droidrun installed successfully")) {
+                appendLog("Verification successful! droidrun is installed correctly.");
+                runOnUiThread(() -> {
+                    stepDownloadLunar.setText("6. Install Lunar Agent ✓");
+                    showRerunButton(stepDownloadLunar, stepSkipDownloadLunar, stepRerunDownloadLunar);
+                    pipInstallInProgress = false;
+                });
+                isSetupInProgress = false;
+                pendingWheelFileForBootstrap = null;
+            } else {
+                String errorMsg = "Verification failed. droidrun may not be installed correctly.";
+                if (!stderr.isEmpty()) {
+                    errorMsg += " Error: " + stderr;
+                }
+                Logger.logError(LOG_TAG, errorMsg);
+                showError(errorMsg);
+                runOnUiThread(() -> {
+                    enableButton(stepDownloadLunar);
+                    pipInstallInProgress = false;
+                });
+                isSetupInProgress = false;
+                pendingWheelFileForBootstrap = null;
+            }
+        } else {
+            // This is a droidrun pip install result
+            Logger.logInfo(LOG_TAG, "Droidrun pip install result - exitCode: " + exitCode);
+            Logger.logVerbose(LOG_TAG, "Droidrun install stdout (first 1000 chars): " + stdout.substring(0, Math.min(1000, stdout.length())));
+            if (!stderr.isEmpty()) {
+                Logger.logError(LOG_TAG, "Droidrun install stderr (first 1000 chars): " + stderr.substring(0, Math.min(1000, stderr.length())));
+                // Log full stderr for debugging missing packages
+                Logger.logError(LOG_TAG, "Droidrun install FULL stderr: " + stderr);
+            }
+            if (exitCode == 0) {
+                Logger.logInfo(LOG_TAG, "Droidrun pip install completed successfully. Verifying installation...");
+                appendLog("Pip install completed successfully. Verifying installation...");
+                verificationInProgress = true;
+                verifyInstallation();
+            } else {
+                String errorMsg = "Pip install failed with exit code " + exitCode;
+                if (!stderr.isEmpty()) {
+                    errorMsg += ": " + stderr.substring(0, Math.min(500, stderr.length()));
+                    // Log the full error for debugging
+                    Logger.logError(LOG_TAG, "Droidrun install FULL error output: " + stderr);
+                }
+                Logger.logError(LOG_TAG, errorMsg);
+                showError(errorMsg);
+                runOnUiThread(() -> {
+                    enableButton(stepDownloadLunar);
+                    pipInstallInProgress = false;
+                });
+                isSetupInProgress = false;
+                pendingWheelFileForBootstrap = null;
+            }
         }
+    }
 
-        appendLog("lunar-adb-agent repository is ready at: " + lunarDir.getAbsolutePath());
+    /**
+     * Verifies that droidrun was installed successfully by importing it.
+     */
+    private void verifyInstallation() {
+        String command = "python -c \"import droidrun; print('droidrun installed successfully')\"";
+        
+        Logger.logInfo(LOG_TAG, "Verifying droidrun installation with command: " + command);
+        appendLog("Verifying installation: " + command);
+        
+        Uri executableUri = new Uri.Builder()
+            .scheme(TERMUX_SERVICE.URI_SCHEME_SERVICE_EXECUTE)
+            .path(TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/bin/sh")
+            .build();
+
+        Intent execIntent = new Intent(TERMUX_SERVICE.ACTION_SERVICE_EXECUTE, executableUri);
+        execIntent.setClass(this, TermuxService.class);
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_RUNNER, Runner.APP_SHELL.getName());
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_ARGUMENTS, new String[]{"-c", command});
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_SHELL_CREATE_MODE, ExecutionCommand.ShellCreateMode.ALWAYS.getMode());
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_COMMAND_LABEL, "Verify droidrun installation");
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_PENDING_INTENT, createVerificationPendingIntent());
+        execIntent.putExtra(TERMUX_SERVICE.EXTRA_BACKGROUND_CUSTOM_LOG_LEVEL, String.valueOf(Logger.LOG_LEVEL_VERBOSE));
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            ContextCompat.startForegroundService(this, execIntent);
+        } else {
+            startService(execIntent);
+        }
+    }
+
+    /**
+     * Creates a PendingIntent for verification command results.
+     */
+    private PendingIntent createVerificationPendingIntent() {
+        Intent resultIntent = new Intent(ACTION_PIP_INSTALL_RESULT).setPackage(getPackageName());
+        int requestCode = PIP_INSTALL_REQUEST_CODES.incrementAndGet();
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Build.VERSION.SDK_INT < 31) {
+            flags |= PendingIntent.FLAG_IMMUTABLE;
+        } else if (Build.VERSION.SDK_INT >= 31) {
+            flags |= PendingIntent.FLAG_MUTABLE;
+        }
+        return PendingIntent.getBroadcast(this, requestCode, resultIntent, flags);
     }
 }
 
