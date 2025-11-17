@@ -190,7 +190,7 @@ public class DriverActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Build.VERSION.SDK_INT < 31) {
             flags |= PendingIntent.FLAG_IMMUTABLE;
         } else if (Build.VERSION.SDK_INT >= 31) {
-            flags |= 0x02000000; // PendingIntent.FLAG_MUTABLE
+            flags |= PendingIntent.FLAG_MUTABLE;
         }
         return PendingIntent.getBroadcast(this, requestCode, resultIntent, flags);
     }
