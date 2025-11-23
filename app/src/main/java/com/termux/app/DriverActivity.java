@@ -122,6 +122,7 @@ public class DriverActivity extends AppCompatActivity {
         logsContainer = findViewById(R.id.driver_logs_container);
         logsView = findViewById(R.id.driver_logs_view);
         Button taskExecutorButton = findViewById(R.id.driver_open_task_executor_button);
+        Button droidrunTestButton = findViewById(R.id.driver_launch_droidrun_test_button);
 
         // Restore state from ViewModel if available
         if (viewModel.isBootstrapReady()) {
@@ -152,6 +153,12 @@ public class DriverActivity extends AppCompatActivity {
         if (launchLunarHomeScreenButton != null) {
             launchLunarHomeScreenButton.setOnClickListener(view -> {
                 Intent intent = new Intent(this, LunarHomeScreenActivity.class);
+                startActivity(intent);
+            });
+        }
+        if (droidrunTestButton != null) {
+            droidrunTestButton.setOnClickListener(view -> {
+                Intent intent = new Intent(this, DroidrunTestActivity.class);
                 startActivity(intent);
             });
         }

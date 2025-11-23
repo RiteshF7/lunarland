@@ -78,5 +78,28 @@
             android:enabled="false" />
     </LinearLayout>
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/task_executor_install_droidrun_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Install Droidrun"
+            android:enabled="false" />
+
+        <Button
+            android:id="@+id/task_executor_run_droidrun_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="Run Droidrun"
+            android:enabled="false" />
+    </LinearLayout>
+
 </LinearLayout>
 

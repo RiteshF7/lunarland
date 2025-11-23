@@ -3,6 +3,9 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    
+    <!-- Override minSdk for droidrun modules (requires API 30+) -->
+    <uses-sdk tools:overrideLibrary="com.termux.droidrun.portal,com.termux.droidrun.wrapper" />
 
     <application
         android:name=".app.TermuxApplication"
@@ -46,6 +49,15 @@
             android:exported="false"
             android:label="Lunar UI HomeScreen"
             android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
+
+        <!-- Droidrun Test Activity -->
+        <activity
+            android:name=".app.DroidrunTestActivity"
+            android:exported="false"
+            android:label="Droidrun Test"
+            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
+
+        <!-- Droidrun services are declared in droidrun-portal module's manifest -->
 
     </application>
 
