@@ -202,36 +202,6 @@
                     android:visibility="gone" />
             </LinearLayout>
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="8dp">
-                <Button
-                    android:id="@+id/step_download_lunar"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="6. Install Lunar Agent"
-                    android:layout_marginEnd="4dp" />
-                <Button
-                    android:id="@+id/step_skip_download_lunar"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Skip"
-                    android:layout_marginStart="4dp"
-                    android:layout_marginEnd="4dp" />
-                <Button
-                    android:id="@+id/step_rerun_download_lunar"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Rerun"
-                    android:layout_marginStart="4dp"
-                    android:visibility="gone" />
-            </LinearLayout>
-
         </LinearLayout>
     </ScrollView>
 
