@@ -85,6 +85,7 @@ dependencies {
     implementation("androidx.core:core:1.6.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel:2.5.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.1")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.5.1")
     implementation(project(":termux-core"))
     implementation(project(":termux-shared"))
     implementation(project(":terminal-emulator"))
