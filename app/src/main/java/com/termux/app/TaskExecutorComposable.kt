@@ -17,9 +17,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import lunar.land.ui.core.ui.ActionButton
+import lunar.land.ui.core.ui.SearchField
+import lunar.land.ui.core.ui.TextButton
+import lunar.land.ui.core.ui.HorizontalSpacer
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -541,6 +544,7 @@ fun TaskExecutorComposable(
     val uiState by viewModel.uiState.collectAsState()
     var commandText by remember { mutableStateOf("") }
     val scrollState = rememberScrollState()
+    val keyboardController = LocalSoftwareKeyboardController.current
     
     // Initialize service binding
     LaunchedEffect(Unit) {
@@ -627,71 +631,49 @@ fun TaskExecutorComposable(
             }
         }
         
-        // Command input
-        OutlinedTextField(
-            value = commandText,
-            onValueChange = { commandText = it },
-            label = { Text("Enter a generic command (e.g., \"open settings\")") },
+        // Command input using SearchField from lunar UI
+        // Note: SearchField uses ImeAction.Search, so we handle execution via Execute button
+        SearchField(
             modifier = Modifier.fillMaxWidth(),
-            enabled = uiState.isUiEnabled,
-            singleLine = true,
-            trailingIcon = {
-                IconButton(onClick = { startVoiceInput() }) {
-                    Text("🎤", style = MaterialTheme.typography.bodyLarge)
-                }
+            placeholder = "Enter a generic command (e.g., \"open settings\")",
+            query = commandText,
+            onQueryChange = { newText ->
+                commandText = newText
             },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-            keyboardActions = KeyboardActions(
-                onSend = {
-                    if (commandText.isNotBlank()) {
-                        viewModel.dispatchCommand(commandText)
-                        commandText = ""
-                    }
-                }
-            )
+            paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
         )
         
-        // Buttons row
+        // Buttons row using lunar UI button styles
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Reset session button
-            Button(
+            ActionButton(
+                text = "Reset Session",
                 onClick = { viewModel.resetSession() },
-                enabled = true,
                 modifier = Modifier.weight(1f)
-            ) {
-                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Reset Session")
-            }
+            )
             
             // Show/Hide logs button
-            Button(
+            TextButton(
+                text = if (uiState.showLogs) "Hide Logs" else "Show Logs",
                 onClick = { viewModel.toggleLogsVisibility() },
-                enabled = true,
                 modifier = Modifier.weight(1f)
-            ) {
-                Text(if (uiState.showLogs) "👁️" else "👁️‍🗨️", style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(if (uiState.showLogs) "Hide Logs" else "Show Logs")
-            }
+            )
             
             // Execute button
-            Button(
+            ActionButton(
+                text = "Execute",
                 onClick = {
                     if (commandText.isNotBlank()) {
                         viewModel.dispatchCommand(commandText)
                         commandText = ""
                     }
                 },
-                enabled = uiState.isUiEnabled,
                 modifier = Modifier.weight(1f)
-            ) {
-                Text("Execute")
-            }
+            )
         }
     }
 }

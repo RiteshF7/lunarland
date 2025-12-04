@@ -42,6 +42,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.runtime:runtime")
+    implementation("androidx.compose.foundation:foundation")
     
     // Kotlin dependencies
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
