@@ -9,11 +9,13 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.ServiceConnection
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.NonNull
@@ -119,6 +121,8 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
         tearDownSession()
         // Cancel notification when activity is destroyed
         cancelNotification()
+        // Stop overlay service
+        stopOverlayService()
     }
 
     private fun startAndBindService() {
@@ -261,8 +265,51 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
         }
         client.refreshTranscript(terminalSession!!)
         
+        // Setup ADB environment for droidrun to detect device
+        setupAdbEnvironment()
+        
         // Setup Google API Key globally
         setupGoogleApiKey()
+    }
+    
+    private fun setupAdbEnvironment() {
+        if (terminalSession == null || sessionFinished) {
+            return
+        }
+        
+        Thread {
+            try {
+                // Setup ADB environment variables so droidrun can detect the device
+                // TMPDIR is needed for ADB daemon to start
+                // ANDROID_SERIAL points to localhost TCP connection
+                val homeVar = "\$HOME"
+                val tmpdirVar = "\$TMPDIR"
+                val adbSetupCommand = """
+                    export TMPDIR="$homeVar/usr/tmp"
+                    mkdir -p "$tmpdirVar"
+                    export ANDROID_SERIAL="127.0.0.1:5558"
+                    # Add to .bashrc if not already present
+                    if ! grep -q "export TMPDIR" "$homeVar/.bashrc" 2>/dev/null; then
+                        echo 'export TMPDIR="$homeVar/usr/tmp"' >> "$homeVar/.bashrc"
+                        mkdir -p "$homeVar/usr/tmp"
+                    fi
+                    if ! grep -q "export ANDROID_SERIAL" "$homeVar/.bashrc" 2>/dev/null; then
+                        echo 'export ANDROID_SERIAL="127.0.0.1:5558"' >> "$homeVar/.bashrc"
+                    fi
+                    echo "ADB environment configured"
+                """.trimIndent()
+                
+                mainHandler.post {
+                    if (terminalSession != null && !sessionFinished) {
+                        terminalSession!!.write(adbSetupCommand)
+                        terminalSession!!.write("\n")
+                        Logger.logInfo(LOG_TAG, "Setting up ADB environment")
+                    }
+                }
+            } catch (e: Exception) {
+                Logger.logStackTraceWithMessage(LOG_TAG, "Error setting up ADB environment", e)
+            }
+        }.start()
     }
     
     private fun setupGoogleApiKey() {
@@ -338,6 +385,9 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
         taskStartTime = System.currentTimeMillis()
         viewModel.updateTaskState(command, 0, true)
         updateNotification()
+        
+        // Start overlay service to show logs
+        startOverlayService()
 
         // Wrap command in droidrun run format
         // Telemetry is already disabled in setupGoogleApiKey() to prevent background network errors
@@ -356,7 +406,32 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
             currentTaskCommand = null
             viewModel.updateTaskState(null, 0, false)
             updateNotification()
+            stopOverlayService()
         }
+    }
+    
+    private fun startOverlayService() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            Logger.logWarn(LOG_TAG, "Overlay permission not granted")
+            return
+        }
+        
+        // Set stop callback
+        TaskExecutorOverlayService.setStopCallback { stopCurrentTask() }
+        
+        // Start overlay service
+        val intent = Intent(this, TaskExecutorOverlayService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+    }
+    
+    private fun stopOverlayService() {
+        val intent = Intent(this, TaskExecutorOverlayService::class.java)
+        stopService(intent)
+        TaskExecutorOverlayService.setStopCallback(null)
     }
     
     private fun closeSession() {
@@ -519,8 +594,9 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
             val transcript = ShellUtils.getTerminalSessionTranscriptText(session, false, false)
             mainHandler.post {
                 onTranscriptUpdate(transcript ?: "")
-                // Update task state based on output - check periodically
+                // Update overlay logs
                 if (transcript != null) {
+                    TaskExecutorOverlayService.updateLogs(transcript)
                     updateTaskProgress(transcript)
                 }
             }
@@ -571,12 +647,16 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
                 currentTaskCommand = null
                 viewModel.updateTaskState(null, 0, false)
                 shouldUpdate = true
+                // Stop overlay after a short delay to show completion message
+                mainHandler.postDelayed({ stopOverlayService() }, 2000)
             }
             isFailed -> {
                 Logger.logInfo(LOG_TAG, "Task failed detected: $currentTaskCommand")
                 currentTaskCommand = null
                 viewModel.updateTaskState(null, 0, false)
                 shouldUpdate = true
+                // Stop overlay after a short delay to show failure message
+                mainHandler.postDelayed({ stopOverlayService() }, 2000)
             }
             promptReturned && !outputLower.contains("droidrun run") -> {
                 // Command prompt returned but no droidrun command visible - task likely finished

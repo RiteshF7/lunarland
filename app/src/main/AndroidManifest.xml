@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:name=".app.TermuxApplication"
@@ -41,6 +42,11 @@
                 <action android:name="com.termux.app.STOP_TASK" />
             </intent-filter>
         </receiver>
+
+        <service
+            android:name=".app.TaskExecutorOverlayService"
+            android:enabled="true"
+            android:exported="false" />
 
         <activity
             android:name=".app.BootstrapSetupActivity"
