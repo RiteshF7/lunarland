@@ -537,18 +537,57 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
         val outputLower = output.lowercase()
         var shouldUpdate = false
         
-        // Check for task completion/failure
+        // Check for task completion - multiple patterns to catch all droidrun completion messages
+        val completionPatterns = listOf(
+            "goal achieved",
+            "goal succeeded", 
+            "task completed",
+            "successfully completed",
+            "task marked as complete",
+            "complete(success=true",
+            "complete(success = true",
+            "code execution successful"
+        )
+        
+        val failurePatterns = listOf(
+            "goal failed",
+            "task failed",
+            "complete(success=false",
+            "complete(success = false"
+        )
+        
+        val isCompleted = completionPatterns.any { outputLower.contains(it) }
+        val isFailed = failurePatterns.any { outputLower.contains(it) }
+        
+        // Also check if command prompt has returned (indicates command finished)
+        // Look for prompt patterns like "$ ", "> ", or shell prompt at end of output
+        val lastLines = output.lines().takeLast(3).joinToString("\n").lowercase()
+        val promptReturned = lastLines.matches(Regex(".*[\\$>]#\\s*$")) || 
+                             (lastLines.contains("$") && !lastLines.contains("droidrun run"))
+        
         when {
-            outputLower.contains("goal succeeded") || outputLower.contains("task completed") || 
-            outputLower.contains("successfully completed") -> {
+            isCompleted -> {
+                Logger.logInfo(LOG_TAG, "Task completed detected: $currentTaskCommand")
                 currentTaskCommand = null
                 viewModel.updateTaskState(null, 0, false)
                 shouldUpdate = true
             }
-            outputLower.contains("goal failed") || outputLower.contains("task failed") -> {
+            isFailed -> {
+                Logger.logInfo(LOG_TAG, "Task failed detected: $currentTaskCommand")
                 currentTaskCommand = null
                 viewModel.updateTaskState(null, 0, false)
                 shouldUpdate = true
+            }
+            promptReturned && !outputLower.contains("droidrun run") -> {
+                // Command prompt returned but no droidrun command visible - task likely finished
+                // Wait a bit to see if completion message appears, but if it's been a while, mark as done
+                val elapsed = System.currentTimeMillis() - taskStartTime
+                if (elapsed > 2000) { // Wait 2 seconds after prompt returns
+                    Logger.logInfo(LOG_TAG, "Command prompt returned, marking task as complete: $currentTaskCommand")
+                    currentTaskCommand = null
+                    viewModel.updateTaskState(null, 0, false)
+                    shouldUpdate = true
+                }
             }
             else -> {
                 // Task is still running - keep it as running
