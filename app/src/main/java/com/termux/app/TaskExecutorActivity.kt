@@ -89,23 +89,10 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
 
         TermuxShellEnvironment.init(applicationContext)
 
-        setContent {
-            TaskExecutorScreen(
-                viewModel = viewModel,
-                onDispatchCommand = { command -> dispatchCommand(command) },
-                onRestartSession = { restartSession() },
-                onCloseSession = { closeSession() },
-                onRunInstallScript = { runInstallScript() },
-                onRunInitSetupScript = { runInitSetupScript() }
-            )
-        }
+            setContent {
+                TaskExecutorComposable()
+            }
 
-        // Start and bind to TermuxService for stable background execution
-        startAndBindService()
-        
-        // Setup notification channel
-        setupNotificationChannel()
-        
         // Register receiver for stop task action
         registerReceiver(stopTaskReceiver, IntentFilter("com.termux.app.ACTION_STOP_TASK"))
     }
@@ -117,10 +104,6 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
         } catch (e: Exception) {
             // Receiver might not be registered
         }
-        unbindService()
-        tearDownSession()
-        // Cancel notification when activity is destroyed
-        cancelNotification()
     }
 
     private fun startAndBindService() {
