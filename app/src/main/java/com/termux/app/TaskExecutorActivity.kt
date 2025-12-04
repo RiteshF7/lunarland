@@ -121,8 +121,6 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
         tearDownSession()
         // Cancel notification when activity is destroyed
         cancelNotification()
-        // Stop overlay service
-        stopOverlayService()
     }
 
     private fun startAndBindService() {
@@ -371,30 +369,41 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
         }.start()
     }
 
-    private fun dispatchCommand(command: String) {
-        if (terminalSession == null || sessionFinished) {
-            return
+        private fun dispatchCommand(command: String) {
+            Logger.logInfo(LOG_TAG, "dispatchCommand called with: $command")
+            
+            if (terminalSession == null || sessionFinished) {
+                Logger.logWarn(LOG_TAG, "Cannot dispatch command: terminalSession=${terminalSession != null}, sessionFinished=$sessionFinished")
+                return
+            }
+
+            if (command.isBlank()) {
+                Logger.logWarn(LOG_TAG, "Cannot dispatch empty command")
+                return
+            }
+
+            try {
+                // Track current task
+                currentTaskCommand = command
+                taskStartTime = System.currentTimeMillis()
+                Logger.logInfo(LOG_TAG, "Setting task state: $command")
+                viewModel.updateTaskState(command, 0, true)
+                updateNotification()
+                
+                // Overlay feature removed due to SavedStateRegistry issues
+
+                // Wrap command in droidrun run format
+                // Telemetry is already disabled in setupGoogleApiKey() to prevent background network errors
+                val droidrunCommand = "droidrun run \"$command\""
+                Logger.logInfo(LOG_TAG, "Writing command to terminal: $droidrunCommand")
+                terminalSession!!.write(droidrunCommand)
+                terminalSession!!.write("\n")
+                Logger.logInfo(LOG_TAG, "Command written successfully")
+            } catch (e: Exception) {
+                Logger.logStackTraceWithMessage(LOG_TAG, "Error in dispatchCommand", e)
+                viewModel.updateStatus("Error: ${e.message}")
+            }
         }
-
-        if (command.isBlank()) {
-            return
-        }
-
-        // Track current task
-        currentTaskCommand = command
-        taskStartTime = System.currentTimeMillis()
-        viewModel.updateTaskState(command, 0, true)
-        updateNotification()
-        
-        // Start overlay service to show logs
-        startOverlayService()
-
-        // Wrap command in droidrun run format
-        // Telemetry is already disabled in setupGoogleApiKey() to prevent background network errors
-        val droidrunCommand = "droidrun run \"$command\""
-        terminalSession!!.write(droidrunCommand)
-        terminalSession!!.write("\n")
-    }
     
     private fun stopCurrentTask() {
         if (terminalSession != null && !sessionFinished && currentTaskCommand != null) {
@@ -406,33 +415,11 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
             currentTaskCommand = null
             viewModel.updateTaskState(null, 0, false)
             updateNotification()
-            stopOverlayService()
+            // Overlay feature removed
         }
     }
     
-    private fun startOverlayService() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-            Logger.logWarn(LOG_TAG, "Overlay permission not granted")
-            return
-        }
-        
-        // Set stop callback
-        TaskExecutorOverlayService.setStopCallback { stopCurrentTask() }
-        
-        // Start overlay service
-        val intent = Intent(this, TaskExecutorOverlayService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
-    }
-    
-    private fun stopOverlayService() {
-        val intent = Intent(this, TaskExecutorOverlayService::class.java)
-        stopService(intent)
-        TaskExecutorOverlayService.setStopCallback(null)
-    }
+        // Overlay feature removed - using notifications only
     
     private fun closeSession() {
         tearDownSession()
@@ -596,7 +583,7 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
                 onTranscriptUpdate(transcript ?: "")
                 // Update overlay logs
                 if (transcript != null) {
-                    TaskExecutorOverlayService.updateLogs(transcript)
+                    // Logs are shown in the activity UI
                     updateTaskProgress(transcript)
                 }
             }
@@ -648,7 +635,7 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
                 viewModel.updateTaskState(null, 0, false)
                 shouldUpdate = true
                 // Stop overlay after a short delay to show completion message
-                mainHandler.postDelayed({ stopOverlayService() }, 2000)
+                // Overlay feature removed
             }
             isFailed -> {
                 Logger.logInfo(LOG_TAG, "Task failed detected: $currentTaskCommand")
@@ -656,7 +643,7 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
                 viewModel.updateTaskState(null, 0, false)
                 shouldUpdate = true
                 // Stop overlay after a short delay to show failure message
-                mainHandler.postDelayed({ stopOverlayService() }, 2000)
+                // Overlay feature removed
             }
             promptReturned && !outputLower.contains("droidrun run") -> {
                 // Command prompt returned but no droidrun command visible - task likely finished
