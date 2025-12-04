@@ -17,7 +17,10 @@ data class TaskExecutorUiState(
     val outputText: String = "",
     val isUiEnabled: Boolean = false,
     val sessionFinished: Boolean = false,
-    val exitCode: Int? = null
+    val exitCode: Int? = null,
+    val currentTask: String? = null,
+    val taskProgress: Int = 0, // 0-100 percentage
+    val isTaskRunning: Boolean = false
 )
 
 /**
@@ -80,7 +83,23 @@ class TaskExecutorViewModel(application: Application) : AndroidViewModel(applica
             it.copy(
                 sessionFinished = false,
                 exitCode = null,
-                outputText = ""
+                outputText = "",
+                currentTask = null,
+                taskProgress = 0,
+                isTaskRunning = false
+            )
+        }
+    }
+
+    /**
+     * Update current task and progress
+     */
+    fun updateTaskState(task: String?, progress: Int, isRunning: Boolean) {
+        _uiState.update {
+            it.copy(
+                currentTask = task,
+                taskProgress = progress.coerceIn(0, 100),
+                isTaskRunning = isRunning
             )
         }
     }

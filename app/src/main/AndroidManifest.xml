@@ -34,6 +34,14 @@
             android:label="@string/task_executor_title"
             android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
 
+        <receiver
+            android:name=".app.TaskExecutorNotificationReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.termux.app.STOP_TASK" />
+            </intent-filter>
+        </receiver>
+
         <activity
             android:name=".app.BootstrapSetupActivity"
             android:exported="false"

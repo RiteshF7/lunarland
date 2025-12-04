@@ -1,9 +1,15 @@
 package com.termux.app
 
+import android.app.Notification
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.ServiceConnection
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
@@ -28,7 +34,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.termux.BuildConfig
 import com.termux.R
 import com.termux.shared.logger.Logger
+import com.termux.shared.notification.NotificationUtils
 import com.termux.shared.shell.ShellUtils
+import com.termux.app.TermuxService
 import com.termux.shared.shell.command.ExecutionCommand
 import com.termux.shared.shell.command.ExecutionCommand.Runner
 import com.termux.shared.termux.TermuxConstants
@@ -64,6 +72,15 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
     private var sessionClient: TaskExecutorSessionClient? = null
     private var sessionFinished = false
     private var isServiceBound = false
+    private var currentTaskCommand: String? = null
+    private var taskStartTime: Long = 0
+    private val stopTaskReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "com.termux.app.ACTION_STOP_TASK") {
+                stopCurrentTask()
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,12 +100,25 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
 
         // Start and bind to TermuxService for stable background execution
         startAndBindService()
+        
+        // Setup notification channel
+        setupNotificationChannel()
+        
+        // Register receiver for stop task action
+        registerReceiver(stopTaskReceiver, IntentFilter("com.termux.app.ACTION_STOP_TASK"))
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        try {
+            unregisterReceiver(stopTaskReceiver)
+        } catch (e: Exception) {
+            // Receiver might not be registered
+        }
         unbindService()
         tearDownSession()
+        // Cancel notification when activity is destroyed
+        cancelNotification()
     }
 
     private fun startAndBindService() {
@@ -164,17 +194,44 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
         executionCommand.terminalTranscriptRows = 4000
         executionCommand.shellCreateMode = ExecutionCommand.ShellCreateMode.ALWAYS.getMode()
 
-        // Use TermuxService context for session creation so it's managed by the service
-        // This ensures stable background execution
-        currentSession = TermuxSession.execute(
-            termuxService!!, // Use service context for proper session management
-            executionCommand,
-            client,
-            this,
-            TermuxShellEnvironment(),
-            null,
-            false
-        )
+        // Use TermuxService's createTermuxSession method to ensure the session is properly
+        // registered with the service's session manager for stable background execution
+        // This is critical - sessions must be in mTermuxSessions list to survive background
+        currentSession = termuxService!!.createTermuxSession(executionCommand)
+        
+        if (currentSession == null) {
+            Logger.logError(LOG_TAG, "Failed to create session via service, trying direct creation")
+            // Fallback: create directly and manually add to service manager
+            currentSession = TermuxSession.execute(
+                termuxService!!, // Use service context for proper session management
+                executionCommand,
+                client,
+                this,
+                TermuxShellEnvironment(),
+                null,
+                false
+            )
+            // Manually add to service's session manager if direct creation succeeded
+            if (currentSession != null) {
+                try {
+                    val shellManagerField = TermuxService::class.java.getDeclaredField("mShellManager")
+                    shellManagerField.isAccessible = true
+                    val shellManager = shellManagerField.get(termuxService)
+                    val sessionsField = shellManager.javaClass.getDeclaredField("mTermuxSessions")
+                    sessionsField.isAccessible = true
+                    @Suppress("UNCHECKED_CAST")
+                    val sessions = sessionsField.get(shellManager) as MutableList<Any>
+                    sessions.add(currentSession!!)
+                    Logger.logInfo(LOG_TAG, "Manually added session to service manager")
+                } catch (e: Exception) {
+                    Logger.logError(LOG_TAG, "Failed to add session to service manager: ${e.message}")
+                }
+            }
+        } else {
+            // Session was created via service, update the terminal session client to use our custom client
+            // This ensures we get transcript updates
+            currentSession!!.getTerminalSession().updateTerminalSessionClient(client)
+        }
 
         if (currentSession == null) {
             Logger.logError(LOG_TAG, "Failed to create task executor session")
@@ -276,11 +333,30 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
             return
         }
 
+        // Track current task
+        currentTaskCommand = command
+        taskStartTime = System.currentTimeMillis()
+        viewModel.updateTaskState(command, 0, true)
+        updateNotification()
+
         // Wrap command in droidrun run format
         // Telemetry is already disabled in setupGoogleApiKey() to prevent background network errors
         val droidrunCommand = "droidrun run \"$command\""
         terminalSession!!.write(droidrunCommand)
         terminalSession!!.write("\n")
+    }
+    
+    private fun stopCurrentTask() {
+        if (terminalSession != null && !sessionFinished && currentTaskCommand != null) {
+            // Send Ctrl+C to stop the current task
+            terminalSession!!.write("\u0003") // Ctrl+C character
+            Logger.logInfo(LOG_TAG, "Stopped task: $currentTaskCommand")
+            
+            // Update state
+            currentTaskCommand = null
+            viewModel.updateTaskState(null, 0, false)
+            updateNotification()
+        }
     }
     
     private fun closeSession() {
@@ -383,6 +459,12 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
             val code = exitCode ?: -1
             viewModel.setSessionFinished(true, code)
             viewModel.updateStatus(getString(R.string.task_executor_status_finished, code))
+            
+            // Clear task state
+            currentTaskCommand = null
+            viewModel.updateTaskState(null, 0, false)
+            updateNotification()
+            
             Logger.logInfo(LOG_TAG, "Session finished with exit code: $code")
         }
     }
@@ -437,8 +519,65 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
             val transcript = ShellUtils.getTerminalSessionTranscriptText(session, false, false)
             mainHandler.post {
                 onTranscriptUpdate(transcript ?: "")
+                // Update task state based on output - check periodically
+                if (transcript != null) {
+                    updateTaskProgress(transcript)
+                }
             }
         }
+    }
+    
+    private fun setupNotificationChannel() {
+        // No need for separate channel - using TermuxService notification
+    }
+    
+    private fun updateTaskProgress(output: String) {
+        if (currentTaskCommand == null) return
+        
+        val outputLower = output.lowercase()
+        var shouldUpdate = false
+        
+        // Check for task completion/failure
+        when {
+            outputLower.contains("goal succeeded") || outputLower.contains("task completed") || 
+            outputLower.contains("successfully completed") -> {
+                currentTaskCommand = null
+                viewModel.updateTaskState(null, 0, false)
+                shouldUpdate = true
+            }
+            outputLower.contains("goal failed") || outputLower.contains("task failed") -> {
+                currentTaskCommand = null
+                viewModel.updateTaskState(null, 0, false)
+                shouldUpdate = true
+            }
+            else -> {
+                // Task is still running - keep it as running
+                val currentState = viewModel.uiState.value
+                if (!currentState.isTaskRunning || currentState.currentTask != currentTaskCommand) {
+                    viewModel.updateTaskState(currentTaskCommand, 0, true)
+                    shouldUpdate = true
+                }
+            }
+        }
+        
+        if (shouldUpdate) {
+            updateNotification()
+        }
+    }
+    
+    private fun updateNotification() {
+        // Update TermuxService notification instead of creating separate one
+        val uiState = viewModel.uiState.value
+        TermuxService.setTaskExecutorState(
+            uiState.currentTask,
+            uiState.taskProgress,
+            uiState.isTaskRunning
+        )
+    }
+    
+    private fun cancelNotification() {
+        // Clear task executor state in TermuxService notification
+        TermuxService.setTaskExecutorState(null, 0, false)
     }
 }
 

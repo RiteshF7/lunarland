@@ -873,6 +873,13 @@ public final class TermuxConstants {
     /** Termux app unique notification id used by {@link TERMUX_APP.TERMUX_SERVICE} */
     public static final int TERMUX_FLOAT_APP_NOTIFICATION_ID = 1339;
 
+    /** Task Executor notification channel id */
+    public static final String TASK_EXECUTOR_NOTIFICATION_CHANNEL_ID = "task_executor_notification_channel";
+    /** Task Executor notification channel name */
+    public static final String TASK_EXECUTOR_NOTIFICATION_CHANNEL_NAME = TermuxConstants.TERMUX_APP_NAME + " Task Executor";
+    /** Task Executor unique notification id */
+    public static final int TASK_EXECUTOR_NOTIFICATION_ID = 1340;
+
 
 
 

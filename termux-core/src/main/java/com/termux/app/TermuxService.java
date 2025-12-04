@@ -105,10 +105,17 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
     /** If the user has executed the {@link TERMUX_SERVICE#ACTION_STOP_SERVICE} intent. */
     boolean mWantsToStop = false;
 
+    /** Task Executor state - shared across service instances */
+    private static String sTaskExecutorTask = null;
+    private static int sTaskExecutorProgress = 0;
+    private static boolean sTaskExecutorRunning = false;
+    private static final Object sTaskExecutorLock = new Object();
+
     private static final String LOG_TAG = "TermuxService";
 
     @Override
     public void onCreate() {
+        sInstance = this;
         Logger.logVerbose(LOG_TAG, "onCreate");
 
         // Get Termux app SharedProperties without loading from disk since TermuxCore handles
@@ -119,6 +126,10 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
         runStartForeground();
 
         SystemEventReceiver.registerPackageUpdateEvents(this);
+    }
+    
+    private static TermuxService getInstance() {
+        return sInstance;
     }
 
     @SuppressLint("Wakelock")
@@ -166,6 +177,7 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
 
     @Override
     public void onDestroy() {
+        sInstance = null;
         Logger.logVerbose(LOG_TAG, "onDestroy");
 
         TermuxShellUtils.clearTermuxTMPDIR(true);
@@ -789,9 +801,28 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
         // Set notification text
         int sessionCount = getTermuxSessionsSize();
         int taskCount = mShellManager.mTermuxTasks.size();
-        String notificationText = sessionCount + " session" + (sessionCount == 1 ? "" : "s");
-        if (taskCount > 0) {
-            notificationText += ", " + taskCount + " task" + (taskCount == 1 ? "" : "s");
+        
+        // Check for Task Executor task state
+        String taskExecutorTask;
+        boolean taskExecutorRunning;
+        synchronized (sTaskExecutorLock) {
+            taskExecutorTask = sTaskExecutorTask;
+            taskExecutorRunning = sTaskExecutorRunning;
+        }
+        
+        String notificationText;
+        if (taskExecutorRunning && taskExecutorTask != null) {
+            // Show Task Executor task state
+            notificationText = taskExecutorTask + " - Running";
+        } else if (taskExecutorTask != null) {
+            // Task exists but not running
+            notificationText = taskExecutorTask + " - Stopped";
+        } else {
+            // Show session/task count
+            notificationText = sessionCount + " session" + (sessionCount == 1 ? "" : "s");
+            if (taskCount > 0) {
+                notificationText += ", " + taskCount + " task" + (taskCount == 1 ? "" : "s");
+            }
         }
 
         final boolean wakeLockHeld = mWakeLock != null;
@@ -824,6 +855,13 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
         builder.setOngoing(true);
 
 
+        // Add Stop Task button if Task Executor task is running
+        if (taskExecutorRunning && taskExecutorTask != null) {
+            Intent stopTaskIntent = new Intent("com.termux.app.STOP_TASK");
+            PendingIntent stopTaskPendingIntent = PendingIntent.getBroadcast(this, 0, stopTaskIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop Task", stopTaskPendingIntent);
+        }
+        
         // Set Exit button action
         Intent exitIntent = new Intent(this, TermuxService.class).setAction(TERMUX_SERVICE.ACTION_STOP_SERVICE);
         builder.addAction(android.R.drawable.ic_delete, res.getString(R.string.notification_action_exit), PendingIntent.getService(this, 0, exitIntent, 0));
@@ -876,6 +914,27 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
     public synchronized int getTermuxSessionsSize() {
         return mShellManager.mTermuxSessions.size();
     }
+
+    /**
+     * Set Task Executor state for notification display
+     */
+    public static void setTaskExecutorState(String task, int progress, boolean isRunning) {
+        synchronized (sTaskExecutorLock) {
+            sTaskExecutorTask = task;
+            sTaskExecutorProgress = progress;
+            sTaskExecutorRunning = isRunning;
+        }
+        // Update notification on all service instances
+        TermuxService service = getInstance();
+        if (service != null) {
+            service.updateNotification();
+        }
+    }
+    
+    /**
+     * Get current TermuxService instance (if any)
+     */
+    private static TermuxService sInstance = null;
 
     public synchronized List<TermuxSession> getTermuxSessions() {
         return mShellManager.mTermuxSessions;
