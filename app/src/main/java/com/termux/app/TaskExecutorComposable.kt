@@ -12,22 +12,23 @@ import android.os.Looper
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import lunar.land.ui.core.ui.ActionButton
+import androidx.compose.ui.res.painterResource
 import lunar.land.ui.core.ui.SearchField
-import lunar.land.ui.core.ui.TextButton
-import lunar.land.ui.core.ui.HorizontalSpacer
+import lunar.land.ui.R
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.ImeAction
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -56,6 +57,13 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * Composable ViewModel for Task Executor
  */
+enum class TaskStatus {
+    STOPPED,
+    RUNNING,
+    SUCCESS,
+    ERROR
+}
+
 data class TaskExecutorComposableUiState(
     val statusText: String = "",
     val outputText: String = "",
@@ -65,7 +73,8 @@ data class TaskExecutorComposableUiState(
     val currentTask: String? = null,
     val taskProgress: Int = 0,
     val isTaskRunning: Boolean = false,
-    val showLogs: Boolean = true
+    val showLogs: Boolean = false,
+    val taskStatus: TaskStatus = TaskStatus.STOPPED
 )
 
 class TaskExecutorComposableViewModelFactory(private val activity: Activity) : ViewModelProvider.Factory {
@@ -235,7 +244,7 @@ class TaskExecutorComposableViewModel(private val activity: Activity) : AndroidV
         
         mainHandler.post {
             setUiEnabled(true)
-            updateStatus("Ready for commands")
+            updateTaskState(null, 0, false, TaskStatus.STOPPED)
         }
         client.refreshTranscript(terminalSession!!)
         
@@ -336,7 +345,7 @@ class TaskExecutorComposableViewModel(private val activity: Activity) : AndroidV
         try {
             currentTaskCommand = command
             taskStartTime = System.currentTimeMillis()
-            updateTaskState(command, 0, true)
+            updateTaskState(command, 0, true, TaskStatus.RUNNING)
             updateNotification()
             
             val droidrunCommand = "droidrun run \"$command\""
@@ -407,13 +416,13 @@ class TaskExecutorComposableViewModel(private val activity: Activity) : AndroidV
             isCompleted -> {
                 Logger.logInfo(LOG_TAG, "Task completed detected: $currentTaskCommand")
                 currentTaskCommand = null
-                updateTaskState(null, 0, false)
+                updateTaskState(null, 0, false, TaskStatus.SUCCESS)
                 shouldUpdate = true
             }
             isFailed -> {
                 Logger.logInfo(LOG_TAG, "Task failed detected: $currentTaskCommand")
                 currentTaskCommand = null
-                updateTaskState(null, 0, false)
+                updateTaskState(null, 0, false, TaskStatus.ERROR)
                 shouldUpdate = true
             }
             promptReturned && !outputLower.contains("droidrun run") -> {
@@ -421,14 +430,14 @@ class TaskExecutorComposableViewModel(private val activity: Activity) : AndroidV
                 if (elapsed > 2000) {
                     Logger.logInfo(LOG_TAG, "Command prompt returned, marking task as complete: $currentTaskCommand")
                     currentTaskCommand = null
-                    updateTaskState(null, 0, false)
+                    updateTaskState(null, 0, false, TaskStatus.SUCCESS)
                     shouldUpdate = true
                 }
             }
             else -> {
                 val currentState = _uiState.value
                 if (!currentState.isTaskRunning || currentState.currentTask != currentTaskCommand) {
-                    updateTaskState(currentTaskCommand, 0, true)
+                    updateTaskState(currentTaskCommand, 0, true, TaskStatus.RUNNING)
                     shouldUpdate = true
                 }
             }
@@ -464,6 +473,11 @@ class TaskExecutorComposableViewModel(private val activity: Activity) : AndroidV
     }
     
     fun setSessionFinished(finished: Boolean, exitCode: Int? = null) {
+        val status = if (finished) {
+            if (exitCode == 0) TaskStatus.SUCCESS else TaskStatus.ERROR
+        } else {
+            TaskStatus.STOPPED
+        }
         _uiState.update {
             it.copy(
                 sessionFinished = finished,
@@ -471,7 +485,8 @@ class TaskExecutorComposableViewModel(private val activity: Activity) : AndroidV
                 isUiEnabled = !finished,
                 currentTask = null,
                 taskProgress = 0,
-                isTaskRunning = false
+                isTaskRunning = false,
+                taskStatus = status
             )
         }
     }
@@ -488,17 +503,19 @@ class TaskExecutorComposableViewModel(private val activity: Activity) : AndroidV
                 outputText = "",
                 currentTask = null,
                 taskProgress = 0,
-                isTaskRunning = false
+                isTaskRunning = false,
+                taskStatus = TaskStatus.STOPPED
             )
         }
     }
     
-    fun updateTaskState(task: String?, progress: Int, isRunning: Boolean) {
+    fun updateTaskState(task: String?, progress: Int, isRunning: Boolean, status: TaskStatus = TaskStatus.STOPPED) {
         _uiState.update {
             it.copy(
                 currentTask = task,
                 taskProgress = progress,
-                isTaskRunning = isRunning
+                isTaskRunning = isRunning,
+                taskStatus = status
             )
         }
     }
@@ -523,6 +540,89 @@ class TaskExecutorComposableViewModel(private val activity: Activity) : AndroidV
                 onTranscriptUpdate(transcript ?: "")
             }
         }
+    }
+}
+
+/**
+ * Task Status Component
+ * Displays task status with dots and labels
+ */
+@Composable
+fun TaskStatusComponent(
+    currentStatus: TaskStatus,
+    modifier: Modifier = Modifier
+) {
+    val buttonColor = MaterialTheme.colorScheme.primary
+    
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(shape = MaterialTheme.shapes.small)
+            .background(color = buttonColor.copy(alpha = 0.23f))
+            .border(
+                width = 0.4.dp,
+                color = buttonColor.copy(alpha = 0.6f),
+                shape = MaterialTheme.shapes.small
+            )
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Stopped
+        TaskStatusItem(
+            label = "Stopped",
+            isActive = currentStatus == TaskStatus.STOPPED,
+            color = buttonColor
+        )
+        
+        // Running
+        TaskStatusItem(
+            label = "Running",
+            isActive = currentStatus == TaskStatus.RUNNING,
+            color = buttonColor
+        )
+        
+        // Success
+        TaskStatusItem(
+            label = "Success",
+            isActive = currentStatus == TaskStatus.SUCCESS,
+            color = buttonColor
+        )
+        
+        // Error
+        TaskStatusItem(
+            label = "Error",
+            isActive = currentStatus == TaskStatus.ERROR,
+            color = buttonColor
+        )
+    }
+}
+
+@Composable
+private fun TaskStatusItem(
+    label: String,
+    isActive: Boolean,
+    color: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(shape = CircleShape)
+                .background(
+                    color = if (isActive) color else color.copy(alpha = 0.3f)
+                )
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (isActive) color else color.copy(alpha = 0.6f)
+        )
     }
 }
 
@@ -592,39 +692,64 @@ fun TaskExecutorComposable(
         }
     }
     
+    val buttonColor = MaterialTheme.colorScheme.primary
+    
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Status text
-        Text(
-            text = uiState.statusText.ifEmpty { "Preparing session…" },
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.fillMaxWidth()
-        )
+        // Task status component with eye icon button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TaskStatusComponent(
+                currentStatus = uiState.taskStatus,
+                modifier = Modifier.weight(1f)
+            )
+            
+            // Small eye icon button
+            IconButton(
+                onClick = { viewModel.toggleLogsVisibility() },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = if (uiState.showLogs) R.drawable.ic_visibility else R.drawable.ic_visibility_off),
+                    contentDescription = if (uiState.showLogs) "Hide Logs" else "Show Logs",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
         
-        // Logs area (conditionally visible)
+        // Logs area (conditionally visible) - styled like FavoriteItem
         if (uiState.showLogs) {
-            Card(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+                    .weight(1f)
+                    .clip(shape = MaterialTheme.shapes.small)
+                    .background(color = buttonColor.copy(alpha = 0.23f))
+                    .border(
+                        width = 0.4.dp,
+                        color = buttonColor.copy(alpha = 0.6f),
+                        shape = MaterialTheme.shapes.small
+                    )
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(scrollState)
-                        .padding(8.dp)
+                        .padding(16.dp)
                 ) {
                     Text(
                         text = uiState.outputText,
                         style = MaterialTheme.typography.bodySmall,
                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        color = buttonColor,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -635,7 +760,7 @@ fun TaskExecutorComposable(
         // Note: SearchField uses ImeAction.Search, so we handle execution via Execute button
         SearchField(
             modifier = Modifier.fillMaxWidth(),
-            placeholder = "Enter a generic command (e.g., \"open settings\")",
+            placeholder = "Enter Task",
             query = commandText,
             onQueryChange = { newText ->
                 commandText = newText
@@ -643,37 +768,62 @@ fun TaskExecutorComposable(
             paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
         )
         
-        // Buttons row using lunar UI button styles
+        // Buttons row styled like FavoriteItem
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Reset session button
-            ActionButton(
-                text = "Reset Session",
-                onClick = { viewModel.resetSession() },
-                modifier = Modifier.weight(1f)
-            )
-            
-            // Show/Hide logs button
-            TextButton(
-                text = if (uiState.showLogs) "Hide Logs" else "Show Logs",
-                onClick = { viewModel.toggleLogsVisibility() },
-                modifier = Modifier.weight(1f)
-            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(40.dp)
+                    .clip(shape = MaterialTheme.shapes.small)
+                    .background(color = buttonColor.copy(alpha = 0.23f))
+                    .border(
+                        width = 0.4.dp,
+                        color = buttonColor.copy(alpha = 0.6f),
+                        shape = MaterialTheme.shapes.small
+                    )
+                    .clickable(onClick = { viewModel.resetSession() })
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Reset Session",
+                    color = buttonColor,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
             
             // Execute button
-            ActionButton(
-                text = "Execute",
-                onClick = {
-                    if (commandText.isNotBlank()) {
-                        viewModel.dispatchCommand(commandText)
-                        commandText = ""
-                    }
-                },
-                modifier = Modifier.weight(1f)
-            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(40.dp)
+                    .clip(shape = MaterialTheme.shapes.small)
+                    .background(color = buttonColor.copy(alpha = 0.23f))
+                    .border(
+                        width = 0.4.dp,
+                        color = buttonColor.copy(alpha = 0.6f),
+                        shape = MaterialTheme.shapes.small
+                    )
+                    .clickable(onClick = {
+                        if (commandText.isNotBlank()) {
+                            viewModel.dispatchCommand(commandText)
+                            commandText = ""
+                        }
+                    })
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Execute",
+                    color = buttonColor,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         }
     }
 }
