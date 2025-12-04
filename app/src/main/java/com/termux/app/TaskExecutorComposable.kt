@@ -9,9 +9,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.speech.RecognizerIntent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +26,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -643,8 +645,47 @@ fun TaskExecutorComposable(
     }
     val uiState by viewModel.uiState.collectAsState()
     var commandText by remember { mutableStateOf("") }
+    var isListening by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
     val keyboardController = LocalSoftwareKeyboardController.current
+    
+    // Check and request audio permission
+    val hasAudioPermission = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.RECORD_AUDIO
+    ) == PackageManager.PERMISSION_GRANTED
+    
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Logger.logInfo("TaskExecutor", "Audio permission granted")
+        } else {
+            Logger.logError("TaskExecutor", "Audio permission denied")
+        }
+    }
+    
+    // Speech recognition utility
+    val speechRecognitionUtil = remember {
+        SpeechRecognitionUtil(
+            context = context,
+            onResult = { text ->
+                commandText = text
+                com.termux.shared.logger.Logger.logInfo("TaskExecutor", "Speech result: $text")
+            },
+            onError = { error ->
+                isListening = false
+                com.termux.shared.logger.Logger.logError("TaskExecutor", "Speech recognition error: $error")
+            }
+        )
+    }
+    
+    // Cleanup speech recognition on dispose
+    DisposableEffect(Unit) {
+        onDispose {
+            speechRecognitionUtil.destroy()
+        }
+    }
     
     // Initialize service binding
     LaunchedEffect(Unit) {
@@ -670,25 +711,26 @@ fun TaskExecutorComposable(
         }
     }
     
-    // Voice input launcher
-    val voiceInputLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val spokenText = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            if (!spokenText.isNullOrEmpty()) {
-                commandText = spokenText[0]
+    fun toggleVoiceInput() {
+        if (isListening) {
+            speechRecognitionUtil.stopListening()
+            isListening = false
+            com.termux.shared.logger.Logger.logInfo("TaskExecutor", "Stopped listening")
+        } else {
+            // Check permission first
+            if (!hasAudioPermission) {
+                com.termux.shared.logger.Logger.logInfo("TaskExecutor", "Requesting audio permission")
+                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                return
             }
-        }
-    }
-    
-    fun startVoiceInput() {
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak your command")
-        }
-        if (intent.resolveActivity(context.packageManager) != null) {
-            voiceInputLauncher.launch(intent)
+            
+            if (speechRecognitionUtil.isAvailable()) {
+                com.termux.shared.logger.Logger.logInfo("TaskExecutor", "Starting speech recognition")
+                speechRecognitionUtil.startListening()
+                isListening = true
+            } else {
+                com.termux.shared.logger.Logger.logError("TaskExecutor", "Speech recognition not available")
+            }
         }
     }
     
@@ -822,6 +864,25 @@ fun TaskExecutorComposable(
                     text = "Execute",
                     color = buttonColor,
                     style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+        
+        // Mic button - centered horizontally
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+        ) {
+            IconButton(
+                onClick = { toggleVoiceInput() },
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_mic),
+                    contentDescription = if (isListening) "Stop listening" else "Start voice input",
+                    tint = if (isListening) MaterialTheme.colorScheme.error else buttonColor,
+                    modifier = Modifier.size(32.dp)
                 )
             }
         }
