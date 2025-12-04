@@ -1,6 +1,19 @@
+import java.io.File
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+}
+
+fun readGoogleApiKeyFromLocalProperties(): String? {
+    val localPropsFile = File(project.rootDir, "local.properties")
+    if (localPropsFile.exists()) {
+        val props = Properties()
+        localPropsFile.inputStream().use { props.load(it) }
+        return props.getProperty("GOOGLE_API_KEY")?.takeIf { it.isNotBlank() }
+    }
+    return null
 }
 
 android {
@@ -13,6 +26,10 @@ android {
         targetSdk = project.property("targetSdkVersion").toString().toInt()
         versionCode = 118
         versionName = "0.118.0"
+        
+        // Read GOOGLE_API_KEY from local.properties
+        val googleApiKey = readGoogleApiKeyFromLocalProperties() ?: ""
+        buildConfigField("String", "GOOGLE_API_KEY", "\"$googleApiKey\"")
 
         manifestPlaceholders["TERMUX_PACKAGE_NAME"] = "com.termux"
         manifestPlaceholders["TERMUX_APP_NAME"] = "Termux"
@@ -73,6 +90,7 @@ android {
     
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     
     composeOptions {

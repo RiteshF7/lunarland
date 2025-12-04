@@ -21,11 +21,15 @@
     <string name="task_executor_status_finished">Session finished (exit %1$d)</string>
     <string name="task_executor_status_failed">Session error: %1$s</string>
     <string name="task_executor_command_hint">Enter a command to run in the persistent shell</string>
+    <string name="task_executor_generic_command_hint">Enter a generic command (e.g., open settings, open about phone)</string>
     <string name="task_executor_execute_button">Execute</string>
     <string name="task_executor_reset_button">Reset Session</string>
+    <string name="task_executor_close_button">Close Session</string>
     <string name="task_executor_open_button">Open Task Executor</string>
     <string name="task_executor_install_button">Setup Script</string>
     <string name="task_executor_initsetup_button">Init Setup</string>
+    <string name="task_executor_api_key_missing">Error: GOOGLE_API_KEY not found in local.properties</string>
+    <string name="task_executor_api_key_error">Error setting up API key: %1$s</string>
     <string name="bootstrap_setup_title">Setting up Termux</string>
     <string name="bootstrap_setup_retry">Retry</string>
 </resources>

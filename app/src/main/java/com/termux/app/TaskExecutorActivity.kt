@@ -20,6 +20,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.termux.BuildConfig
 import com.termux.R
 import com.termux.shared.logger.Logger
 import com.termux.shared.shell.ShellUtils
@@ -68,6 +69,7 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient {
                 viewModel = viewModel,
                 onDispatchCommand = { command -> dispatchCommand(command) },
                 onRestartSession = { restartSession() },
+                onCloseSession = { closeSession() },
                 onRunInstallScript = { runInstallScript() },
                 onRunInitSetupScript = { runInitSetupScript() }
             )
@@ -146,6 +148,61 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient {
             viewModel.updateStatus(getString(R.string.task_executor_status_ready))
         }
         client.refreshTranscript(terminalSession!!)
+        
+        // Setup Google API Key globally
+        setupGoogleApiKey()
+    }
+    
+    private fun setupGoogleApiKey() {
+        if (terminalSession == null || sessionFinished) {
+            return
+        }
+        
+        Thread {
+            try {
+                // First check if GOOGLE_API_KEY exists in local.properties (via BuildConfig)
+                val apiKeyFromProps = BuildConfig.GOOGLE_API_KEY
+                
+                if (apiKeyFromProps.isBlank()) {
+                    mainHandler.post {
+                        viewModel.updateStatus(getString(R.string.task_executor_api_key_missing))
+                        Logger.logError(LOG_TAG, "GOOGLE_API_KEY not found in local.properties")
+                    }
+                    return@Thread
+                }
+                
+                // Check if GOOGLE_API_KEY is already set in current shell environment
+                // If not, export it from local.properties and add to .bashrc for future sessions
+                val profilePath = "\$HOME/.bashrc"
+                val apiKeyVar = "GOOGLE_API_KEY"
+                val setupCommand = """
+                    if [ -z "$$apiKeyVar" ]; then
+                        # Export for current session
+                        export $apiKeyVar="$apiKeyFromProps"
+                        # Add to .bashrc for all future sessions (if not already present)
+                        if ! grep -q "export $apiKeyVar" $profilePath 2>/dev/null; then
+                            echo 'export $apiKeyVar="$apiKeyFromProps"' >> $profilePath
+                        fi
+                        echo "$apiKeyVar exported from local.properties"
+                    else
+                        echo "$apiKeyVar already set in environment"
+                    fi
+                """.trimIndent()
+                
+                mainHandler.post {
+                    if (terminalSession != null && !sessionFinished) {
+                        terminalSession!!.write(setupCommand)
+                        terminalSession!!.write("\n")
+                        Logger.logInfo(LOG_TAG, "Setting up GOOGLE_API_KEY")
+                    }
+                }
+            } catch (e: Exception) {
+                Logger.logStackTraceWithMessage(LOG_TAG, "Error setting up Google API Key", e)
+                mainHandler.post {
+                    viewModel.updateStatus(getString(R.string.task_executor_api_key_error, e.message ?: "Unknown error"))
+                }
+            }
+        }.start()
     }
 
     private fun dispatchCommand(command: String) {
@@ -157,8 +214,15 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient {
             return
         }
 
-        terminalSession!!.write(command)
+        // Wrap command in droidrun run format
+        val droidrunCommand = "droidrun run \"$command\""
+        terminalSession!!.write(droidrunCommand)
         terminalSession!!.write("\n")
+    }
+    
+    private fun closeSession() {
+        tearDownSession()
+        finish()
     }
 
     private fun restartSession() {
@@ -321,6 +385,7 @@ fun TaskExecutorScreen(
     viewModel: TaskExecutorViewModel,
     onDispatchCommand: (String) -> Unit,
     onRestartSession: () -> Unit,
+    onCloseSession: () -> Unit,
     onRunInstallScript: () -> Unit,
     onRunInitSetupScript: () -> Unit
 ) {
@@ -382,7 +447,7 @@ fun TaskExecutorScreen(
             OutlinedTextField(
                 value = commandText,
                 onValueChange = { commandText = it },
-                label = { Text(stringResource(R.string.task_executor_command_hint)) },
+                label = { Text(stringResource(R.string.task_executor_generic_command_hint)) },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = uiState.isUiEnabled,
                 singleLine = true,
@@ -425,6 +490,17 @@ fun TaskExecutorScreen(
                     modifier = Modifier.padding(end = 8.dp)
                 ) {
                     Text(stringResource(R.string.task_executor_reset_button))
+                }
+
+                Button(
+                    onClick = onCloseSession,
+                    enabled = true,
+                    modifier = Modifier.padding(end = 8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Text(stringResource(R.string.task_executor_close_button))
                 }
 
                 Button(
