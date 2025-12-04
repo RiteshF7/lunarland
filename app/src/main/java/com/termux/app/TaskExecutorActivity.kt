@@ -1,7 +1,12 @@
 package com.termux.app
 
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
 import android.os.Bundle
 import android.os.Handler
+import android.os.IBinder
 import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -41,10 +46,9 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Activity that provides a minimal UI for executing commands inside a persistent Termux shell session.
- * It keeps the same session alive across multiple commands, which allows directory changes and environment
- * mutations to persist until the user resets the session.
+ * Uses TermuxService for stable background execution and shows progress in notifications.
  */
-class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient {
+class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceConnection {
 
     private val LOG_TAG = "TaskExecutorActivity"
 
@@ -54,10 +58,12 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient {
         ViewModelProvider(this)[TaskExecutorViewModel::class.java]
     }
 
+    private var termuxService: TermuxService? = null
     private var currentSession: TermuxSession? = null
     private var terminalSession: TerminalSession? = null
     private var sessionClient: TaskExecutorSessionClient? = null
     private var sessionFinished = false
+    private var isServiceBound = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,12 +81,53 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient {
             )
         }
 
-        prepareSession()
+        // Start and bind to TermuxService for stable background execution
+        startAndBindService()
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        unbindService()
         tearDownSession()
+    }
+
+    private fun startAndBindService() {
+        try {
+            // Start the TermuxService and make it run regardless of who is bound to it
+            val serviceIntent = Intent(this, TermuxService::class.java)
+            startService(serviceIntent)
+
+            // Attempt to bind to the service
+            if (!bindService(serviceIntent, this, Context.BIND_AUTO_CREATE)) {
+                throw RuntimeException("bindService() failed")
+            }
+            isServiceBound = true
+        } catch (e: Exception) {
+            Logger.logStackTraceWithMessage(LOG_TAG, "TaskExecutorActivity failed to start TermuxService", e)
+            viewModel.updateStatus("Failed to start service: ${e.message}")
+        }
+    }
+
+    private fun unbindService() {
+        if (isServiceBound) {
+            try {
+                unbindService(this)
+            } catch (e: Exception) {
+                // ignore
+            }
+            isServiceBound = false
+        }
+    }
+
+    override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+        Logger.logDebug(LOG_TAG, "onServiceConnected")
+        termuxService = (service as TermuxService.LocalBinder).service
+        prepareSession()
+    }
+
+    override fun onServiceDisconnected(name: ComponentName?) {
+        Logger.logDebug(LOG_TAG, "onServiceDisconnected")
+        termuxService = null
     }
 
     private fun prepareSession() {
@@ -94,6 +141,12 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient {
     }
 
     private fun startNewSession() {
+        if (termuxService == null) {
+            Logger.logError(LOG_TAG, "TermuxService not available")
+            viewModel.updateStatus("Service not available")
+            return
+        }
+
         tearDownSession()
         val client = TaskExecutorSessionClient { transcript ->
             mainHandler.post {
@@ -111,8 +164,10 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient {
         executionCommand.terminalTranscriptRows = 4000
         executionCommand.shellCreateMode = ExecutionCommand.ShellCreateMode.ALWAYS.getMode()
 
+        // Use TermuxService context for session creation so it's managed by the service
+        // This ensures stable background execution
         currentSession = TermuxSession.execute(
-            applicationContext,
+            termuxService!!, // Use service context for proper session management
             executionCommand,
             client,
             this,
@@ -173,8 +228,10 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient {
                 
                 // Check if GOOGLE_API_KEY is already set in current shell environment
                 // If not, export it from local.properties and add to .bashrc for future sessions
+                // Also disable telemetry to prevent network errors from cluttering output
                 val profilePath = "\$HOME/.bashrc"
                 val apiKeyVar = "GOOGLE_API_KEY"
+                val telemetryVar = "DROIDRUN_TELEMETRY_ENABLED"
                 val setupCommand = """
                     if [ -z "$$apiKeyVar" ]; then
                         # Export for current session
@@ -186,6 +243,11 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient {
                         echo "$apiKeyVar exported from local.properties"
                     else
                         echo "$apiKeyVar already set in environment"
+                    fi
+                    # Disable telemetry to prevent network errors from appearing after task completion
+                    export $telemetryVar=false
+                    if ! grep -q "export $telemetryVar" $profilePath 2>/dev/null; then
+                        echo 'export $telemetryVar=false' >> $profilePath
                     fi
                 """.trimIndent()
                 
@@ -215,6 +277,7 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient {
         }
 
         // Wrap command in droidrun run format
+        // Telemetry is already disabled in setupGoogleApiKey() to prevent background network errors
         val droidrunCommand = "droidrun run \"$command\""
         terminalSession!!.write(droidrunCommand)
         terminalSession!!.write("\n")
