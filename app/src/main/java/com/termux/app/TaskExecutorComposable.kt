@@ -30,8 +30,12 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.ImeAction
+import kotlinx.coroutines.launch
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
@@ -806,26 +810,28 @@ fun TaskExecutorComposable(
         }
     }
     
-    fun toggleVoiceInput() {
+    fun startVoiceInput() {
+        // Check permission first
+        if (!hasAudioPermission) {
+            com.termux.shared.logger.Logger.logInfo("TaskExecutor", "Requesting audio permission")
+            audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            return
+        }
+        
+        if (speechRecognitionUtil.isAvailable() && !isListening) {
+            com.termux.shared.logger.Logger.logInfo("TaskExecutor", "Starting speech recognition")
+            speechRecognitionUtil.startListening()
+            isListening = true
+        } else if (!speechRecognitionUtil.isAvailable()) {
+            com.termux.shared.logger.Logger.logError("TaskExecutor", "Speech recognition not available")
+        }
+    }
+    
+    fun stopVoiceInput() {
         if (isListening) {
             speechRecognitionUtil.stopListening()
             isListening = false
             com.termux.shared.logger.Logger.logInfo("TaskExecutor", "Stopped listening")
-        } else {
-            // Check permission first
-            if (!hasAudioPermission) {
-                com.termux.shared.logger.Logger.logInfo("TaskExecutor", "Requesting audio permission")
-                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                return
-            }
-            
-            if (speechRecognitionUtil.isAvailable()) {
-                com.termux.shared.logger.Logger.logInfo("TaskExecutor", "Starting speech recognition")
-                speechRecognitionUtil.startListening()
-                isListening = true
-            } else {
-                com.termux.shared.logger.Logger.logError("TaskExecutor", "Speech recognition not available")
-            }
         }
     }
     
@@ -837,18 +843,11 @@ fun TaskExecutorComposable(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Task status component with eye icon button
+        // Eye icon button for toggling logs visibility
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.End
         ) {
-            TaskStatusComponent(
-                currentStatus = uiState.taskStatus,
-                modifier = Modifier.weight(1f)
-            )
-            
-            // Small eye icon button
             IconButton(
                 onClick = { viewModel.toggleLogsVisibility() },
                 modifier = Modifier.size(32.dp)
@@ -943,19 +942,6 @@ fun TaskExecutorComposable(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Reset session icon
-                    IconButton(
-                        onClick = { viewModel.resetSession() },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_close),
-                            contentDescription = "Reset Session",
-                            tint = buttonColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    
                     // Execute icon
                     IconButton(
                         onClick = {
@@ -974,28 +960,38 @@ fun TaskExecutorComposable(
                             modifier = Modifier.size(20.dp)
                         )
                     }
+                    
+                    // Mic button with press and hold
+                    val scope = rememberCoroutineScope()
+                    val interactionSource = remember { MutableInteractionSource() }
+                    
+                    IconButton(
+                        onClick = { /* Handled by pointerInput */ },
+                        modifier = Modifier
+                            .size(24.dp)
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onPress = {
+                                        scope.launch {
+                                            startVoiceInput()
+                                            tryAwaitRelease()
+                                            stopVoiceInput()
+                                        }
+                                    }
+                                )
+                            },
+                        enabled = false
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_mic),
+                            contentDescription = if (isListening) "Release to stop listening" else "Press and hold to speak",
+                            tint = if (isListening) MaterialTheme.colorScheme.error else buttonColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         )
-        
-        // Mic button - centered horizontally
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentWidth(Alignment.CenterHorizontally)
-        ) {
-            IconButton(
-                onClick = { toggleVoiceInput() },
-                modifier = Modifier.size(48.dp)
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_mic),
-                    contentDescription = if (isListening) "Stop listening" else "Start voice input",
-                    tint = if (isListening) MaterialTheme.colorScheme.error else buttonColor,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
-        }
     }
 }
 
