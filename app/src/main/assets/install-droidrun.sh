@@ -517,6 +517,15 @@ main() {
     export MAX_JOBS=2
     log "INFO" "Set parallelism limits: NINJAFLAGS=$NINJAFLAGS, MAKEFLAGS=$MAKEFLAGS"
     
+    # Ensure LD_LIBRARY_PATH includes Termux library directory for native libraries
+    # This is critical for libraries like libtiff.so, libjpeg.so, etc. used by Pillow
+    if [ -z "$LD_LIBRARY_PATH" ]; then
+        export LD_LIBRARY_PATH="$PREFIX/lib"
+    else
+        export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
+    fi
+    log "INFO" "Set LD_LIBRARY_PATH=$LD_LIBRARY_PATH for native library resolution"
+    
     # Check for gfortran symlink
     if [ ! -f "$PREFIX/bin/gfortran" ]; then
         if [ -f "$PREFIX/bin/flang" ]; then
@@ -531,18 +540,75 @@ main() {
     
     # Install necessary system packages for droidrun
     log "INFO" "Installing necessary system packages for droidrun..."
+    log "INFO" "Including all Pillow image processing dependencies..."
     pkg install -y \
         binutils \
         clang \
         cmake \
+        freetype \
         git \
         libc++ \
+        libimagequant \
+        libjpeg-turbo \
+        libpng \
+        libraqm \
+        libtiff \
+        libwebp \
+        libxcb \
+        littlecms \
         make \
+        openjpeg \
         pkg-config \
         rust \
+        zlib \
         2>&1 | tee -a "$LOG_FILE" || {
         log "WARNING" "Some system packages failed to install, continuing..."
     }
+    
+    # Ensure LD_LIBRARY_PATH includes Termux library directory for native libraries
+    # This is critical for libraries like libtiff.so, libjpeg.so, etc. used by Pillow
+    if [ -z "$LD_LIBRARY_PATH" ]; then
+        export LD_LIBRARY_PATH="$PREFIX/lib"
+    else
+        export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
+    fi
+    log "INFO" "Set LD_LIBRARY_PATH=$LD_LIBRARY_PATH for native library resolution"
+    
+    # Verify critical native libraries are available (required by Pillow)
+    log "INFO" "Verifying native libraries for Pillow..."
+    local missing_libs=()
+    
+    # Check for all Pillow dependencies
+    local required_libs=(
+        "libtiff.so:libtiff"
+        "libopenjp2.so:openjpeg"
+        "libjpeg.so:libjpeg-turbo"
+        "libpng.so:libpng"
+        "libwebp.so:libwebp"
+        "libfreetype.so:freetype"
+        "liblcms2.so:littlecms"
+        "libraqm.so:libraqm"
+    )
+    
+    for lib_info in "${required_libs[@]}"; do
+        IFS=':' read -r lib_name pkg_name <<< "$lib_info"
+        if [ -f "$PREFIX/lib/$lib_name" ] || \
+           [ -f "$PREFIX/lib/${lib_name}.6" ] || \
+           [ -f "$PREFIX/lib/${lib_name}.5" ] || \
+           [ -f "$PREFIX/lib/${lib_name}.2" ] || \
+           ls "$PREFIX/lib/$lib_name"* 2>/dev/null | grep -q .; then
+            log "SUCCESS" "$lib_name found (package: $pkg_name)"
+        else
+            log "WARNING" "$lib_name NOT found - Pillow may have issues (install: pkg install $pkg_name)"
+            missing_libs+=("$pkg_name")
+        fi
+    done
+    
+    if [ ${#missing_libs[@]} -gt 0 ]; then
+        log "WARNING" "Missing libraries detected. Install with: pkg install ${missing_libs[*]}"
+    else
+        log "SUCCESS" "All critical Pillow native libraries are available"
+    fi
     
     # Upgrade pip and build tools
     log "INFO" "Upgrading pip and build tools..."
