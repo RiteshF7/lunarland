@@ -5,103 +5,46 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material3.*
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.painterResource
-import lunar.land.ui.R
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.input.ImeAction
-import kotlinx.coroutines.launch
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.core.content.ContextCompat
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.ViewModelStoreOwner
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import androidx.compose.runtime.collectAsState
-import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.remember
 import com.termux.BuildConfig
+import com.termux.app.TermuxInstaller
+import com.termux.app.TermuxService
+import com.termux.app.taskexecutor.model.TaskExecutorUiState
+import com.termux.app.taskexecutor.model.TaskStatus
 import com.termux.shared.logger.Logger
 import com.termux.shared.shell.ShellUtils
 import com.termux.shared.shell.command.ExecutionCommand
 import com.termux.shared.shell.command.ExecutionCommand.Runner
 import com.termux.shared.termux.TermuxConstants
+import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession.TermuxSessionClient
 import com.termux.shared.termux.terminal.TermuxTerminalSessionClientBase
 import com.termux.terminal.TerminalSession
-import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment
-import com.termux.app.TermuxInstaller
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import java.util.concurrent.atomic.AtomicInteger
 
-/**
- * Composable ViewModel for Task Executor
- */
-enum class TaskStatus {
-    STOPPED,
-    RUNNING,
-    SUCCESS,
-    ERROR
-}
-
-data class TaskExecutorComposableUiState(
-    val statusText: String = "",
-    val outputText: String = "",
-    val isUiEnabled: Boolean = false,
-    val sessionFinished: Boolean = false,
-    val exitCode: Int? = null,
-    val currentTask: String? = null,
-    val taskProgress: Int = 0,
-    val isTaskRunning: Boolean = false,
-    val showLogs: Boolean = false,
-    val taskStatus: TaskStatus = TaskStatus.STOPPED
-)
-
-class TaskExecutorComposableViewModelFactory(private val activity: Activity) : ViewModelProvider.Factory {
+class TaskExecutorViewModelFactory(private val activity: Activity) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return TaskExecutorComposableViewModel(activity) as T
+        return TaskExecutorViewModel(activity) as T
     }
 }
 
-class TaskExecutorComposableViewModel(private val activity: Activity) : AndroidViewModel(activity.application) {
+class TaskExecutorViewModel(private val activity: Activity) : AndroidViewModel(activity.application) {
     
-    private val LOG_TAG = "TaskExecutorComposableViewModel"
+    private val LOG_TAG = "TaskExecutorViewModel"
     
-    private val _uiState = kotlinx.coroutines.flow.MutableStateFlow(TaskExecutorComposableUiState())
-    val uiState: kotlinx.coroutines.flow.StateFlow<TaskExecutorComposableUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(TaskExecutorUiState())
+    val uiState: StateFlow<TaskExecutorUiState> = _uiState.asStateFlow()
     
     private val sessionIds = AtomicInteger()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -109,7 +52,7 @@ class TaskExecutorComposableViewModel(private val activity: Activity) : AndroidV
     var termuxService: TermuxService? = null
     var currentSession: TermuxSession? = null
     var terminalSession: TerminalSession? = null
-    private var sessionClient: TaskExecutorComposableSessionClient? = null
+    private var sessionClient: TaskExecutorSessionClient? = null
     var sessionFinished = false
     var isServiceBound = false
     var currentTaskCommand: String? = null
@@ -174,7 +117,7 @@ class TaskExecutorComposableViewModel(private val activity: Activity) : AndroidV
         }
         
         tearDownSession()
-        val client = TaskExecutorComposableSessionClient { transcript ->
+        val client = TaskExecutorSessionClient { transcript ->
             mainHandler.post {
                 updateOutput(transcript)
             }
@@ -573,7 +516,7 @@ class TaskExecutorComposableViewModel(private val activity: Activity) : AndroidV
         }
     }
     
-    private inner class TaskExecutorComposableSessionClient(
+    private inner class TaskExecutorSessionClient(
         private val onTranscriptUpdate: (String) -> Unit
     ) : TermuxTerminalSessionClientBase() {
         
@@ -593,405 +536,6 @@ class TaskExecutorComposableViewModel(private val activity: Activity) : AndroidV
                 onTranscriptUpdate(transcript ?: "")
             }
         }
-    }
-}
-
-/**
- * Task Status Component
- * Displays task status with dots and labels
- */
-@Composable
-fun TaskStatusComponent(
-    currentStatus: TaskStatus,
-    modifier: Modifier = Modifier
-) {
-    val buttonColor = MaterialTheme.colorScheme.primary
-    
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape = MaterialTheme.shapes.small)
-            .background(color = buttonColor.copy(alpha = 0.23f))
-            .border(
-                width = 0.4.dp,
-                color = buttonColor.copy(alpha = 0.6f),
-                shape = MaterialTheme.shapes.small
-            )
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Stopped
-        TaskStatusItem(
-            label = "Stopped",
-            isActive = currentStatus == TaskStatus.STOPPED,
-            color = buttonColor
-        )
-        
-        // Running
-        TaskStatusItem(
-            label = "Running",
-            isActive = currentStatus == TaskStatus.RUNNING,
-            color = buttonColor
-        )
-        
-        // Success
-        TaskStatusItem(
-            label = "Success",
-            isActive = currentStatus == TaskStatus.SUCCESS,
-            color = buttonColor
-        )
-        
-        // Error
-        TaskStatusItem(
-            label = "Error",
-            isActive = currentStatus == TaskStatus.ERROR,
-            color = buttonColor
-        )
-    }
-}
-
-@Composable
-private fun TaskStatusItem(
-    label: String,
-    isActive: Boolean,
-    color: androidx.compose.ui.graphics.Color,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .clip(shape = CircleShape)
-                .background(
-                    color = if (isActive) color else color.copy(alpha = 0.3f)
-                )
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (isActive) color else color.copy(alpha = 0.6f)
-        )
-    }
-}
-
-/**
- * Task State Dot Component
- * Shows a dot that indicates task status by color:
- * - Black = idle (STOPPED)
- * - Red = error (ERROR)
- * - Blinking green = running (RUNNING)
- * - Green = success (SUCCESS)
- */
-@Composable
-private fun TaskStateDot(
-    status: TaskStatus,
-    modifier: Modifier = Modifier
-) {
-    val dotColor = when (status) {
-        TaskStatus.STOPPED -> Color.Black
-        TaskStatus.ERROR -> Color.Red
-        TaskStatus.RUNNING -> Color.Green
-        TaskStatus.SUCCESS -> Color.Green
-    }
-    
-    // Blinking animation for running state
-    val infiniteTransition = rememberInfiniteTransition(label = "blink")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 0.3f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "blink_alpha"
-    )
-    
-    val animatedColor = if (status == TaskStatus.RUNNING) {
-        dotColor.copy(alpha = alpha)
-    } else {
-        dotColor
-    }
-    
-    Box(
-        modifier = modifier
-            .size(8.dp)
-            .clip(shape = CircleShape)
-            .background(color = animatedColor)
-    )
-}
-
-/**
- * Reusable Task Executor Composable
- * Can be placed in any Activity
- */
-@Composable
-fun TaskExecutorComposable(
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    val activity = context as? Activity ?: return
-    
-    val viewModel: TaskExecutorComposableViewModel = remember(activity) {
-        val factory = TaskExecutorComposableViewModelFactory(activity)
-        ViewModelProvider(activity as ViewModelStoreOwner, factory)[TaskExecutorComposableViewModel::class.java]
-    }
-    val uiState by viewModel.uiState.collectAsState()
-    var commandText by remember { mutableStateOf("") }
-    var isListening by remember { mutableStateOf(false) }
-    val scrollState = rememberScrollState()
-    val logsScrollState = rememberScrollState()
-    val keyboardController = LocalSoftwareKeyboardController.current
-    
-    // Check and request audio permission
-    val hasAudioPermission = ContextCompat.checkSelfPermission(
-        context,
-        Manifest.permission.RECORD_AUDIO
-    ) == PackageManager.PERMISSION_GRANTED
-    
-    val audioPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            Logger.logInfo("TaskExecutor", "Audio permission granted")
-        } else {
-            Logger.logError("TaskExecutor", "Audio permission denied")
-        }
-    }
-    
-    // Speech recognition utility
-    val speechRecognitionUtil = remember {
-        SpeechRecognitionUtil(
-            context = context,
-            onResult = { text ->
-                commandText = text
-                com.termux.shared.logger.Logger.logInfo("TaskExecutor", "Speech result: $text")
-            },
-            onError = { error ->
-                isListening = false
-                com.termux.shared.logger.Logger.logError("TaskExecutor", "Speech recognition error: $error")
-            }
-        )
-    }
-    
-    // Cleanup speech recognition on dispose
-    DisposableEffect(Unit) {
-        onDispose {
-            speechRecognitionUtil.destroy()
-        }
-    }
-    
-    // Initialize service binding
-    LaunchedEffect(Unit) {
-        if (context is Activity) {
-            viewModel.bindService(context)
-        }
-    }
-    
-    // Cleanup on dispose
-    DisposableEffect(Unit) {
-        onDispose {
-            if (context is Activity) {
-                viewModel.unbindService(context)
-                TermuxService.setTaskExecutorState(null, 0, false)
-            }
-        }
-    }
-    
-    // Auto-scroll to bottom when output changes
-    LaunchedEffect(uiState.outputText) {
-        if (uiState.showLogs && uiState.outputText.isNotEmpty()) {
-            kotlinx.coroutines.delay(50) // Small delay to ensure text is rendered
-            logsScrollState.animateScrollTo(logsScrollState.maxValue)
-        }
-    }
-    
-    fun startVoiceInput() {
-        // Check permission first
-        if (!hasAudioPermission) {
-            com.termux.shared.logger.Logger.logInfo("TaskExecutor", "Requesting audio permission")
-            audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-            return
-        }
-        
-        if (speechRecognitionUtil.isAvailable() && !isListening) {
-            com.termux.shared.logger.Logger.logInfo("TaskExecutor", "Starting speech recognition")
-            speechRecognitionUtil.startListening()
-            isListening = true
-        } else if (!speechRecognitionUtil.isAvailable()) {
-            com.termux.shared.logger.Logger.logError("TaskExecutor", "Speech recognition not available")
-        }
-    }
-    
-    fun stopVoiceInput() {
-        if (isListening) {
-            speechRecognitionUtil.stopListening()
-            isListening = false
-            com.termux.shared.logger.Logger.logInfo("TaskExecutor", "Stopped listening")
-        }
-    }
-    
-    val buttonColor = MaterialTheme.colorScheme.primary
-    
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // Eye icon button for toggling logs visibility
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
-        ) {
-            IconButton(
-                onClick = { viewModel.toggleLogsVisibility() },
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    painter = painterResource(id = if (uiState.showLogs) R.drawable.ic_visibility else R.drawable.ic_visibility_off),
-                    contentDescription = if (uiState.showLogs) "Hide Logs" else "Show Logs",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-        
-        // Logs area (conditionally visible) - styled like FavoriteItem
-        if (uiState.showLogs) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .clip(shape = MaterialTheme.shapes.small)
-                    .background(color = buttonColor.copy(alpha = 0.23f))
-                    .border(
-                        width = 0.4.dp,
-                        color = buttonColor.copy(alpha = 0.6f),
-                        shape = MaterialTheme.shapes.small
-                    )
-            ) {
-                if (uiState.outputText.isEmpty()) {
-                    // Show placeholder when no logs
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No logs yet. Run a task to see output here.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = buttonColor.copy(alpha = 0.6f),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                    }
-                } else {
-                    // Show logs with proper scrolling
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(logsScrollState)
-                            .padding(16.dp)
-                    ) {
-                        // Split output into lines for better rendering
-                        val lines = uiState.outputText.lines()
-                        lines.forEach { line ->
-                            Text(
-                                text = line.ifEmpty { " " }, // Empty lines show as space
-                                style = MaterialTheme.typography.bodySmall,
-                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                color = buttonColor,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Command input with state dot and action icons
-        TextField(
-            modifier = Modifier.fillMaxWidth(),
-            value = commandText,
-            onValueChange = { commandText = it },
-            placeholder = {
-                Text(text = "Enter Task")
-            },
-            shape = MaterialTheme.shapes.small,
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                autoCorrect = false,
-                imeAction = ImeAction.Done
-            ),
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color.Transparent,
-                disabledIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
-            ),
-            leadingIcon = {
-                // State indicator dot
-                TaskStateDot(status = uiState.taskStatus)
-            },
-            trailingIcon = {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Execute icon
-                    IconButton(
-                        onClick = {
-                            if (commandText.isNotBlank()) {
-                                viewModel.dispatchCommand(commandText)
-                                commandText = ""
-                                keyboardController?.hide()
-                            }
-                        },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.ArrowForward,
-                            contentDescription = "Execute",
-                            tint = buttonColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    
-                    // Mic button with press and hold
-                    val scope = rememberCoroutineScope()
-                    val interactionSource = remember { MutableInteractionSource() }
-                    
-                    IconButton(
-                        onClick = { /* Handled by pointerInput */ },
-                        modifier = Modifier
-                            .size(24.dp)
-                            .pointerInput(Unit) {
-                                detectTapGestures(
-                                    onPress = {
-                                        scope.launch {
-                                            startVoiceInput()
-                                            tryAwaitRelease()
-                                            stopVoiceInput()
-                                        }
-                                    }
-                                )
-                            },
-                        enabled = false
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_mic),
-                            contentDescription = if (isListening) "Release to stop listening" else "Press and hold to speak",
-                            tint = if (isListening) MaterialTheme.colorScheme.error else buttonColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-        )
     }
 }
 

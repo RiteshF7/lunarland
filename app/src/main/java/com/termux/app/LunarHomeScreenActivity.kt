@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
+import com.termux.app.taskexecutor.ui.TaskExecutorScreen
 import lunar.land.ui.core.homescreen.HomeScreenPager
 import lunar.land.ui.core.model.Theme
 import lunar.land.ui.core.theme.LauncherTheme
@@ -28,7 +29,7 @@ class LunarHomeScreenActivity : ComponentActivity() {
                         HomeScreenPager(
                             modifier = Modifier.padding(innerPadding),
                             taskExecutorContent = {
-                                TaskExecutorComposable(
+                                TaskExecutorScreen(
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }

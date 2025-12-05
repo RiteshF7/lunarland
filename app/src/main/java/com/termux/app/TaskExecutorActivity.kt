@@ -90,7 +90,7 @@ class TaskExecutorActivity : ComponentActivity(), TermuxSessionClient, ServiceCo
         TermuxShellEnvironment.init(applicationContext)
 
             setContent {
-                TaskExecutorComposable()
+                com.termux.app.taskexecutor.ui.TaskExecutorScreen()
             }
 
         // Register receiver for stop task action
