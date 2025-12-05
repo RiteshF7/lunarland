@@ -364,7 +364,8 @@ except:
     # Ensure PATH includes termux prefix
     export PATH="$PREFIX/bin:$PATH"
     
-    if $PIP_CMD install --find-links . --no-index "$wheel_file" 2>&1 | tee -a "$LOG_FILE"; then
+    # Use --find-links to check local wheels first, but allow PyPI fallback for dependencies
+    if $PIP_CMD install --find-links "$WHEELS_DIR" --prefer-binary "$wheel_file" 2>&1 | tee -a "$LOG_FILE"; then
         local installed_version=$(get_installed_version "$package_name")
         local total_time=$(get_elapsed_time "$step_start_time")
         log "SUCCESS" "$package_name installed successfully (Version: $installed_version, Time: $total_time)"
@@ -414,8 +415,9 @@ install_pure_python_package() {
     # Ensure PATH includes termux prefix
     export PATH="$PREFIX/bin:$PATH"
     
-    log "INFO" "No local wheel found. Installing $package_spec..."
+    log "INFO" "No local wheel found. Installing $package_spec from PyPI..."
     # Use --find-links to prioritize local wheels even for transitive dependencies
+    # PyPI will be used as fallback for any missing packages
     if $PIP_CMD install "$package_spec" --find-links "$WHEELS_DIR" --prefer-binary 2>&1 | tee -a "$LOG_FILE"; then
         local installed_version=$(get_installed_version "$package_name")
         local total_time=$(get_elapsed_time "$step_start_time")
@@ -630,6 +632,7 @@ main() {
             if [ "$already_processed" = false ] && ! is_package_installed "$wheel_name"; then
                 log "INFO" "Installing remaining wheel: $(basename "$wheel_file")"
                 # Use --find-links to ensure transitive dependencies also use local wheels
+                # PyPI will be used as fallback for any missing dependencies
                 if $PIP_CMD install "$wheel_file" --find-links "$WHEELS_DIR" --prefer-binary 2>&1 | tee -a "$LOG_FILE"; then
                     SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
                 else
@@ -655,12 +658,84 @@ main() {
     
     log "INFO" "Installing droidrun[google]..."
     
+    # Log available local wheels for debugging
+    log "INFO" "Available local wheels in $WHEELS_DIR:"
+    local wheel_count=0
+    for wheel in "$WHEELS_DIR"/*.whl; do
+        if [ -f "$wheel" ]; then
+            wheel_count=$((wheel_count + 1))
+            log "INFO" "  - $(basename "$wheel")"
+        fi
+    done
+    log "INFO" "Total local wheels: $wheel_count"
+    
     # Install droidrun[google] - prioritize local wheels for ALL dependencies (including transitive)
     # Use --find-links to check local wheels first, but allow PyPI fallback if not found
     # This ensures transitive dependencies also use local wheels when available
+    # IMPORTANT: We do NOT use --no-index, so pip will fall back to PyPI for missing packages
     log "INFO" "Installing droidrun[google] with local wheel priority for all dependencies..."
+    log "INFO" "Command: $PIP_CMD install 'droidrun[google]' --find-links \"$WHEELS_DIR\" --prefer-binary"
+    log "INFO" "Note: PyPI will be used as fallback for any packages not found in local wheels"
     local install_output=$($PIP_CMD install 'droidrun[google]' --find-links "$WHEELS_DIR" --prefer-binary 2>&1 | tee -a "$LOG_FILE")
     local pip_exit_code=${PIPESTATUS[0]}
+    
+    # Analyze what was downloaded/built vs what came from local wheels
+    log "INFO" "Analyzing installation output for downloads and builds..."
+    
+    # Extract packages downloaded from PyPI
+    local downloaded_packages=$(echo "$install_output" | grep -E "^[[:space:]]*Downloading|^[[:space:]]*Collecting" | grep -v "Using cached\|Looking in links\|Processing" | sed 's/^[[:space:]]*//' | head -50)
+    
+    # Extract packages being built
+    local built_packages=$(echo "$install_output" | grep -E "Building wheel|Building wheels|Running setup.py" | sed 's/^[[:space:]]*//' | head -20)
+    
+    # Extract packages using local wheels
+    local local_wheel_used=$(echo "$install_output" | grep -E "Looking in links|Processing.*\.whl|Using.*from.*wheels" | sed 's/^[[:space:]]*//' | head -20)
+    
+    # Extract package names that were collected (to see all dependencies)
+    local collected_packages=$(echo "$install_output" | grep -E "^[[:space:]]*Collecting " | sed 's/^[[:space:]]*Collecting //' | sed 's/ .*$//' | sort -u)
+    
+    if [ -n "$downloaded_packages" ]; then
+        log "WARNING" "Packages downloaded from PyPI (not in local wheels):"
+        echo "$downloaded_packages" | while IFS= read -r line; do
+            if [ -n "$line" ]; then
+                log "WARNING" "  $line"
+            fi
+        done
+    fi
+    
+    if [ -n "$built_packages" ]; then
+        log "ERROR" "Packages being built from source (wheels not available - THIS IS SLOW!):"
+        echo "$built_packages" | while IFS= read -r line; do
+            if [ -n "$line" ]; then
+                log "ERROR" "  $line"
+            fi
+        done
+    fi
+    
+    if [ -n "$collected_packages" ]; then
+        log "INFO" "All packages collected by pip (droidrun[google] dependencies):"
+        echo "$collected_packages" | while IFS= read -r pkg; do
+            if [ -n "$pkg" ]; then
+                # Check if this package has a local wheel
+                local pkg_name=$(echo "$pkg" | sed 's/\[.*\]//' | sed 's/[<>=!].*//')
+                local wheel_found=$(find_local_wheel "$pkg_name")
+                if [ -n "$wheel_found" ]; then
+                    log "INFO" "  ✓ $pkg (has local wheel: $(basename "$wheel_found"))"
+                else
+                    log "WARNING" "  ✗ $pkg (NO LOCAL WHEEL - will download from PyPI)"
+                fi
+            fi
+        done
+    fi
+    
+    if [ -n "$local_wheel_used" ]; then
+        log "INFO" "Local wheels used:"
+        echo "$local_wheel_used" | while IFS= read -r line; do
+            if [ -n "$line" ]; then
+                log "INFO" "  $line"
+            fi
+        done
+    fi
     
     if [ $pip_exit_code -eq 0 ]; then
         # Verify installation by checking if droidrun is actually installed
@@ -686,6 +761,23 @@ main() {
         fi
     else
         log "ERROR" "Failed to install droidrun[google] (pip exit code: $pip_exit_code)"
+        log "WARNING" "Attempting final fallback: installing droidrun[google] directly from PyPI..."
+        
+        # Final fallback: try installing directly from PyPI without local wheels
+        # This ensures any remaining packages are downloaded
+        local fallback_output=$($PIP_CMD install 'droidrun[google]' --prefer-binary 2>&1 | tee -a "$LOG_FILE")
+        local fallback_exit_code=${PIPESTATUS[0]}
+        
+        if [ $fallback_exit_code -eq 0 ]; then
+            local installed_version=$(get_installed_version "droidrun")
+            if [ "$installed_version" != "not installed" ] && [ -n "$installed_version" ]; then
+                log "SUCCESS" "droidrun[google] installed successfully from PyPI fallback (Version: $installed_version)"
+                SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+                return 0
+            fi
+        fi
+        
+        log "ERROR" "PyPI fallback also failed (pip exit code: $fallback_exit_code)"
         FAILED_COUNT=$((FAILED_COUNT + 1))
         FAILED_PACKAGES+=("droidrun[google] (installation failed)")
         return 1

@@ -211,12 +211,25 @@ object DroidrunDownloader {
                 val buffer = ByteArray(BUFFER_SIZE)
                 
                 while (entry != null) {
-                    val entryName = entry.name
+                    var entryName = entry.name
+                    
+                    // Strip leading directory names from zip entries (e.g., "arch64_wheels/wheel.whl" -> "wheel.whl")
+                    // This ensures wheels are extracted directly to wheelsDir, not in subdirectories
+                    if (entryName.contains("/")) {
+                        val parts = entryName.split("/")
+                        // Only strip if there's a subdirectory (more than 1 part)
+                        // Keep the last part (filename) and any "bin/" prefix for executables
+                        if (parts.size > 1 && !entryName.startsWith("bin/")) {
+                            entryName = parts.last()
+                        }
+                    }
+                    
                     val targetFile = File(wheelsDir, entryName)
                     
                     if (entry.isDirectory) {
-                        // Create directory
-                        if (!targetFile.exists()) {
+                        // Skip directory entries (we'll create parent dirs as needed)
+                        // Only create if it's a direct child of wheelsDir
+                        if (!entryName.contains("/") && !targetFile.exists()) {
                             targetFile.mkdirs()
                         }
                     } else {
@@ -225,7 +238,7 @@ object DroidrunDownloader {
                             targetFile.delete()
                         }
                         
-                        // Create parent directories if needed
+                        // Create parent directories if needed (should be wheelsDir itself)
                         targetFile.parentFile?.mkdirs()
                         
                         // Extract file
@@ -273,7 +286,7 @@ object DroidrunDownloader {
                         
                         // Log wheel file extraction
                         if (entryName.endsWith(".whl")) {
-                            Logger.logInfo(LOG_TAG, "Extracted wheel: ${targetFile.name} (${targetFile.length()} bytes)")
+                            Logger.logInfo(LOG_TAG, "Extracted wheel: ${targetFile.name} (${targetFile.length()} bytes) from zip entry: ${entry.name}")
                         }
                     }
                     
@@ -282,7 +295,23 @@ object DroidrunDownloader {
                 }
             }
             
+            // Count extracted wheel files
+            val extractedWheels = wheelsDir.listFiles { _, name -> name.endsWith(".whl") }
+            val wheelCount = extractedWheels?.size ?: 0
             Logger.logInfo(LOG_TAG, "Successfully extracted droidrun to ${wheelsDir.absolutePath}")
+            Logger.logInfo(LOG_TAG, "Total wheel files extracted: $wheelCount")
+            
+            if (wheelCount > 0) {
+                Logger.logInfo(LOG_TAG, "Extracted wheel files:")
+                extractedWheels?.take(10)?.forEach { wheel ->
+                    Logger.logInfo(LOG_TAG, "  - ${wheel.name} (${wheel.length()} bytes)")
+                }
+                if (wheelCount > 10) {
+                    Logger.logInfo(LOG_TAG, "  ... and ${wheelCount - 10} more")
+                }
+            } else {
+                Logger.logWarn(LOG_TAG, "WARNING: No wheel files found after extraction!")
+            }
             
             // Clean up zip file after extraction
             zipFile.delete()
