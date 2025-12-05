@@ -20,15 +20,9 @@
 
         <activity
             android:name=".app.DriverActivity"
-            android:exported="true"
+            android:exported="false"
             android:label="@string/application_name"
-            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
 
         <activity
             android:name=".app.TaskExecutorActivity"
@@ -58,9 +52,15 @@
 
         <activity
             android:name=".app.LunarHomeScreenActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="Lunar UI HomeScreen"
-            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
+            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
 
     </application>
 

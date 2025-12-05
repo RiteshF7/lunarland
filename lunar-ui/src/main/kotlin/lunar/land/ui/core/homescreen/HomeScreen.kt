@@ -182,11 +182,7 @@ internal fun HomeScreen(
                 verticalArrangement = Arrangement.Bottom
             ) {
                 VerticalSpacer(spacing = topPadding)
-                ClockWidgetUiComponent(
-                    state = clockState,
-                    horizontalPadding = horizontalPadding,
-                    onClick = onClockClick
-                )
+                
                 lunarCalendarState?.let { state ->
                     DecoratedLunarCalendar(
                         state = state,
@@ -194,6 +190,12 @@ internal fun HomeScreen(
                         horizontalPadding = horizontalPadding
                     )
                 }
+                ClockWidgetUiComponent(
+                    state = clockState,
+                    horizontalPadding = horizontalPadding,
+                    onClick = onClockClick
+                )
+                
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -202,6 +204,7 @@ internal fun HomeScreen(
                 ) {
                     AISphere(size = 200.dp)
                 }
+
                 FavoritesListUiComponent(
                     state = favoritesListState,
                     contentPadding = bottomPadding,

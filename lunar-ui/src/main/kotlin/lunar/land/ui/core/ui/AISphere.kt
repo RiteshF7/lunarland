@@ -1,31 +1,18 @@
 ﻿package lunar.land.ui.core.ui
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.random.Random
 
 @Composable
 fun AISphere(
@@ -33,30 +20,13 @@ fun AISphere(
     size: Dp = 200.dp
 ) {
     val density = LocalDensity.current
-    val infiniteTransition = rememberInfiniteTransition(label = "AISphereRotation")
-    
-    val rotationAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = 20000,
-                easing = LinearEasing
-            ),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "Rotation"
-    )
 
     Box(
         modifier = modifier
             .size(size)
             .drawBehind {
                 val sizePx = with(density) { size.toPx() }
-                drawAISphere(
-                    size = sizePx,
-                    rotationAngle = rotationAngle
-                )
+                drawAISphere(size = sizePx)
             },
         contentAlignment = Alignment.Center
     ) {
@@ -65,154 +35,99 @@ fun AISphere(
 }
 
 private fun DrawScope.drawAISphere(
-    size: Float,
-    rotationAngle: Float
+    size: Float
 ) {
     val center = Offset(size / 2f, size / 2f)
     val radius = size * 0.4f
     
-    // Draw star field inside the sphere
-    drawStarField(
+    // Draw static glowing green sphere
+    drawGlowingSphere(
         center = center,
-        radius = radius * 0.9f,
-        count = 150
+        radius = radius
     )
-    
-    // Draw the sphere with iridescent colors
-    rotate(rotationAngle, center) {
-        drawIridescentSphere(
-            center = center,
-            radius = radius
-        )
-    }
 }
 
-private fun DrawScope.drawStarField(
-    center: Offset,
-    radius: Float,
-    count: Int
-) {
-    val random = Random(42) // Fixed seed for consistent star pattern
-    
-    repeat(count) {
-        val angle = random.nextFloat() * 360f
-        val distance = random.nextFloat() * radius
-        val x = center.x + cos(Math.toRadians(angle.toDouble())).toFloat() * distance
-        val y = center.y + sin(Math.toRadians(angle.toDouble())).toFloat() * distance
-        
-        // Check if point is within circle
-        val distFromCenter = kotlin.math.sqrt(
-            (x - center.x) * (x - center.x) + (y - center.y) * (y - center.y)
-        )
-        
-        if (distFromCenter <= radius) {
-            val starSize = random.nextFloat() * 1.5f + 0.5f
-            val alpha = random.nextFloat() * 0.8f + 0.2f
-            
-            drawCircle(
-                color = Color.White.copy(alpha = alpha),
-                radius = starSize,
-                center = Offset(x, y)
-            )
-        }
-    }
-}
-
-private fun DrawScope.drawIridescentSphere(
+private fun DrawScope.drawGlowingSphere(
     center: Offset,
     radius: Float
 ) {
-    // Create iridescent gradient colors
-    val colors = listOf(
-        Color(0xFF00FF88), // Green
-        Color(0xFFFF6600), // Orange
-        Color(0xFFFF0066), // Pink/Red
-        Color(0xFF0066FF), // Blue
-        Color(0xFF6600FF), // Purple
-        Color(0xFF00FFFF), // Cyan
-        Color(0xFFFFFF00), // Yellow
-        Color(0xFF00FF88)  // Back to green
-    )
+    // Green color palette - only bright glowing greens (no dark colors)
+    val brightGlow = Color(0xFF00FFCC)    // Brightest glow
+    val glowGreen = Color(0xFF00FF99)     // Glowing green
+    val primaryGreen = Color(0xFF00FFAA)  // Bright green (brighter)
+    val lightGreen = Color(0xFF66FFCC)    // Lighter green (brighter)
     
-    // Draw multiple overlapping circles with different gradients for iridescent effect
-    val numLayers = 8
+    // Draw extensive outer glow layers for stronger glow effect
+    val glowLayers = 8
+    repeat(glowLayers) { layer ->
+        val glowRadius = radius * (1f + (layer + 1) * 0.2f)
+        val glowAlpha = (0.25f - layer * 0.02f).coerceAtLeast(0.05f)
+        
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    primaryGreen.copy(alpha = glowAlpha),
+                    glowGreen.copy(alpha = glowAlpha * 0.7f),
+                    Color.Transparent
+                ),
+                center = center,
+                radius = glowRadius
+            ),
+            radius = glowRadius,
+            center = center
+        )
+    }
     
-    repeat(numLayers) { layer ->
-        val layerRadius = radius * (1f - layer * 0.08f)
-        val angle = (layer * 45f) % 360f
-        
-        // Create gradient based on angle
-        val startColor = colors[(layer % colors.size)]
-        val endColor = colors[((layer + 1) % colors.size)]
-        
-        // Draw sphere outline with gradient
-        val path = Path().apply {
-            addOval(
-                Rect(
-                    left = center.x - layerRadius,
-                    top = center.y - layerRadius,
-                    right = center.x + layerRadius,
-                    bottom = center.y + layerRadius
-                )
-            )
-        }
-        
-        // Create radial gradient
-        val gradient = Brush.radialGradient(
+    // Draw main sphere body - perfectly round circle with transparent center
+    drawCircle(
+        brush = Brush.radialGradient(
             colors = listOf(
-                startColor.copy(alpha = 0.3f),
-                endColor.copy(alpha = 0.15f),
-                Color.Transparent
+                Color.Transparent,                  // Fully transparent center (no background)
+                brightGlow.copy(alpha = 0.2f),      // Very light glow
+                glowGreen.copy(alpha = 0.3f),       // Glowing green
+                lightGreen.copy(alpha = 0.35f),     // Light middle
+                primaryGreen.copy(alpha = 0.4f),     // Medium glow
+                Color.Transparent                   // Fully transparent outside
             ),
-            center = Offset(
-                center.x + cos(Math.toRadians(angle.toDouble())).toFloat() * layerRadius * 0.3f,
-                center.y + sin(Math.toRadians(angle.toDouble())).toFloat() * layerRadius * 0.3f
-            ),
-            radius = layerRadius
-        )
-        
-        drawPath(
-            path = path,
-            brush = gradient
-        )
-    }
-    
-    // Draw main sphere outline with iridescent border
-    val borderPath = Path().apply {
-        addOval(
-            Rect(
-                left = center.x - radius,
-                top = center.y - radius,
-                right = center.x + radius,
-                bottom = center.y + radius
-            )
-        )
-    }
-    
-    // Create sweeping gradient for the border
-    val borderGradient = Brush.sweepGradient(
-        colors = colors,
+            center = Offset(center.x - radius * 0.3f, center.y - radius * 0.3f),
+            radius = radius * 1.5f
+        ),
+        radius = radius,
         center = center
     )
     
-    // Draw border with varying opacity
-    drawPath(
-        path = borderPath,
-        brush = borderGradient,
-        alpha = 0.6f
+    // Draw sphere border with glowing green
+    drawCircle(
+        brush = Brush.sweepGradient(
+            colors = listOf(
+                brightGlow.copy(alpha = 1f),
+                glowGreen.copy(alpha = 0.95f),
+                primaryGreen.copy(alpha = 1f),
+                lightGreen.copy(alpha = 0.95f),
+                primaryGreen.copy(alpha = 1f),
+                glowGreen.copy(alpha = 0.95f),
+                brightGlow.copy(alpha = 1f)
+            ),
+            center = center
+        ),
+        radius = radius,
+        center = center,
+        alpha = 0.85f
     )
     
-    // Draw additional highlights for depth
-    val highlightRadius = radius * 0.7f
+    // Draw inner 3D highlight for depth (top-left light source)
+    val highlightRadius = radius * 0.65f
     val highlightOffset = Offset(
-        center.x - radius * 0.2f,
-        center.y - radius * 0.2f
+        center.x - radius * 0.3f,
+        center.y - radius * 0.3f
     )
     
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
-                Color.White.copy(alpha = 0.2f),
+                brightGlow.copy(alpha = 0.5f),
+                lightGreen.copy(alpha = 0.4f),
+                primaryGreen.copy(alpha = 0.2f),
                 Color.Transparent
             ),
             center = highlightOffset,
@@ -221,5 +136,27 @@ private fun DrawScope.drawIridescentSphere(
         radius = highlightRadius,
         center = highlightOffset
     )
+    
+    // Draw secondary highlight for more 3D effect
+    val secondaryHighlightRadius = radius * 0.4f
+    val secondaryHighlightOffset = Offset(
+        center.x - radius * 0.2f,
+        center.y - radius * 0.2f
+    )
+    
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.3f),
+                brightGlow.copy(alpha = 0.25f),
+                Color.Transparent
+            ),
+            center = secondaryHighlightOffset,
+            radius = secondaryHighlightRadius
+        ),
+        radius = secondaryHighlightRadius,
+        center = secondaryHighlightOffset
+    )
 }
+
 
