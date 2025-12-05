@@ -195,14 +195,14 @@ internal fun HomeScreen(
                     horizontalPadding = horizontalPadding,
                     onClick = onClockClick
                 )
-                
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    AISphere(size = 200.dp)
+                    AISphere(size = 20.dp)
                 }
 
                 FavoritesListUiComponent(
