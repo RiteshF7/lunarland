@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,16 +17,21 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
-import lunar.land.ui.core.ui.SearchField
 import lunar.land.ui.R
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
@@ -670,6 +676,52 @@ private fun TaskStatusItem(
 }
 
 /**
+ * Task State Dot Component
+ * Shows a dot that indicates task status by color:
+ * - Black = idle (STOPPED)
+ * - Red = error (ERROR)
+ * - Blinking green = running (RUNNING)
+ * - Green = success (SUCCESS)
+ */
+@Composable
+private fun TaskStateDot(
+    status: TaskStatus,
+    modifier: Modifier = Modifier
+) {
+    val dotColor = when (status) {
+        TaskStatus.STOPPED -> Color.Black
+        TaskStatus.ERROR -> Color.Red
+        TaskStatus.RUNNING -> Color.Green
+        TaskStatus.SUCCESS -> Color.Green
+    }
+    
+    // Blinking animation for running state
+    val infiniteTransition = rememberInfiniteTransition(label = "blink")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "blink_alpha"
+    )
+    
+    val animatedColor = if (status == TaskStatus.RUNNING) {
+        dotColor.copy(alpha = alpha)
+    } else {
+        dotColor
+    }
+    
+    Box(
+        modifier = modifier
+            .size(8.dp)
+            .clip(shape = CircleShape)
+            .background(color = animatedColor)
+    )
+}
+
+/**
  * Reusable Task Executor Composable
  * Can be placed in any Activity
  */
@@ -863,75 +915,68 @@ fun TaskExecutorComposable(
             }
         }
         
-        // Command input using SearchField from lunar UI
-        // Note: SearchField uses ImeAction.Search, so we handle execution via Execute button
-        SearchField(
+        // Command input with state dot and action icons
+        TextField(
             modifier = Modifier.fillMaxWidth(),
-            placeholder = "Enter Task",
-            query = commandText,
-            onQueryChange = { newText ->
-                commandText = newText
+            value = commandText,
+            onValueChange = { commandText = it },
+            placeholder = {
+                Text(text = "Enter Task")
             },
-            paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
+            shape = MaterialTheme.shapes.small,
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                autoCorrect = false,
+                imeAction = ImeAction.Done
+            ),
+            colors = TextFieldDefaults.colors(
+                focusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent
+            ),
+            leadingIcon = {
+                // State indicator dot
+                TaskStateDot(status = uiState.taskStatus)
+            },
+            trailingIcon = {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Reset session icon
+                    IconButton(
+                        onClick = { viewModel.resetSession() },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_close),
+                            contentDescription = "Reset Session",
+                            tint = buttonColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    
+                    // Execute icon
+                    IconButton(
+                        onClick = {
+                            if (commandText.isNotBlank()) {
+                                viewModel.dispatchCommand(commandText)
+                                commandText = ""
+                                keyboardController?.hide()
+                            }
+                        },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.ArrowForward,
+                            contentDescription = "Execute",
+                            tint = buttonColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
         )
-        
-        // Buttons row styled like FavoriteItem
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Reset session button
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(40.dp)
-                    .clip(shape = MaterialTheme.shapes.small)
-                    .background(color = buttonColor.copy(alpha = 0.23f))
-                    .border(
-                        width = 0.4.dp,
-                        color = buttonColor.copy(alpha = 0.6f),
-                        shape = MaterialTheme.shapes.small
-                    )
-                    .clickable(onClick = { viewModel.resetSession() })
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Reset Session",
-                    color = buttonColor,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-            
-            // Execute button
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(40.dp)
-                    .clip(shape = MaterialTheme.shapes.small)
-                    .background(color = buttonColor.copy(alpha = 0.23f))
-                    .border(
-                        width = 0.4.dp,
-                        color = buttonColor.copy(alpha = 0.6f),
-                        shape = MaterialTheme.shapes.small
-                    )
-                    .clickable(onClick = {
-                        if (commandText.isNotBlank()) {
-                            viewModel.dispatchCommand(commandText)
-                            commandText = ""
-                        }
-                    })
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Execute",
-                    color = buttonColor,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
         
         // Mic button - centered horizontally
         Box(
