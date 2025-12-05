@@ -30,7 +30,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun TaskExecutorScreen(
     modifier: Modifier = Modifier,
-    showLogsButton: Boolean = false
+    showLogsButton: Boolean = true  // Enable logs by default for debugging
 ) {
     val context = LocalContext.current
     val activity = context as? Activity ?: return

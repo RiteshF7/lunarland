@@ -200,6 +200,8 @@ class TaskExecutorViewModel(private val activity: Activity) : AndroidViewModel(a
         mainHandler.post {
             setUiEnabled(true)
             updateTaskState(null, 0, false, TaskStatus.STOPPED)
+            updateStatus("Ready") // Clear the "Setting up environment..." message
+            Logger.logInfo(LOG_TAG, "Session ready, UI enabled")
         }
         client.refreshTranscript(terminalSession!!)
         
@@ -216,17 +218,48 @@ class TaskExecutorViewModel(private val activity: Activity) : AndroidViewModel(a
                     export TMPDIR="${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"
                     mkdir -p "${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"
                     export ANDROID_SERIAL="127.0.0.1:5558"
-                    # Start ADB server
-                    adb start-server 2>/dev/null || true
-                    # Connect ADB to localhost
-                    adb connect 127.0.0.1:5558 2>/dev/null || true
-                    # Wait for connection to establish
+                    # Kill and restart ADB server
+                    echo "Restarting ADB server..."
+                    adb kill-server 2>&1 || true
+                    sleep 0.5
+                    adb start-server 2>&1 || true
                     sleep 1
-                    # Verify ADB connection
-                    if adb devices | grep -q "127.0.0.1:5558.*device"; then
-                        echo "✓ ADB connected to localhost:5558"
-                    else
+                    # Enable TCP/IP mode on port 5558
+                    echo "Enabling ADB TCP/IP mode on port 5558..."
+                    adb tcpip 5558 2>&1 || {
+                        echo "⚠ Failed to enable TCP/IP mode, trying alternative method..."
+                        # Try with USB device first if available
+                        USB_DEVICE=$(adb devices | grep -v "List" | grep "device" | head -1 | awk '{print ${'$'}1}')
+                        if [ -n "${'$'}USB_DEVICE" ]; then
+                            adb -s ${'$'}USB_DEVICE tcpip 5558 2>&1 || true
+                        fi
+                    }
+                    sleep 1
+                    # Connect ADB to localhost with retries
+                    MAX_RETRIES=3
+                    RETRY_COUNT=0
+                    CONNECTED=false
+                    while [ ${'$'}RETRY_COUNT -lt ${'$'}MAX_RETRIES ] && [ "${'$'}CONNECTED" = "false" ]; do
+                        echo "Connecting ADB (attempt ${'$'}((RETRY_COUNT + 1))/${'$'}MAX_RETRIES)..."
+                        adb disconnect 127.0.0.1:5558 2>&1 || true
+                        sleep 0.5
+                        adb connect 127.0.0.1:5558 2>&1
+                        sleep 1.5
+                        if adb devices 2>&1 | grep -q "127.0.0.1:5558.*device"; then
+                            CONNECTED=true
+                            echo "✓ ADB connected to localhost:5558"
+                            break
+                        else
+                            RETRY_COUNT=${'$'}((RETRY_COUNT + 1))
+                            if [ ${'$'}RETRY_COUNT -lt ${'$'}MAX_RETRIES ]; then
+                                sleep 1
+                            fi
+                        fi
+                    done
+                    if [ "${'$'}CONNECTED" = "false" ]; then
                         echo "⚠ ADB connection to localhost:5558 not ready (will retry on command execution)"
+                        echo "Current ADB devices:"
+                        adb devices 2>&1
                     fi
                     if ! grep -q "export TMPDIR" "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null; then
                         echo 'export TMPDIR="${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"' >> "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc"
@@ -299,8 +332,12 @@ class TaskExecutorViewModel(private val activity: Activity) : AndroidViewModel(a
     }
     
     fun dispatchCommand(command: String) {
+        Logger.logInfo(LOG_TAG, "dispatchCommand called with: '$command'")
+        Logger.logInfo(LOG_TAG, "terminalSession=${terminalSession != null}, sessionFinished=$sessionFinished, taskStatus=${_uiState.value.taskStatus}")
+        
         if (terminalSession == null || sessionFinished) {
             Logger.logWarn(LOG_TAG, "Cannot dispatch command: terminalSession=${terminalSession != null}, sessionFinished=$sessionFinished")
+            updateStatus("Session not ready. Please wait...")
             return
         }
         
@@ -317,48 +354,97 @@ class TaskExecutorViewModel(private val activity: Activity) : AndroidViewModel(a
         }
         
         try {
+            Logger.logInfo(LOG_TAG, "Dispatching command: $command")
             currentTaskCommand = command
             taskStartTime = System.currentTimeMillis()
             updateTaskState(command, 0, true, TaskStatus.RUNNING)
+            updateStatus("Executing: $command")
             updateNotification()
             
             // Ensure ANDROID_SERIAL is set to localhost and ADB is connected before running droidrun
             // This ensures droidrun connects to localhost instead of looking for a physical device
             val droidrunCommand = """
                 export ANDROID_SERIAL="127.0.0.1:5558"
-                # Start ADB server if not running
-                adb start-server 2>/dev/null || true
-                # Kill any existing connection to avoid conflicts
-                adb disconnect 127.0.0.1:5558 2>/dev/null || true
-                # Connect ADB to localhost
-                adb connect 127.0.0.1:5558
-                # Wait for connection to establish
+                # Kill and restart ADB server
+                echo "Restarting ADB server..."
+                adb kill-server 2>&1 || true
+                sleep 0.5
+                adb start-server 2>&1 || true
                 sleep 1
-                # Retry connection if first attempt failed
-                if ! adb devices | grep -q "127.0.0.1:5558.*device"; then
-                    adb connect 127.0.0.1:5558
-                    sleep 1
-                fi
-                # Verify connection and show status
-                if adb devices | grep -q "127.0.0.1:5558.*device"; then
-                    echo "✓ ADB connected to localhost:5558"
-                else
-                    echo "⚠ ADB connection status:"
-                    adb devices
-                    echo "⚠ Continuing anyway - droidrun will use ANDROID_SERIAL=127.0.0.1:5558"
+                # Enable TCP/IP mode on port 5558
+                echo "Enabling ADB TCP/IP mode on port 5558..."
+                adb tcpip 5558 2>&1 || {
+                    echo "⚠ Failed to enable TCP/IP mode, trying alternative method..."
+                    # Try with USB device first if available
+                    USB_DEVICE=$(adb devices | grep -v "List" | grep "device" | head -1 | awk '{print ${'$'}1}')
+                    if [ -n "${'$'}USB_DEVICE" ]; then
+                        adb -s ${'$'}USB_DEVICE tcpip 5558 2>&1 || true
+                    fi
+                }
+                sleep 1
+                # Kill any existing connection to avoid conflicts
+                adb disconnect 127.0.0.1:5558 2>&1 || true
+                sleep 0.5
+                # Connect ADB to localhost with multiple retries
+                MAX_RETRIES=5
+                RETRY_COUNT=0
+                CONNECTED=false
+                while [ ${'$'}RETRY_COUNT -lt ${'$'}MAX_RETRIES ] && [ "${'$'}CONNECTED" = "false" ]; do
+                    echo "Attempting ADB connection (attempt ${'$'}((RETRY_COUNT + 1))/${'$'}MAX_RETRIES)..."
+                    adb connect 127.0.0.1:5558 2>&1
+                    sleep 1.5
+                    if adb devices 2>&1 | grep -q "127.0.0.1:5558.*device"; then
+                        CONNECTED=true
+                        echo "✓ ADB connected to localhost:5558"
+                        break
+                    else
+                        RETRY_COUNT=${'$'}((RETRY_COUNT + 1))
+                        if [ ${'$'}RETRY_COUNT -lt ${'$'}MAX_RETRIES ]; then
+                            sleep 1
+                        fi
+                    fi
+                done
+                # Final verification
+                if [ "${'$'}CONNECTED" = "false" ]; then
+                    echo "⚠ ADB connection failed after ${'$'}MAX_RETRIES attempts"
+                    echo "ADB devices status:"
+                    adb devices 2>&1
+                    echo "⚠ Attempting to continue anyway..."
+                    # Try one more time with longer wait
+                    adb connect 127.0.0.1:5558 2>&1
+                    sleep 2
+                    if adb devices 2>&1 | grep -q "127.0.0.1:5558.*device"; then
+                        echo "✓ ADB connected on final attempt"
+                        CONNECTED=true
+                    fi
                 fi
                 # Run droidrun with ANDROID_SERIAL set
-                droidrun run "$command"
+                if [ "${'$'}CONNECTED" = "true" ]; then
+                    echo "Running droidrun with ADB connected..."
+                    droidrun run "$command"
+                else
+                    echo "⚠ Warning: ADB not connected, but attempting to run droidrun anyway..."
+                    echo "⚠ droidrun will use ANDROID_SERIAL=127.0.0.1:5558"
+                    droidrun run "$command" || {
+                        echo "❌ Error: droidrun failed - ADB device not connected"
+                        echo "Please ensure ADB is properly configured"
+                        exit 1
+                    }
+                fi
             """.trimIndent()
             
             Logger.logInfo(LOG_TAG, "Writing command to terminal with ANDROID_SERIAL set to localhost")
             Logger.logInfo(LOG_TAG, "Command: $droidrunCommand")
             terminalSession!!.write(droidrunCommand)
             terminalSession!!.write("\n")
-            Logger.logInfo(LOG_TAG, "Command written successfully")
+            Logger.logInfo(LOG_TAG, "Command written successfully to terminal session")
+            
+            // Verify the command was written
+            Logger.logInfo(LOG_TAG, "Terminal session state: isRunning=${terminalSession!!.isRunning()}")
         } catch (e: Exception) {
             Logger.logStackTraceWithMessage(LOG_TAG, "Error in dispatchCommand", e)
             updateStatus("Error: ${e.message}")
+            updateTaskState(null, 0, false, TaskStatus.ERROR)
         }
     }
     
@@ -409,10 +495,20 @@ class TaskExecutorViewModel(private val activity: Activity) : AndroidViewModel(a
     }
     
     private fun updateTaskProgress(output: String) {
-        if (currentTaskCommand == null) return
+        if (currentTaskCommand == null) {
+            // If no task is running but status is RUNNING, reset it
+            if (_uiState.value.taskStatus == TaskStatus.RUNNING) {
+                Logger.logWarn(LOG_TAG, "Task status is RUNNING but no currentTaskCommand, resetting to STOPPED")
+                updateTaskState(null, 0, false, TaskStatus.STOPPED)
+                updateStatus("Ready")
+            }
+            return
+        }
         
         val outputLower = output.lowercase()
         var shouldUpdate = false
+        
+        Logger.logDebug(LOG_TAG, "updateTaskProgress: checking output for task: $currentTaskCommand")
         
         val completionPatterns = listOf(
             "goal achieved", "goal succeeded", "task completed",
@@ -438,12 +534,14 @@ class TaskExecutorViewModel(private val activity: Activity) : AndroidViewModel(a
                 Logger.logInfo(LOG_TAG, "Task completed detected: $currentTaskCommand")
                 currentTaskCommand = null
                 updateTaskState(null, 0, false, TaskStatus.SUCCESS)
+                updateStatus("Task completed successfully")
                 shouldUpdate = true
             }
             isFailed -> {
                 Logger.logInfo(LOG_TAG, "Task failed detected: $currentTaskCommand")
                 currentTaskCommand = null
                 updateTaskState(null, 0, false, TaskStatus.ERROR)
+                updateStatus("Task failed")
                 shouldUpdate = true
             }
             promptReturned && !outputLower.contains("droidrun run") -> {
@@ -452,6 +550,7 @@ class TaskExecutorViewModel(private val activity: Activity) : AndroidViewModel(a
                     Logger.logInfo(LOG_TAG, "Command prompt returned, marking task as complete: $currentTaskCommand")
                     currentTaskCommand = null
                     updateTaskState(null, 0, false, TaskStatus.SUCCESS)
+                    updateStatus("Task completed")
                     shouldUpdate = true
                 }
             }
@@ -522,6 +621,7 @@ class TaskExecutorViewModel(private val activity: Activity) : AndroidViewModel(a
                 sessionFinished = false,
                 exitCode = null,
                 outputText = "",
+                statusText = "Ready",
                 currentTask = null,
                 taskProgress = 0,
                 isTaskRunning = false,
