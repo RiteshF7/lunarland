@@ -304,6 +304,13 @@ class TaskExecutorViewModel(private val activity: Activity) : AndroidViewModel(a
             return
         }
         
+        // Prevent new tasks if one is already running
+        if (_uiState.value.taskStatus == TaskStatus.RUNNING) {
+            Logger.logWarn(LOG_TAG, "Cannot dispatch command: task is already running")
+            updateStatus("Task is already running. Please stop it first.")
+            return
+        }
+        
         if (command.isBlank()) {
             Logger.logWarn(LOG_TAG, "Cannot dispatch empty command")
             return
@@ -361,6 +368,24 @@ class TaskExecutorViewModel(private val activity: Activity) : AndroidViewModel(a
     
     fun toggleLogsVisibility() {
         _uiState.update { it.copy(showLogs = !it.showLogs) }
+    }
+    
+    fun stopCurrentTask() {
+        if (terminalSession != null && !sessionFinished && currentTaskCommand != null) {
+            try {
+                // Send Ctrl+C to stop the current task
+                terminalSession!!.write("\u0003") // Ctrl+C character
+                Logger.logInfo(LOG_TAG, "Stopped task: $currentTaskCommand")
+                
+                // Update state
+                currentTaskCommand = null
+                updateTaskState(null, 0, false, TaskStatus.STOPPED)
+                updateStatus("Task stopped")
+            } catch (e: Exception) {
+                Logger.logStackTraceWithMessage(LOG_TAG, "Error stopping task", e)
+                updateStatus("Error stopping task: ${e.message}")
+            }
+        }
     }
     
     private fun tearDownSession() {

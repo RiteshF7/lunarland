@@ -15,7 +15,8 @@ import java.util.Locale
 class SpeechRecognitionUtil(
     private val context: Context,
     private val onResult: (String) -> Unit,
-    private val onError: ((Int) -> Unit)? = null
+    private val onError: ((Int) -> Unit)? = null,
+    private val onPartialResult: ((String) -> Unit)? = null
 ) {
     private var speechRecognizer: SpeechRecognizer? = null
     private val LOG_TAG = "SpeechRecognitionUtil"
@@ -81,7 +82,7 @@ class SpeechRecognitionUtil(
                 if (!matches.isNullOrEmpty()) {
                     val text = matches[0]
                     Log.d(LOG_TAG, "Partial result: $text")
-                    onResult(text)
+                    onPartialResult?.invoke(text) ?: onResult(text)
                 }
             }
             

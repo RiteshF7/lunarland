@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStoreOwner
 import com.termux.app.taskexecutor.model.TaskExecutorMode
+import com.termux.app.taskexecutor.model.TaskStatus
 import com.termux.app.taskexecutor.ui.components.*
 import com.termux.app.TaskExecutorViewModel
 import com.termux.app.TaskExecutorViewModelFactory
@@ -19,6 +20,8 @@ import com.termux.app.TermuxService
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 /**
  * Main Task Executor Screen Composable
@@ -43,15 +46,25 @@ fun TaskExecutorScreen(
     val buttonColor = MaterialTheme.colorScheme.primary
     
     // Voice input handler
-    val (voiceInputHandler, isListening) = rememberVoiceInputHandler(
+    var transcriptionText by remember { mutableStateOf("") }
+    val (voiceInputHandler, isListening, currentTranscription) = rememberVoiceInputHandler(
         context = context,
         onTextRecognized = { text -> 
             commandText = text
+            transcriptionText = text
             // Auto-execute command when voice input completes in voice mode
-            if (currentMode == TaskExecutorMode.VOICE && text.isNotBlank()) {
+            if (currentMode == TaskExecutorMode.VOICE && text.isNotBlank() && uiState.taskStatus != TaskStatus.RUNNING) {
                 viewModel.dispatchCommand(text)
                 commandText = ""
+                // Keep transcription text briefly, then clear it
+                scope.launch {
+                    delay(2000)
+                    transcriptionText = ""
+                }
             }
+        },
+        onPartialResult = { text ->
+            transcriptionText = text
         }
     )
     
@@ -78,20 +91,33 @@ fun TaskExecutorScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Mode toggle button and logs toggle button row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Mode toggle button
-            ModeToggleButton(
-                currentMode = currentMode,
-                onModeChange = { currentMode = it }
-            )
-            
-            // Logs toggle button (configurable)
-            if (showLogsButton) {
+        // Logs toggle button row (only show in VOICE mode, TEXT mode has mode toggle in input field)
+        if (currentMode == TaskExecutorMode.VOICE) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Mode toggle button (only in VOICE mode)
+                ModeToggleButton(
+                    currentMode = currentMode,
+                    onModeChange = { currentMode = it }
+                )
+                
+                // Logs toggle button (configurable)
+                if (showLogsButton) {
+                    LogsToggleButton(
+                        showLogs = uiState.showLogs,
+                        onToggle = { viewModel.toggleLogsVisibility() }
+                    )
+                }
+            }
+        } else if (showLogsButton) {
+            // Logs toggle button only (in TEXT mode)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
                 LogsToggleButton(
                     showLogs = uiState.showLogs,
                     onToggle = { viewModel.toggleLogsVisibility() }
@@ -121,6 +147,8 @@ fun TaskExecutorScreen(
                         }
                     },
                     taskStatus = uiState.taskStatus,
+                    currentMode = currentMode,
+                    onModeChange = { currentMode = it },
                     buttonColor = buttonColor,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -134,8 +162,16 @@ fun TaskExecutorScreen(
                 ) {
                     VoiceOnlyUI(
                         isListening = isListening,
-                        onStartListening = { voiceInputHandler.startListening() },
+                        transcriptionText = transcriptionText,
+                        taskStatus = uiState.taskStatus,
+                        statusText = uiState.statusText,
+                        onStartListening = { 
+                            if (uiState.taskStatus != TaskStatus.RUNNING) {
+                                voiceInputHandler.startListening()
+                            }
+                        },
                         onStopListening = { voiceInputHandler.stopListening() },
+                        onStopTask = { viewModel.stopCurrentTask() },
                         scope = scope,
                         buttonColor = buttonColor,
                         modifier = Modifier.fillMaxWidth()

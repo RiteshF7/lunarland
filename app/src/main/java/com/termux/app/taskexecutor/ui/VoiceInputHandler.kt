@@ -17,9 +17,11 @@ import com.termux.shared.logger.Logger
 @Composable
 fun rememberVoiceInputHandler(
     context: android.content.Context,
-    onTextRecognized: (String) -> Unit
-): Pair<VoiceInputHandler, Boolean> {
+    onTextRecognized: (String) -> Unit,
+    onPartialResult: ((String) -> Unit)? = null
+): Triple<VoiceInputHandler, Boolean, String> {
     var isListening by remember { mutableStateOf(false) }
+    var currentText by remember { mutableStateOf("") }
     
     val hasAudioPermission = ContextCompat.checkSelfPermission(
         context,
@@ -40,12 +42,19 @@ fun rememberVoiceInputHandler(
         SpeechRecognitionUtil(
             context = context,
             onResult = { text ->
+                currentText = text
                 onTextRecognized(text)
                 Logger.logInfo("TaskExecutor", "Speech result: $text")
             },
             onError = { error ->
                 isListening = false
+                currentText = ""
                 Logger.logError("TaskExecutor", "Speech recognition error: $error")
+            },
+            onPartialResult = { text ->
+                currentText = text
+                onPartialResult?.invoke(text)
+                Logger.logInfo("TaskExecutor", "Partial result: $text")
             }
         )
     }
@@ -66,7 +75,7 @@ fun rememberVoiceInputHandler(
         )
     }
     
-    return Pair(handler, isListening)
+    return Triple(handler, isListening, currentText)
 }
 
 class VoiceInputHandler(

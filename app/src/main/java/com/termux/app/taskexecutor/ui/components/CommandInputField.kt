@@ -1,9 +1,8 @@
 package com.termux.app.taskexecutor.ui.components
 
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -14,13 +13,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.termux.app.taskexecutor.model.TaskExecutorMode
 import com.termux.app.taskexecutor.model.TaskStatus
+import lunar.land.ui.R
 
 /**
  * Command Input Field Component
- * Text field with state dot and execute button
+ * Text field with state dot and mode toggle button
  */
 @Composable
 fun CommandInputField(
@@ -28,6 +30,8 @@ fun CommandInputField(
     onCommandTextChange: (String) -> Unit,
     onExecute: () -> Unit,
     taskStatus: TaskStatus,
+    currentMode: TaskExecutorMode,
+    onModeChange: (TaskExecutorMode) -> Unit,
     buttonColor: Color,
     modifier: Modifier = Modifier
 ) {
@@ -46,6 +50,14 @@ fun CommandInputField(
             autoCorrect = false,
             imeAction = ImeAction.Done
         ),
+        keyboardActions = KeyboardActions(
+            onDone = {
+                if (commandText.isNotBlank()) {
+                    onExecute()
+                    keyboardController?.hide()
+                }
+            }
+        ),
         colors = TextFieldDefaults.colors(
             focusedIndicatorColor = Color.Transparent,
             disabledIndicatorColor = Color.Transparent,
@@ -56,21 +68,29 @@ fun CommandInputField(
             TaskStateDot(status = taskStatus)
         },
         trailingIcon = {
-            // Execute icon
+            // Mode toggle button
             IconButton(
                 onClick = {
-                    if (commandText.isNotBlank()) {
-                        onExecute()
-                        keyboardController?.hide()
-                    }
+                    onModeChange(
+                        if (currentMode == TaskExecutorMode.TEXT) 
+                            TaskExecutorMode.VOICE 
+                        else 
+                            TaskExecutorMode.TEXT
+                    )
                 },
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(40.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Filled.ArrowForward,
-                    contentDescription = "Execute",
+                    painter = if (currentMode == TaskExecutorMode.TEXT) 
+                        painterResource(id = R.drawable.ic_mic)
+                    else 
+                        painterResource(id = R.drawable.ic_close),
+                    contentDescription = if (currentMode == TaskExecutorMode.TEXT) 
+                        "Switch to Voice Mode" 
+                    else 
+                        "Switch to Text Mode",
                     tint = buttonColor,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
