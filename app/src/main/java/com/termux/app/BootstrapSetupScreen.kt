@@ -1,5 +1,6 @@
 package com.termux.app
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,9 +15,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.termux.app.bootstrap.BootstrapSetupViewModel
 import com.termux.app.bootstrap.BootstrapStatus
+import com.termux.shared.interact.ShareUtils
 import lunar.land.ui.core.ui.*
 import lunar.land.ui.core.ui.providers.ProvideSystemUiController
 import lunar.land.ui.core.theme.LauncherTheme
@@ -39,6 +42,7 @@ fun BootstrapSetupScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
     
     // Provide SystemUiController and use lunar-ui theme
     ProvideSystemUiController {
@@ -79,11 +83,31 @@ fun BootstrapSetupScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         
                         // Log Viewer - moved above buttons
-                        Text(
-                            text = "Logs:",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = AGENT_GREEN
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Logs:",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = AGENT_GREEN
+                            )
+                            
+                            // Copy Logs Button
+                            AgentButton(
+                                text = "Copy Logs",
+                                onClick = {
+                                    val logsText = uiState.logs.joinToString("\n")
+                                    ShareUtils.copyTextToClipboard(
+                                        context,
+                                        logsText,
+                                        "Logs copied to clipboard"
+                                    )
+                                },
+                                modifier = Modifier.height(36.dp)
+                            )
+                        }
                         
                         AgentLogViewer(
                             logs = uiState.logs,
