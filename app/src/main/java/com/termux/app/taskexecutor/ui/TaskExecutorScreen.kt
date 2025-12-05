@@ -121,10 +121,6 @@ fun TaskExecutorScreen(
                         }
                     },
                     taskStatus = uiState.taskStatus,
-                    isListening = isListening,
-                    onStartListening = { voiceInputHandler.startListening() },
-                    onStopListening = { voiceInputHandler.stopListening() },
-                    scope = scope,
                     buttonColor = buttonColor,
                     modifier = Modifier.fillMaxWidth()
                 )

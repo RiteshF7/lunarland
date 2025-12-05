@@ -16,7 +16,7 @@ import com.termux.app.taskexecutor.model.TaskStatus
 /**
  * Task State Dot Component
  * Shows a dot that indicates task status by color:
- * - Black = idle (STOPPED)
+ * - Light green = idle (STOPPED)
  * - Red = error (ERROR)
  * - Blinking green = running (RUNNING)
  * - Green = success (SUCCESS)
@@ -27,7 +27,7 @@ fun TaskStateDot(
     modifier: Modifier = Modifier
 ) {
     val dotColor = when (status) {
-        TaskStatus.STOPPED -> Color.Black
+        TaskStatus.STOPPED -> Color(0xFF90EE90) // Light green
         TaskStatus.ERROR -> Color.Red
         TaskStatus.RUNNING -> Color.Green
         TaskStatus.SUCCESS -> Color.Green
