@@ -58,7 +58,7 @@ private fun DrawScope.drawGlowingSphere(
     val lightGreen = Color(0xFF66FFCC)    // Lighter green (brighter)
     
     // Draw extensive outer glow layers for stronger glow effect
-    val glowLayers = 8
+    val glowLayers = 4
     repeat(glowLayers) { layer ->
         val glowRadius = radius * (1f + (layer + 1) * 0.2f)
         val glowAlpha = (0.25f - layer * 0.02f).coerceAtLeast(0.05f)
