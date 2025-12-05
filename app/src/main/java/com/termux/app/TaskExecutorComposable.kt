@@ -263,6 +263,18 @@ class TaskExecutorComposableViewModel(private val activity: Activity) : AndroidV
                     export TMPDIR="${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"
                     mkdir -p "${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"
                     export ANDROID_SERIAL="127.0.0.1:5558"
+                    # Start ADB server
+                    adb start-server 2>/dev/null || true
+                    # Connect ADB to localhost
+                    adb connect 127.0.0.1:5558 2>/dev/null || true
+                    # Wait for connection to establish
+                    sleep 1
+                    # Verify ADB connection
+                    if adb devices | grep -q "127.0.0.1:5558.*device"; then
+                        echo "✓ ADB connected to localhost:5558"
+                    else
+                        echo "⚠ ADB connection to localhost:5558 not ready (will retry on command execution)"
+                    fi
                     if ! grep -q "export TMPDIR" "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null; then
                         echo 'export TMPDIR="${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"' >> "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc"
                         mkdir -p "${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"
@@ -350,8 +362,37 @@ class TaskExecutorComposableViewModel(private val activity: Activity) : AndroidV
             updateTaskState(command, 0, true, TaskStatus.RUNNING)
             updateNotification()
             
-            val droidrunCommand = "droidrun run \"$command\""
-            Logger.logInfo(LOG_TAG, "Writing command to terminal: $droidrunCommand")
+            // Ensure ANDROID_SERIAL is set to localhost and ADB is connected before running droidrun
+            // This ensures droidrun connects to localhost instead of looking for a physical device
+            val droidrunCommand = """
+                export ANDROID_SERIAL="127.0.0.1:5558"
+                # Start ADB server if not running
+                adb start-server 2>/dev/null || true
+                # Kill any existing connection to avoid conflicts
+                adb disconnect 127.0.0.1:5558 2>/dev/null || true
+                # Connect ADB to localhost
+                adb connect 127.0.0.1:5558
+                # Wait for connection to establish
+                sleep 1
+                # Retry connection if first attempt failed
+                if ! adb devices | grep -q "127.0.0.1:5558.*device"; then
+                    adb connect 127.0.0.1:5558
+                    sleep 1
+                fi
+                # Verify connection and show status
+                if adb devices | grep -q "127.0.0.1:5558.*device"; then
+                    echo "✓ ADB connected to localhost:5558"
+                else
+                    echo "⚠ ADB connection status:"
+                    adb devices
+                    echo "⚠ Continuing anyway - droidrun will use ANDROID_SERIAL=127.0.0.1:5558"
+                fi
+                # Run droidrun with ANDROID_SERIAL set
+                droidrun run "$command"
+            """.trimIndent()
+            
+            Logger.logInfo(LOG_TAG, "Writing command to terminal with ANDROID_SERIAL set to localhost")
+            Logger.logInfo(LOG_TAG, "Command: $droidrunCommand")
             terminalSession!!.write(droidrunCommand)
             terminalSession!!.write("\n")
             Logger.logInfo(LOG_TAG, "Command written successfully")
@@ -647,6 +688,7 @@ fun TaskExecutorComposable(
     var commandText by remember { mutableStateOf("") }
     var isListening by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
+    val logsScrollState = rememberScrollState()
     val keyboardController = LocalSoftwareKeyboardController.current
     
     // Check and request audio permission
@@ -706,8 +748,9 @@ fun TaskExecutorComposable(
     
     // Auto-scroll to bottom when output changes
     LaunchedEffect(uiState.outputText) {
-        if (uiState.showLogs) {
-            scrollState.animateScrollTo(scrollState.maxValue)
+        if (uiState.showLogs && uiState.outputText.isNotEmpty()) {
+            kotlinx.coroutines.delay(50) // Small delay to ensure text is rendered
+            logsScrollState.animateScrollTo(logsScrollState.maxValue)
         }
     }
     
@@ -781,19 +824,41 @@ fun TaskExecutorComposable(
                         shape = MaterialTheme.shapes.small
                     )
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState)
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        text = uiState.outputText,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                        color = buttonColor,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                if (uiState.outputText.isEmpty()) {
+                    // Show placeholder when no logs
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No logs yet. Run a task to see output here.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = buttonColor.copy(alpha = 0.6f),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                } else {
+                    // Show logs with proper scrolling
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(logsScrollState)
+                            .padding(16.dp)
+                    ) {
+                        // Split output into lines for better rendering
+                        val lines = uiState.outputText.lines()
+                        lines.forEach { line ->
+                            Text(
+                                text = line.ifEmpty { " " }, // Empty lines show as space
+                                style = MaterialTheme.typography.bodySmall,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                color = buttonColor,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
                 }
             }
         }
