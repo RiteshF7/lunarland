@@ -37,7 +37,7 @@ class BootstrapSetupActivity : ComponentActivity() {
                     navigateToHome()
                 },
                 onInstallBootstrap = { onComplete, onError ->
-                    installBootstrapWithLunarAgentSetup(onComplete, onError)
+                    installBootstrapWithLunarAgentSetup(viewModel, onComplete, onError)
                 }
             )
             
@@ -54,14 +54,21 @@ class BootstrapSetupActivity : ComponentActivity() {
         val uiState by viewModel.uiState.collectAsState()
         var installationTriggered by remember { mutableStateOf(false) }
         
-        LaunchedEffect(uiState.status, uiState.localBootstrapFile) {
+        LaunchedEffect(uiState.status, uiState.localBootstrapFile, uiState.bootstrapAlreadyInstalled) {
+            // Only proceed if bootstrap is not already installed
+            if (uiState.bootstrapAlreadyInstalled) {
+                Logger.logInfo(LOG_TAG, "Agent environment already installed, skipping installation")
+                return@LaunchedEffect
+            }
+            
             if (uiState.status == BootstrapStatus.Installing && 
                 uiState.localBootstrapFile != null &&
                 !installationTriggered) {
                 installationTriggered = true
-                Logger.logInfo(LOG_TAG, "Auto-triggering bootstrap installation...")
+                Logger.logInfo(LOG_TAG, "Auto-triggering agent environment installation...")
                 
                 installBootstrapWithLunarAgentSetup(
+                    viewModel,
                     onComplete = {
                         viewModel.onBootstrapInstallComplete()
                         installationTriggered = false
@@ -81,24 +88,34 @@ class BootstrapSetupActivity : ComponentActivity() {
     }
     
     /**
-     * Triggers bootstrap installation using TermuxInstaller.
+     * Triggers agent environment installation using TermuxInstaller.
      * This method requires Activity context, so it's handled here rather than in ViewModel.
      */
     private fun installBootstrapWithLunarAgentSetup(
+        viewModel: BootstrapSetupViewModel,
         onComplete: () -> Unit,
         onError: (String) -> Unit
     ) {
-        Logger.logInfo(LOG_TAG, "Starting bootstrap installation...")
+        Logger.logInfo(LOG_TAG, "Starting agent environment installation...")
+        viewModel.appendLog("Starting agent environment installation...")
         
-        TermuxInstaller.setupBootstrapIfNeeded(this) {
+        val logCallback = TermuxInstaller.LogCallback { message ->
+            viewModel.appendLog(message)
+        }
+        
+        TermuxInstaller.setupBootstrapIfNeeded(this, {
             try {
-                Logger.logInfo(LOG_TAG, "Bootstrap installation completed successfully")
+                val successMsg = "Agent environment installation completed successfully"
+                Logger.logInfo(LOG_TAG, successMsg)
+                viewModel.appendLog(successMsg)
                 onComplete()
             } catch (e: Exception) {
-                Logger.logStackTraceWithMessage(LOG_TAG, "Error in bootstrap installation callback", e)
-                onError(e.message ?: "Unknown error")
+                val errorMsg = e.message ?: "Unknown error"
+                Logger.logStackTraceWithMessage(LOG_TAG, "Error in agent environment installation callback", e)
+                viewModel.appendLog("Error: $errorMsg")
+                onError(errorMsg)
             }
-        }
+        }, logCallback)
     }
     
     private fun navigateToHome() {

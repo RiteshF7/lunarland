@@ -74,7 +74,7 @@ class BootstrapSetupViewModel(application: Application) : AndroidViewModel(appli
         }
         
         isCancelled = false
-        appendLog("Starting automatic bootstrap setup...")
+        appendLog("Starting automatic agent environment setup...")
         
         setupJob = viewModelScope.launch {
             try {
@@ -87,8 +87,8 @@ class BootstrapSetupViewModel(application: Application) : AndroidViewModel(appli
                     )
                 }
                 
-                // Step 1: Detect bootstrap status and architecture
-                appendLog("Detecting bootstrap status and architecture...")
+                // Step 1: Detect agent environment status and architecture
+                appendLog("Detecting agent environment status and architecture...")
                 val detectionResult = withContext(Dispatchers.IO) {
                     BootstrapManager.detectBootstrap(getApplication())
                 }
@@ -114,7 +114,7 @@ class BootstrapSetupViewModel(application: Application) : AndroidViewModel(appli
                 }
                 
                 if (detectionResult.isInstalled) {
-                    appendLog("Bootstrap is already installed.")
+                    appendLog("Agent environment is already installed.")
                     _uiState.update {
                         it.copy(
                             status = BootstrapStatus.Completed,
@@ -148,7 +148,7 @@ class BootstrapSetupViewModel(application: Application) : AndroidViewModel(appli
                     return@launch
                 }
                 
-                // Step 3: Download bootstrap if needed
+                // Step 3: Download agent environment if needed
                 if (needsDownload) {
                     _uiState.update { 
                         it.copy(
@@ -157,7 +157,7 @@ class BootstrapSetupViewModel(application: Application) : AndroidViewModel(appli
                         )
                     }
                     
-                    appendLog("Downloading bootstrap package...")
+                    appendLog("Downloading agent environment package...")
                     
                     val progressCallback = object : BootstrapDownloader.ProgressCallback {
                         override fun onProgress(downloaded: Long, total: Long) {
@@ -217,7 +217,7 @@ class BootstrapSetupViewModel(application: Application) : AndroidViewModel(appli
                     
                     appendLog("Download completed successfully.")
                 } else {
-                    appendLog("Using existing local bootstrap file.")
+                    appendLog("Using existing local agent environment file.")
                     _uiState.update { it.copy(progress = 80) }
                 }
                 
@@ -230,7 +230,7 @@ class BootstrapSetupViewModel(application: Application) : AndroidViewModel(appli
                         isSetupInProgress = true // Keep in progress during installation
                     )
                 }
-                appendLog("Ready for installation. Waiting for Activity to proceed...")
+                appendLog("Ready for installation. Setting up agent environment...")
                 
             } catch (e: Exception) {
                 Logger.logStackTraceWithMessage(LOG_TAG, "Error in automatic setup", e)
@@ -274,38 +274,68 @@ class BootstrapSetupViewModel(application: Application) : AndroidViewModel(appli
             stopSetup()
         }
         
-        // Clear local bootstrap file to force re-download
-        val arch = _uiState.value.detectedArch
-        if (arch != null) {
-            viewModelScope.launch(Dispatchers.IO) {
-                val localFile = BootstrapManager.getLocalBootstrapFile(getApplication(), arch)
-                if (localFile != null && localFile.exists()) {
-                    localFile.delete()
-                    Logger.logInfo(LOG_TAG, "Deleted local bootstrap file for reinstall")
-                }
-            }
-        }
-        
-        // Reset state and start fresh
+        // Reset state first
         _uiState.update {
             BootstrapSetupUiState()
         }
         
-        startAutomaticSetup()
+        appendLog("Starting reinstall of agent environment...")
+        appendLog("Deleting installed agent environment...")
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            // First, delete the installed bootstrap (prefix directory)
+            val deleteError = BootstrapManager.deleteInstalledBootstrap()
+            if (deleteError != null) {
+                withContext(Dispatchers.Main) {
+                    val errorMsg = "Failed to delete installed agent environment: ${deleteError.message}"
+                    Logger.logError(LOG_TAG, errorMsg)
+                    appendLog(errorMsg)
+                    showError(errorMsg)
+                }
+                return@launch
+            }
+            
+            withContext(Dispatchers.Main) {
+                appendLog("Successfully deleted installed agent environment")
+            }
+            
+            // Also delete local bootstrap file to force re-download
+            val arch = _uiState.value.detectedArch ?: run {
+                val detectionResult = BootstrapManager.detectBootstrap(getApplication())
+                detectionResult.architecture
+            }
+            
+            if (arch != null) {
+                val localFile = BootstrapManager.getLocalBootstrapFile(getApplication(), arch)
+                if (localFile != null && localFile.exists()) {
+                    val deleted = localFile.delete()
+                    Logger.logInfo(LOG_TAG, "Deleted local bootstrap file for reinstall: $deleted")
+                    withContext(Dispatchers.Main) {
+                        appendLog("Deleted local agent environment file for reinstall")
+                    }
+                }
+            }
+            
+            // Start fresh setup after deletion
+            withContext(Dispatchers.Main) {
+                appendLog("Starting fresh agent environment setup...")
+                startAutomaticSetup()
+            }
+        }
     }
     
     /**
-     * Skips bootstrap setup and navigates away.
+     * Skips agent environment setup and navigates away.
      */
     fun skipSetup() {
         if (_uiState.value.isSetupInProgress) {
             stopSetup()
         }
-        appendLog("Bootstrap setup skipped by user")
+        appendLog("Agent environment setup skipped by user")
     }
     
     /**
-     * Called when bootstrap installation completes successfully.
+     * Called when agent environment installation completes successfully.
      */
     fun onBootstrapInstallComplete() {
         _uiState.update {
@@ -316,11 +346,11 @@ class BootstrapSetupViewModel(application: Application) : AndroidViewModel(appli
                 bootstrapAlreadyInstalled = true
             )
         }
-        appendLog("Bootstrap installed successfully.")
+        appendLog("Agent environment installed successfully.")
     }
     
     /**
-     * Called when bootstrap installation fails.
+     * Called when agent environment installation fails.
      */
     fun onBootstrapInstallError(error: String) {
         showError("Installation failed: $error")
@@ -330,7 +360,7 @@ class BootstrapSetupViewModel(application: Application) : AndroidViewModel(appli
                 isSetupInProgress = false
             )
         }
-        appendLog("Bootstrap installation failed: $error")
+        appendLog("Agent environment installation failed: $error")
     }
     
     fun appendLog(message: String) {

@@ -67,8 +67,18 @@ final class TermuxInstaller {
 
     private static final String LOG_TAG = "TermuxInstaller";
 
+    /** Interface for receiving log messages during installation */
+    public interface LogCallback {
+        void onLog(String message);
+    }
+
     /** Performs bootstrap setup if necessary. */
     static void setupBootstrapIfNeeded(final Activity activity, final Runnable whenDone) {
+        setupBootstrapIfNeeded(activity, whenDone, null);
+    }
+
+    /** Performs bootstrap setup if necessary with optional log callback. */
+    static void setupBootstrapIfNeeded(final Activity activity, final Runnable whenDone, final LogCallback logCallback) {
         String bootstrapErrorMessage;
         Error filesDirectoryAccessibleError;
 
@@ -111,21 +121,27 @@ final class TermuxInstaller {
         // If prefix directory exists, even if its a symlink to a valid directory and symlink is not broken/dangling
         if (FileUtils.directoryFileExists(TERMUX_PREFIX_DIR_PATH, true)) {
             if (TermuxFileUtils.isTermuxPrefixDirectoryEmpty()) {
-                Logger.logInfo(LOG_TAG, "The termux prefix directory \"" + TERMUX_PREFIX_DIR_PATH + "\" exists but is empty or only contains specific unimportant files.");
+                String msg = "The termux prefix directory \"" + TERMUX_PREFIX_DIR_PATH + "\" exists but is empty or only contains specific unimportant files.";
+                Logger.logInfo(LOG_TAG, msg);
+                if (logCallback != null) logCallback.onLog(msg);
             } else {
                 whenDone.run();
                 return;
             }
         } else if (FileUtils.fileExists(TERMUX_PREFIX_DIR_PATH, false)) {
-            Logger.logInfo(LOG_TAG, "The termux prefix directory \"" + TERMUX_PREFIX_DIR_PATH + "\" does not exist but another file exists at its destination.");
+            String msg = "The termux prefix directory \"" + TERMUX_PREFIX_DIR_PATH + "\" does not exist but another file exists at its destination.";
+            Logger.logInfo(LOG_TAG, msg);
+            if (logCallback != null) logCallback.onLog(msg);
         }
 
-        final ProgressDialog progress = ProgressDialog.show(activity, null, activity.getString(R.string.bootstrap_installer_body), true, false);
+        // No ProgressDialog - logs will be shown in UI instead
         new Thread() {
             @Override
             public void run() {
                 try {
-                    Logger.logInfo(LOG_TAG, "Installing " + TermuxConstants.TERMUX_APP_NAME + " bootstrap packages.");
+                    String msg = "Installing " + TermuxConstants.TERMUX_APP_NAME + " bootstrap packages.";
+                    Logger.logInfo(LOG_TAG, msg);
+                    if (logCallback != null) logCallback.onLog(msg);
 
                     Error error;
 
@@ -157,7 +173,9 @@ final class TermuxInstaller {
                         return;
                     }
 
-                    Logger.logInfo(LOG_TAG, "Extracting bootstrap zip to prefix staging directory \"" + TERMUX_STAGING_PREFIX_DIR_PATH + "\".");
+                    String extractMsg = "Extracting bootstrap zip to prefix staging directory \"" + TERMUX_STAGING_PREFIX_DIR_PATH + "\".";
+                    Logger.logInfo(LOG_TAG, extractMsg);
+                    if (logCallback != null) logCallback.onLog(extractMsg);
 
                     final byte[] buffer = new byte[8096];
                     final List<Pair<String, String>> symlinks = new ArrayList<>(50);
@@ -223,13 +241,17 @@ final class TermuxInstaller {
                         Os.symlink(symlink.first, symlink.second);
                     }
 
-                    Logger.logInfo(LOG_TAG, "Moving termux prefix staging to prefix directory.");
+                    String moveMsg = "Moving termux prefix staging to prefix directory.";
+                    Logger.logInfo(LOG_TAG, moveMsg);
+                    if (logCallback != null) logCallback.onLog(moveMsg);
 
                     if (!TERMUX_STAGING_PREFIX_DIR.renameTo(TERMUX_PREFIX_DIR)) {
                         throw new RuntimeException("Moving termux prefix staging to prefix directory failed");
                     }
 
-                    Logger.logInfo(LOG_TAG, "Bootstrap packages installed successfully.");
+                    String successMsg = "Bootstrap packages installed successfully.";
+                    Logger.logInfo(LOG_TAG, successMsg);
+                    if (logCallback != null) logCallback.onLog(successMsg);
 
                     // Recreate env file since termux prefix was wiped earlier
                     TermuxShellEnvironment.writeEnvironmentToFile(activity);
@@ -240,13 +262,7 @@ final class TermuxInstaller {
                     showBootstrapErrorDialog(activity, whenDone, Logger.getStackTracesMarkdownString(null, Logger.getStackTracesStringArray(e)));
 
                 } finally {
-                    activity.runOnUiThread(() -> {
-                        try {
-                            progress.dismiss();
-                        } catch (RuntimeException e) {
-                            // Activity already dismissed - ignore.
-                        }
-                    });
+                    // ProgressDialog removed - no need to dismiss
                 }
             }
         }.start();

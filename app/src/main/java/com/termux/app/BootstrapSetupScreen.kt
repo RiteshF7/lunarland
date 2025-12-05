@@ -1,26 +1,35 @@
 package com.termux.app
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.termux.app.bootstrap.BootstrapSetupViewModel
 import com.termux.app.bootstrap.BootstrapStatus
-import com.termux.R
 import lunar.land.ui.core.ui.*
 import lunar.land.ui.core.ui.providers.ProvideSystemUiController
 import lunar.land.ui.core.theme.LauncherTheme
 import lunar.land.ui.core.model.Theme
 
+// Color constants for green/black theme
+private val AGENT_GREEN = Color(0xFF00FF00)
+private val AGENT_BLACK = Color(0xFF000000)
+private val AGENT_DARK_GREEN = Color(0xFF00AA00)
+
 /**
- * Bootstrap Setup Screen with automatic detection and installation.
- * Shows progress bar and action buttons (Stop, Reinstall, Skip).
+ * Agent Setup Screen with automatic detection and installation.
+ * Shows progress bar, logs, and action buttons below logs.
  */
 @Composable
 fun BootstrapSetupScreen(
@@ -29,6 +38,7 @@ fun BootstrapSetupScreen(
     onInstallBootstrap: ((() -> Unit), ((String) -> Unit)) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val scrollState = rememberScrollState()
     
     // Provide SystemUiController and use lunar-ui theme
     ProvideSystemUiController {
@@ -36,32 +46,28 @@ fun BootstrapSetupScreen(
             currentTheme = Theme.SAID_DARK,
             content = {
                 Scaffold(
-                    topBar = {
-                        AppBarWithBackIcon(
-                            title = stringResource(R.string.bootstrap_setup_title),
-                            onBackPressed = onNavigateToHome
-                        )
-                    }
+                    // No top bar - removed as requested
                 ) { paddingValues ->
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            .background(AGENT_BLACK)
                             .padding(paddingValues)
                             .padding(24.dp)
-                            .verticalScroll(rememberScrollState()),
+                            .verticalScroll(scrollState),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         // Status Text
                         StatusText(status = uiState.status)
                         
-                        // Progress Indicator
-                        ProgressIndicator(
+                        // Progress Indicator with green color
+                        AgentProgressIndicator(
                             progress = uiState.progress,
                             modifier = Modifier.fillMaxWidth()
                         )
                         
-                        // Error Banner
-                        ErrorBanner(
+                        // Error Banner with green/black theme
+                        AgentErrorBanner(
                             error = uiState.error,
                             onRetry = { 
                                 viewModel.clearError()
@@ -72,57 +78,54 @@ fun BootstrapSetupScreen(
                         
                         Spacer(modifier = Modifier.height(8.dp))
                         
-                        // Action Buttons Row
+                        // Log Viewer - moved above buttons
+                        Text(
+                            text = "Logs:",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = AGENT_GREEN
+                        )
+                        
+                        AgentLogViewer(
+                            logs = uiState.logs,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 400.dp)
+                        )
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // Action Buttons Row - moved below logs
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             // Stop Button (only show when in progress)
                             if (uiState.isSetupInProgress) {
-                                OutlinedButton(
+                                AgentButton(
+                                    text = "Stop",
                                     onClick = { viewModel.stopSetup() },
                                     modifier = Modifier.weight(1f)
-                                ) {
-                                    Text("Stop")
-                                }
+                                )
                             }
                             
                             // Reinstall Button
-                            OutlinedButton(
+                            AgentButton(
+                                text = "Reinstall",
                                 onClick = { viewModel.reinstallBootstrap() },
                                 modifier = Modifier.weight(1f),
-                                enabled = !uiState.isSetupInProgress || uiState.status == BootstrapStatus.Completed
-                            ) {
-                                Text("Reinstall")
-                            }
+                                enabled = !uiState.isSetupInProgress
+                            )
                             
                             // Skip Button
-                            OutlinedButton(
+                            AgentButton(
+                                text = "Skip",
                                 onClick = { 
                                     viewModel.skipSetup()
                                     onNavigateToHome()
                                 },
                                 modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Skip")
-                            }
+                            )
                         }
-                        
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        // Log Viewer
-                        Text(
-                            text = "Logs:",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        
-                        LogViewer(
-                            logs = uiState.logs,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 400.dp)
-                        )
                     }
                 }
             }
@@ -131,23 +134,201 @@ fun BootstrapSetupScreen(
 }
 
 /**
- * Displays status text based on current bootstrap status.
+ * Custom progress indicator with green/black theme
+ */
+@Composable
+private fun AgentProgressIndicator(
+    progress: Int,
+    modifier: Modifier = Modifier
+) {
+    val clampedProgress = progress.coerceIn(0, 100)
+    
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+    ) {
+        LinearProgressIndicator(
+            progress = { clampedProgress / 100f },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            color = AGENT_GREEN,
+            trackColor = AGENT_DARK_GREEN.copy(alpha = 0.3f)
+        )
+        
+        Text(
+            text = "$clampedProgress%",
+            style = MaterialTheme.typography.bodyMedium,
+            color = AGENT_GREEN,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+    }
+}
+
+/**
+ * Custom error banner with green/black theme
+ */
+@Composable
+private fun AgentErrorBanner(
+    error: String?,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    androidx.compose.animation.AnimatedVisibility(
+        visible = error != null,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = AGENT_BLACK,
+                    shape = RoundedCornerShape(8.dp)
+                )
+                .border(
+                    width = 1.dp,
+                    color = AGENT_GREEN,
+                    shape = RoundedCornerShape(8.dp)
+                )
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = error ?: "",
+                style = MaterialTheme.typography.bodyMedium,
+                color = AGENT_GREEN,
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(
+                    onClick = onRetry,
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = AGENT_GREEN
+                    )
+                ) {
+                    Text("Retry")
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Custom log viewer with green text on black background
+ */
+@Composable
+private fun AgentLogViewer(
+    logs: List<String>,
+    modifier: Modifier = Modifier
+) {
+    val scrollState = rememberScrollState()
+    
+    // Auto-scroll to bottom when new logs are added
+    androidx.compose.runtime.LaunchedEffect(logs.size) {
+        scrollState.animateScrollTo(scrollState.maxValue)
+    }
+    
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(
+                color = AGENT_BLACK,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .border(
+                width = 1.dp,
+                color = AGENT_GREEN,
+                shape = RoundedCornerShape(8.dp)
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(12.dp)
+        ) {
+            logs.forEachIndexed { index, log ->
+                Text(
+                    text = log,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AGENT_GREEN,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(if (index < logs.size - 1) Modifier.padding(bottom = 4.dp) else Modifier)
+                )
+            }
+            
+            // Empty state
+            if (logs.isEmpty()) {
+                Text(
+                    text = "No logs yet...",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AGENT_GREEN.copy(alpha = 0.6f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Custom button with green/black theme
+ */
+@Composable
+private fun AgentButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    Box(
+        modifier = modifier
+            .height(48.dp)
+            .background(
+                color = if (enabled) AGENT_DARK_GREEN else AGENT_DARK_GREEN.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(8.dp)
+            )
+            .border(
+                width = 1.dp,
+                color = if (enabled) AGENT_GREEN else AGENT_GREEN.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(8.dp)
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        contentAlignment = androidx.compose.ui.Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = if (enabled) AGENT_BLACK else AGENT_BLACK.copy(alpha = 0.5f),
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
+}
+
+/**
+ * Displays status text based on current agent setup status.
  */
 @Composable
 private fun StatusText(status: BootstrapStatus) {
     val statusText = when (status) {
         BootstrapStatus.Idle -> "Initializing..."
-        BootstrapStatus.Detecting -> "Detecting bootstrap status..."
-        BootstrapStatus.Downloading -> "Downloading bootstrap..."
-        BootstrapStatus.Installing -> "Installing bootstrap..."
-        BootstrapStatus.Completed -> "Bootstrap setup completed!"
-        BootstrapStatus.Failed -> "Bootstrap setup failed"
-        BootstrapStatus.Cancelled -> "Bootstrap setup cancelled"
+        BootstrapStatus.Detecting -> "Detecting agent environment..."
+        BootstrapStatus.Downloading -> "Downloading agent environment..."
+        BootstrapStatus.Installing -> "Setting up agent environment..."
+        BootstrapStatus.Completed -> "Agent environment setup completed!"
+        BootstrapStatus.Failed -> "Agent environment setup failed"
+        BootstrapStatus.Cancelled -> "Agent environment setup cancelled"
     }
     
     Text(
         text = statusText,
         style = MaterialTheme.typography.titleLarge,
-        color = MaterialTheme.colorScheme.onSurface
+        color = AGENT_GREEN
     )
 }

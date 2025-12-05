@@ -44,6 +44,13 @@
         android:layout_marginTop="12dp"
         android:text="Launch Lunar UI HomeScreen" />
 
+    <Button
+        android:id="@+id/driver_setup_agent_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Setup Agent Environment" />
+
     <TextView
         android:id="@+id/driver_status_view"
         android:layout_width="match_parent"

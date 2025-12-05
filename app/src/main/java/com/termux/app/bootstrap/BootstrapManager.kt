@@ -4,6 +4,8 @@ import android.content.Context
 import com.termux.shared.errors.Error
 import com.termux.shared.logger.Logger
 import com.termux.shared.termux.file.TermuxFileUtils
+import com.termux.shared.file.FileUtils
+import com.termux.shared.termux.TermuxConstants
 import java.io.File
 
 /**
@@ -128,6 +130,21 @@ object BootstrapManager {
         
         Logger.logInfo(LOG_TAG, "No local bootstrap file found, download needed")
         return true
+    }
+    
+    /**
+     * Deletes the installed bootstrap (prefix directory) to allow reinstallation.
+     * @return Error if deletion failed, null on success
+     */
+    fun deleteInstalledBootstrap(): Error? {
+        Logger.logInfo(LOG_TAG, "Deleting installed bootstrap prefix directory...")
+        val error = FileUtils.deleteFile("termux prefix directory", TermuxConstants.TERMUX_PREFIX_DIR_PATH, true)
+        if (error != null) {
+            Logger.logError(LOG_TAG, "Failed to delete prefix directory: ${error.message}")
+            return error
+        }
+        Logger.logInfo(LOG_TAG, "Successfully deleted prefix directory")
+        return null
     }
 }
 
