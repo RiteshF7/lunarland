@@ -1,57 +1,60 @@
 package lunar.land.ui.feature.taskexecagent
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import lunar.land.ui.R
 
 /**
- * Footer component containing action button and status indicator.
- * Wrapped in a glassmorphic green container with dark green border.
+ * Manrope font family matching the HTML design.
+ */
+private val manropeFontFamily = FontFamily(
+    Font(resId = R.font.manrope_variable, weight = FontWeight.Normal)
+)
+
+/**
+ * Footer component containing status indicator and tap and hold instruction.
  */
 @Composable
 fun PageFooter(
     aiStatus: String,
-    onSpeakClick: () -> Unit,
+    onTextModeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(
-                Color(0xFF00FF88).copy(alpha = 0.15f),
-                shape = RoundedCornerShape(12.dp)
-            )
-            .border(
-                width = 1.dp,
-                color = Color(0xFF006644),
-                shape = RoundedCornerShape(12.dp)
-            )
-            .padding(16.dp),
-        contentAlignment = Alignment.Center
+            .padding(bottom = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            ActionButton(
-                onClick = onSpeakClick,
-                modifier = Modifier.fillMaxWidth()
-            )
+        AIStatusIndicator(
+            status = aiStatus,
+            modifier = Modifier.fillMaxWidth()
+        )
 
-            AIStatusIndicator(
-                status = aiStatus,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
+        // Description text
+        Text(
+            text = "Press and hold the AI sphere to initiate command sequence.",
+            style = MaterialTheme.typography.bodySmall.copy(
+                fontFamily = manropeFontFamily,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            ),
+            color = Color.White.copy(alpha = 0.8f),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
     }
 }
 

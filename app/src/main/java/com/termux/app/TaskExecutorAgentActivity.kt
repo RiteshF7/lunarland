@@ -29,8 +29,8 @@ class TaskExecutorAgentActivity : ComponentActivity() {
                             .background(MaterialTheme.colorScheme.background),
                         isListening = false,
                         aiStatus = "Ready",
-                        onSpeakClick = {
-                            // Handle speak click
+                        onTextModeClick = {
+                            // Handle text mode click
                         }
                     )
                 }

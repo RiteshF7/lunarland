@@ -48,7 +48,7 @@ fun PageHeader(
         Spacer(modifier = Modifier.height(8.dp))
         
         Text(
-            text = "Agent Loon is a agent in Lunar Land.",
+            text = "Navigator of Lunar Land. Your voice in the void.",
             style = MaterialTheme.typography.bodyMedium.copy(
                 fontFamily = manropeFontFamily
             ),

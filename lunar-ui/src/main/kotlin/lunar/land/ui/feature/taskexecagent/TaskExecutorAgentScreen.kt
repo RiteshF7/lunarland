@@ -24,8 +24,8 @@ import androidx.compose.ui.unit.dp
 fun TaskExecutorAgentScreen(
     modifier: Modifier = Modifier,
     isListening: Boolean = false,
-    aiStatus: String = "Ready",
-    onSpeakClick: () -> Unit = {}
+    aiStatus: String = "Online",
+    onTextModeClick: () -> Unit = {}
 ) {
     // Background colors matching the HTML design
     val backgroundColor = Color(0xFF0a0f0a) // #0a0f0a
@@ -96,7 +96,7 @@ fun TaskExecutorAgentScreen(
         PageFooter(
             modifier = Modifier.fillMaxWidth(),
             aiStatus = aiStatus,
-            onSpeakClick = onSpeakClick
+            onTextModeClick = onTextModeClick
         )
         }
     }
