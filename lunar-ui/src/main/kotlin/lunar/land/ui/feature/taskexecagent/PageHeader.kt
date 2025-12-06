@@ -6,10 +6,21 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import lunar.land.ui.R
+
+/**
+ * Manrope font family matching the HTML design.
+ */
+private val manropeFontFamily = FontFamily(
+    Font(resId = R.font.manrope_variable, weight = FontWeight.Normal)
+)
 
 /**
  * Header component displaying the title and instructions.
@@ -19,26 +30,30 @@ fun PageHeader(
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier,
+        modifier = modifier.padding(top = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "AI Agent Interaction Sphere",
+            text = "Agent Loon ",
             style = MaterialTheme.typography.headlineLarge.copy(
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 32.sp
+                fontFamily = manropeFontFamily,
+                fontWeight = FontWeight.Black,
+                fontSize = 36.sp,
+                letterSpacing = (-0.5).sp
             ),
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center
+            color = Color.White,
+            textAlign = TextAlign.Start
         )
         
         Spacer(modifier = Modifier.height(8.dp))
         
         Text(
-            text = "Click the sphere to begin speaking.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            textAlign = TextAlign.Center
+            text = "Agent Loon is a agent in Lunar Land.",
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontFamily = manropeFontFamily
+            ),
+            color = Color.White,
+            textAlign = TextAlign.Start
         )
     }
 }
