@@ -13,9 +13,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import lunar.land.ui.R
+
+/**
+ * Manrope font family matching the HTML design.
+ */
+private val manropeFontFamily = FontFamily(
+    Font(resId = R.font.manrope_variable, weight = FontWeight.Normal)
+)
 
 /**
  * Action button for initiating voice input.
@@ -43,7 +53,7 @@ fun ActionButton(
             Icon(
                 painter = painterResource(id = R.drawable.ic_mic),
                 contentDescription = "Microphone",
-                tint = MaterialTheme.colorScheme.onSurface,
+                tint = Color.White,
                 modifier = Modifier.size(24.dp)
             )
             
@@ -52,9 +62,10 @@ fun ActionButton(
             Text(
                 text = "Click to Speak",
                 style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = manropeFontFamily,
                     fontSize = 18.sp
                 ),
-                color = MaterialTheme.colorScheme.onSurface
+                color = Color.White
             )
         }
     }

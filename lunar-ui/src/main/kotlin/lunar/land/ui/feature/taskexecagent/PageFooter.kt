@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Footer component containing action button and status indicator.
- * Wrapped in a semi-transparent container with backdrop blur effect.
+ * Wrapped in a glassmorphic green container with dark green border.
  */
 @Composable
 fun PageFooter(
@@ -27,12 +27,12 @@ fun PageFooter(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(
-                Color(0xFF1E1E1E).copy(alpha = 0.5f),
+                Color(0xFF00FF88).copy(alpha = 0.15f),
                 shape = RoundedCornerShape(12.dp)
             )
             .border(
                 width = 1.dp,
-                color = Color.White.copy(alpha = 0.2f),
+                color = Color(0xFF006644),
                 shape = RoundedCornerShape(12.dp)
             )
             .padding(16.dp),
