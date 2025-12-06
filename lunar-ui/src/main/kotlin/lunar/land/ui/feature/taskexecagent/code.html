@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AI Agent Interaction Sphere</title>
+<!-- Tailwind CSS v3 with plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts for a modern look -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Custom Configuration -->
+<script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Manrope', 'sans-serif'],
+                    },
+                    colors: {
+                        'brand-green': '#4dff88',
+                        'brand-dark': '#0a0f0a',
+                    },
+                    boxShadow: {
+                        'glow-green': '0 0 15px 5px rgba(77, 255, 136, 0.4), 0 0 30px 10px rgba(77, 255, 136, 0.2)',
+                        'glow-green-sm': '0 0 8px 2px rgba(77, 255, 136, 0.7)',
+                    }
+                }
+            }
+        }
+    </script>
+<!-- BEGIN: Custom Styles -->
+<style data-purpose="background-and-animations">
+        /* Applying a radial gradient to mimic the subtle lighting in the image */
+        body {
+            background-color: #0a0f0a;
+            background-image: radial-gradient(circle at center, #0e1a10 0%, #0a0f0a 60%);
+        }
+
+        /* Custom animation for the loading spinner */
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .animate-spin-slow {
+            animation: spin 1.5s linear infinite;
+        }
+
+        /* Custom animation for the glowing status dot */
+        @keyframes pulse-glow {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 5px 2px rgba(77, 255, 136, 0.6);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 10px 4px rgba(77, 255, 136, 0.8);
+            }
+        }
+
+        .animate-pulse-glow {
+            animation: pulse-glow 2s infinite ease-in-out;
+        }
+    
+        /* Additional styles for the sphere */
+        .bg-radial-gradient-sphere {
+            background-image: radial-gradient(circle, rgba(77, 255, 136, 0.3) 0%, rgba(77, 255, 136, 0.1) 40%, rgba(10, 15, 10, 0) 70%);
+        }
+
+        .bg-sphere-texture {
+             background-image: 
+                repeating-linear-gradient(0deg, rgba(255,255,255,0.02), rgba(255,255,255,0.02) 1px, transparent 1px, transparent 2px),
+                repeating-linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.02) 1px, transparent 1px, transparent 2px);
+        }
+
+        @keyframes sphere-pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.02);
+            }
+        }
+        
+        .animate-sphere-pulse {
+            animation: sphere-pulse 4s infinite ease-in-out;
+        }
+    </style>
+<!-- END: Custom Styles -->
+<style>
+.sphere-texture {
+    background-image: 
+        repeating-radial-gradient(circle at center, rgba(255,255,255,0.05), rgba(255,255,255,0.05) 1px, transparent 1px, transparent 5px), /* Fine concentric rings */
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.02), rgba(255,255,255,0.02) 1px, transparent 1px, transparent 3px), /* Horizontal lines */
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.02) 1px, transparent 1px, transparent 3px), /* Vertical lines */
+        radial-gradient(circle at center, rgba(77, 255, 136, 0.3) 0%, rgba(77, 255, 136, 0.1) 40%, rgba(10, 15, 10, 0) 70%); /* Original green glow */
+}
+</style>
+</head>
+<body class="bg-brand-dark text-white font-sans antialiased">
+<!-- BEGIN: MainContainer -->
+<div class="flex flex-col h-screen p-4 md:p-6 justify-between" id="app-container">
+<!-- BEGIN: PageHeader -->
+<header class="text-center shrink-0" data-purpose="page-title">
+<h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">AI Agent Interaction Sphere</h1>
+<p class="text-base text-gray-400 mt-2">Click the sphere to begin speaking.</p>
+</header>
+<!-- END: PageHeader -->
+<!-- BEGIN: MainContent -->
+<main class="flex-grow flex items-center justify-center py-8" data-purpose="interaction-sphere-area">
+<!-- Container for the sphere and its inner elements -->
+<!-- Container for the sphere and its inner elements -->
+<div class="relative w-[300px] h-[300px] md:w-[400px] md:h-[400px] flex items-center justify-center" data-purpose="sphere-visualizer">
+<!-- The glowing sphere background -->
+<div class="absolute inset-0 rounded-full shadow-glow-green-lg animate-sphere-pulse sphere-texture">
+<!-- Inner texture overlay -->
+<div class="absolute inset-0 rounded-full opacity-30"></div>
+</div>
+<!-- Inner content for status display -->
+<div class="z-10 flex flex-col items-center justify-center text-center">
+<!-- Loading spinner -->
+<div class="w-20 h-20 border-4 border-gray-600/50 border-t-brand-green rounded-full animate-spin-slow" data-purpose="loading-indicator"></div>
+<p class="mt-4 text-2xl font-medium tracking-wider text-gray-200">Listening...</p>
+</div>
+</div>
+</main>
+<!-- END: MainContent -->
+<!-- BEGIN: PageFooter -->
+<footer class="flex justify-center shrink-0" data-purpose="action-controls">
+<!-- Semi-transparent container for footer content -->
+<div class="bg-black/30 backdrop-blur-sm border border-white/10 rounded-xl p-4 w-full max-w-sm" style="background-color: rgba(30, 30, 30, 0.5); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; padding: 1rem; max-width: 300px; width: 100%;"><button class="w-full bg-transparent hover:bg-white/10 rounded-lg px-6 py-3 flex items-center justify-center space-x-3 text-lg font-medium transition-colors" type="button">
+<svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.5" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Click to Speak</span>
+</button>
+<!-- Click to Speak Button -->
+<!-- AI Status Indicator -->
+<div class="flex items-center justify-center space-x-2 text-gray-300 pt-0" data-purpose="ai-status">
+<div class="w-3 h-3 bg-brand-green rounded-full animate-pulse-glow" data-purpose="status-dot"></div>
+<span>AI Status: Ready</span>
+</div>
+</div>
+</footer>
+<!-- END: PageFooter -->
+</div>
+<!-- END: MainContainer -->
+</body></html>

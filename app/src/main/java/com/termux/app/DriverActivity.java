@@ -54,8 +54,9 @@ public class DriverActivity extends AppCompatActivity {
     private TextView statusView;
     private Button executeButton;
     private Button launchTermuxButton;
+    private Button taskExecutorButton;
     private Button launchLunarHomeScreenButton;
-    private Button setupAgentButton;
+    private Button previewAgentButton;
     private NestedScrollView logsContainer;
     private TextView logsView;
     private final StringBuilder logBuffer = new StringBuilder();
@@ -96,11 +97,11 @@ public class DriverActivity extends AppCompatActivity {
         statusView = findViewById(R.id.driver_status_view);
         executeButton = findViewById(R.id.driver_execute_button);
         launchTermuxButton = findViewById(R.id.driver_launch_termux_button);
+        taskExecutorButton = findViewById(R.id.driver_open_task_executor_button);
         launchLunarHomeScreenButton = findViewById(R.id.driver_launch_lunar_homescreen_button);
-        setupAgentButton = findViewById(R.id.driver_setup_agent_button);
+        previewAgentButton = findViewById(R.id.driver_preview_agent_button);
         logsContainer = findViewById(R.id.driver_logs_container);
         logsView = findViewById(R.id.driver_logs_view);
-        Button taskExecutorButton = findViewById(R.id.driver_open_task_executor_button);
 
         // Restore state from ViewModel if available
         if (viewModel.isBootstrapReady()) {
@@ -131,9 +132,9 @@ public class DriverActivity extends AppCompatActivity {
                 startActivity(intent);
             });
         }
-        if (setupAgentButton != null) {
-            setupAgentButton.setOnClickListener(view -> {
-                Intent intent = new Intent(this, BootstrapSetupActivity.class);
+        if (previewAgentButton != null) {
+            previewAgentButton.setOnClickListener(view -> {
+                Intent intent = new Intent(this, TaskExecutorAgentActivity.class);
                 startActivity(intent);
             });
         }
