@@ -6,6 +6,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import lunar.land.ui.feature.homescreen.HomeScreen
 
 /**
  * Wrapper that provides swipeable navigation between HomeScreen and TaskExecutorScreen.
@@ -29,8 +30,8 @@ fun HomeScreenPager(
     ) { page ->
         when (page) {
             0 -> {
-                // Home Screen (default page)
-                HomeScreenContent(
+                // Home Screen (default page) - using new modular homescreen feature
+                HomeScreen(
                     modifier = Modifier.fillMaxSize()
                 )
             }

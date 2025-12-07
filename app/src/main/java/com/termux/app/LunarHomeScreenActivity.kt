@@ -6,8 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
 import com.termux.app.taskexecutor.ui.TaskExecutorScreen
@@ -25,16 +23,14 @@ class LunarHomeScreenActivity : ComponentActivity() {
         setContent {
             ProvideSystemUiController {
                 LauncherTheme(currentTheme = Theme.FOLLOW_SYSTEM) {
-                    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                        HomeScreenPager(
-                            modifier = Modifier.padding(innerPadding),
-                            taskExecutorContent = {
-                                TaskExecutorScreen(
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        )
-                    }
+                    HomeScreenPager(
+                        modifier = Modifier.fillMaxSize(),
+                        taskExecutorContent = {
+                            TaskExecutorScreen(
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    )
                 }
             }
         }
