@@ -38,10 +38,10 @@ fun PageFooter(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        AIStatusIndicator(
-            status = aiStatus,
-            modifier = Modifier.fillMaxWidth()
-        )
+        // AIStatusIndicator(
+        //     status = aiStatus,
+        //     modifier = Modifier.fillMaxWidth()
+        // )
 
         // Description text
         Text(
