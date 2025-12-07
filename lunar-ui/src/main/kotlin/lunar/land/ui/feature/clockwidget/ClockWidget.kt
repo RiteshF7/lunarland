@@ -1,7 +1,6 @@
 ﻿package lunar.land.ui.feature.clockwidget
 
 import android.content.Intent
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -9,7 +8,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -25,7 +23,6 @@ import lunar.land.ui.core.ui.effects.SystemBroadcastReceiver
 import lunar.land.ui.core.ui.extensions.clickableNoRipple
 import lunar.land.ui.core.ui.extensions.modifyIf
 import lunar.land.ui.feature.clockwidget.ui.Clock24
-import lunar.land.ui.feature.clockwidget.ui.CurrentTime
 
 
 @Composable
@@ -33,9 +30,8 @@ fun ClockWidgetUiComponent(
     state: ClockWidgetUiComponentState,
     horizontalPadding: Dp,
     modifier: Modifier = Modifier,
-    verticalPadding: Dp = 0.dp,
     onClick: (() -> Unit)? = null,
-    contentColor: Color = MaterialTheme.colorScheme.onSurface
+    contentColor: Color = Color.White
 ) {
     // Need to extract the eventSink out to a local val, so that the Compose Compiler
     // treats it as stable. See: https://issuetracker.google.com/issues/256100927
@@ -46,7 +42,6 @@ fun ClockWidgetUiComponent(
         state = state,
         refreshTime = { eventSink(ClockWidgetUiComponentUiEvent.RefreshTime) },
         horizontalPadding = horizontalPadding,
-        verticalPadding = verticalPadding,
         onClick = onClick,
         contentColor = contentColor
     )
@@ -58,9 +53,8 @@ private fun ClockWidgetUiComponent(
     refreshTime: () -> Unit,
     horizontalPadding: Dp,
     modifier: Modifier = Modifier,
-    verticalPadding: Dp = 0.dp,
     onClick: (() -> Unit)? = null,
-    contentColor: Color = MaterialTheme.colorScheme.onSurface
+    contentColor: Color = Color.White
 ) {
     val updatedRefreshTime by rememberUpdatedState(newValue = refreshTime)
 
@@ -82,43 +76,28 @@ private fun ClockWidgetUiComponent(
     }
 
     OnLifecycleEventChange { event ->
-        if (event == Lifecycle.Event.ON_RESUME) updatedRefreshTime()
+        if (event == Lifecycle.Event.ON_RESUME) {
+            updatedRefreshTime()
+        }
     }
 
     val clickModifier = Modifier.modifyIf(predicate = { onClick != null }) {
         clickableNoRipple { onClick?.invoke() }
     }
 
-    Crossfade(
-        label = "Show Clock 24 CrossFade",
-        targetState = state.showClock24,
+    Column(
+        horizontalAlignment = BiasAlignment.Horizontal(bias = horizontalBias),
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = horizontalPadding)
-    ) { showClock24 ->
-        Column(
-            horizontalAlignment = BiasAlignment.Horizontal(bias = horizontalBias),
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
-            if (showClock24) {
-                Clock24(
-                    modifier = clickModifier,
-                    currentTime = state.currentTime,
-                    handleColor = contentColor,
-                    offsetAnimationSpec = tween(durationMillis = state.clock24AnimationDuration),
-                    colorAnimationSpec = tween(durationMillis = state.clock24AnimationDuration)
-                )
-            } else {
-                CurrentTime(
-                    currentTime = state.currentTime,
-                    contentColor = contentColor,
-                    modifier = Modifier
-                        .then(other = clickModifier)
-                        .padding(vertical = verticalPadding)
-                )
-            }
-        }
+    ) {
+        Clock24(
+            modifier = clickModifier,
+            currentTime = state.currentTime,
+            handleColor = contentColor,
+            offsetAnimationSpec = tween(durationMillis = state.clock24AnimationDuration),
+            colorAnimationSpec = tween(durationMillis = state.clock24AnimationDuration)
+        )
     }
 }
 
