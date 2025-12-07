@@ -28,7 +28,8 @@ private val manropeFontFamily = FontFamily(
 @Composable
 fun PageFooter(
     aiStatus: String,
-    onTextModeClick: () -> Unit,
+    isTextMode: Boolean = false,
+    onTextModeClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -43,9 +44,13 @@ fun PageFooter(
         //     modifier = Modifier.fillMaxWidth()
         // )
 
-        // Description text
+        // Description text - changes based on mode
         Text(
-            text = "Press and hold the AI sphere to initiate command sequence.",
+            text = if (isTextMode) {
+                "Type your command above and press Execute to run it."
+            } else {
+                "Press and hold the AI sphere to initiate command sequence."
+            },
             style = MaterialTheme.typography.bodySmall.copy(
                 fontFamily = manropeFontFamily,
                 fontSize = 12.sp,

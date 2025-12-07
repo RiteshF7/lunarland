@@ -42,6 +42,17 @@ fun SphereVisualizer(
         ),
         label = "scale"
     )
+    
+    // Rotating dots animation
+    val dotRotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(8000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "dot_rotation"
+    )
 
     // Ripple animation state
     var rippleTrigger by remember { mutableStateOf(0) }
@@ -231,6 +242,44 @@ fun SphereVisualizer(
                 radius = baseRadius,
                 center = center
             )
+        }
+        
+        // Rotating dots around the sphere
+        Canvas(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val baseRadius = size.minDimension / 2f * scale
+            val dotOrbitRadius = baseRadius * 1.15f // Dots orbit slightly outside the sphere
+            val dotCount = 12 // Number of rotating dots
+            val dotRadius = 4.dp.toPx()
+            
+            repeat(dotCount) { i ->
+                // Calculate angle for each dot with rotation
+                val baseAngle = (i * 360f / dotCount) * (kotlin.math.PI / 180f)
+                val rotationAngle = (dotRotation * kotlin.math.PI / 180f)
+                val angle = baseAngle + rotationAngle
+                
+                // Calculate dot position
+                val dotX = center.x + cos(angle).toFloat() * dotOrbitRadius
+                val dotY = center.y + sin(angle).toFloat() * dotOrbitRadius
+                
+                // Vary opacity based on position (fade effect)
+                val distanceFromTop = (dotY - (center.y - dotOrbitRadius)) / (dotOrbitRadius * 2f)
+                val opacity = 0.3f + (distanceFromTop * 0.7f).coerceIn(0f, 1f)
+                
+                // Draw dot with glow
+                drawCircle(
+                    color = Color(0xFF4DFF88).copy(alpha = opacity * 0.4f),
+                    radius = dotRadius * 1.8f,
+                    center = Offset(dotX, dotY)
+                )
+                drawCircle(
+                    color = Color(0xFF4DFF88).copy(alpha = opacity),
+                    radius = dotRadius,
+                    center = Offset(dotX, dotY)
+                )
+            }
         }
 
         // Inner content

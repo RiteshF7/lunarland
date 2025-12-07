@@ -1,7 +1,11 @@
 package lunar.land.ui.feature.taskexecagent
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
@@ -40,8 +44,11 @@ fun TaskExecutorAgentScreen(
     modifier: Modifier = Modifier,
     isListening: Boolean = false,
     aiStatus: String = "Online",
-    onTextModeClick: () -> Unit = {}
+    onTextModeClick: () -> Unit = {},
+    onExecuteCommand: (String) -> Unit = {}
 ) {
+    var isTextMode by remember { mutableStateOf(false) }
+    var isTextInputFocused by remember { mutableStateOf(false) }
     // Background colors matching the HTML design
     val backgroundColor = Color(0xFF0a0f0a) // #0a0f0a
     val gradientStartColor = Color(0xFF0e1a10) // #0e1a10
@@ -68,18 +75,6 @@ fun TaskExecutorAgentScreen(
         }
     }
     
-    // Animated particles background
-    val infiniteTransition = rememberInfiniteTransition(label = "particles")
-    val particleOffset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(8000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "particle_offset"
-    )
-    
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -95,25 +90,6 @@ fun TaskExecutorAgentScreen(
                 .background(brush = gradientBrush)
         )
         
-        // Animated background particles
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val particleCount = 15
-            repeat(particleCount) { i ->
-                val angle = (i * 360f / particleCount + particleOffset * 360f) * kotlin.math.PI / 180f
-                val radius = size.minDimension * 0.4f
-                val centerX = size.width / 2f
-                val centerY = size.height / 2f
-                val x = centerX + kotlin.math.cos(angle).toFloat() * radius
-                val y = centerY + kotlin.math.sin(angle).toFloat() * radius
-                
-                drawCircle(
-                    color = accentColor.copy(alpha = 0.15f),
-                    radius = 3.dp.toPx(),
-                    center = Offset(x, y)
-                )
-            }
-        }
-        
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -121,36 +97,84 @@ fun TaskExecutorAgentScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Header Section
-            PageHeader(
-                modifier = Modifier.fillMaxWidth()
-            )
+            // Header Section with Mode Toggle
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                PageHeader(
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                // Mode Toggle Button
+                ModeToggleButton(
+                    isTextMode = isTextMode,
+                    onToggle = { 
+                        isTextMode = !isTextMode
+                        // Reset focus state when switching modes
+                        isTextInputFocused = false
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                )
+            }
 
-            // Main Content - Sphere Area
+            // Main Content Area
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                // Center sphere
-                SphereVisualizer(
-                    modifier = Modifier.size(280.dp),
-                    isListening = isListening
-                )
+                if (isTextMode) {
+                    // Text mode: Show sphere when not typing, hide when typing
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        // Show sphere when text input is not focused (to show agent state)
+                        AnimatedVisibility(
+                            visible = !isTextInputFocused,
+                            enter = fadeIn() + scaleIn(initialScale = 0.8f),
+                            exit = fadeOut() + scaleOut(targetScale = 0.8f),
+                            modifier = Modifier.padding(bottom = 24.dp)
+                        ) {
+                            SphereVisualizer(
+                                modifier = Modifier.size(200.dp),
+                                isListening = isListening
+                            )
+                        }
+                        
+                        // Text Input Panel
+                        TextInputPanel(
+                            onExecute = { command ->
+                                onExecuteCommand(command)
+                            },
+                            onFocusChange = { focused ->
+                                isTextInputFocused = focused
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp)
+                        )
+                    }
+                } else {
+                    // Voice mode: Always show sphere
+                    SphereVisualizer(
+                        modifier = Modifier.size(280.dp),
+                        isListening = isListening
+                    )
+                }
             }
-            
-            // Neural Network Status
-            NeuralNetworkStatus(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 20.dp)
-            )
 
             // Footer Section
             PageFooter(
                 modifier = Modifier.fillMaxWidth(),
                 aiStatus = aiStatus,
+                isTextMode = isTextMode,
                 onTextModeClick = onTextModeClick
             )
         }
