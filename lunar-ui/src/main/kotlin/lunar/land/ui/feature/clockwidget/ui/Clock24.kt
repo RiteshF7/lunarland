@@ -11,15 +11,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import android.util.Log
 import lunar.land.ui.core.model.Constants.Defaults.DEFAULT_CLOCK_24_ANALOG_RADIUS
 import lunar.land.ui.core.ui.HorizontalSpacer
@@ -42,32 +45,36 @@ internal fun Clock24(
     offsetAnimationSpec: AnimationSpec<Offset> = tween(durationMillis = 900),
     colorAnimationSpec: AnimationSpec<Color> = tween(durationMillis = 900)
 ) {
-    val timeList = remember(key1 = currentTime) {
-        Log.d("Clock24", "Raw currentTime: '$currentTime' (length: ${currentTime.length})")
-        // Log each character and its code
-        currentTime.toCharArray().forEachIndexed { index, char ->
-            Log.d("Clock24", "  Char[$index]: '$char' (code: ${char.code.toChar()})")
-        }
-        
-        // Trim and only keep numeric digits (0-9), filter out everything else
-        // For HH:mm format, we should have exactly 4 digits
+    // Parse time string (format: "hh:mm a" or "h:mm a")
+    val timeData = remember(key1 = currentTime) {
+        Log.d("Clock24", "Raw currentTime: '$currentTime'")
         val cleanedTime = currentTime.trim()
+        
+        // Extract AM/PM
+        val amPm = if (cleanedTime.contains("AM", ignoreCase = true)) "AM"
+                   else if (cleanedTime.contains("PM", ignoreCase = true)) "PM"
+                   else ""
+        
+        // Extract digits only
         val allDigits = cleanedTime.toCharArray().filter { it.isDigit() }
-        Log.d("Clock24", "All digits found: ${allDigits.joinToString("")}")
+        Log.d("Clock24", "All digits found: ${allDigits.joinToString("")}, AM/PM: $amPm")
         
-        val digits = allDigits
-            .take(4) // Ensure we only take 4 digits for HH:mm format
-            .map { it.toString().toInt() }
+        // For 12-hour format, we should have 3 or 4 digits (h:mm or hh:mm)
+        val digits = allDigits.take(4).map { it.toString().toInt() }
         
-        // Only proceed if we have exactly 4 digits
-        if (digits.size != 4) {
-            Log.w("Clock24", "Expected 4 digits but got ${digits.size}. Digits: $digits")
+        // Pad to 4 digits if needed (e.g., "7:35" -> "0735")
+        val paddedDigits = if (digits.size == 3) {
+            listOf(0) + digits // Add leading zero for single digit hour
+        } else {
+            digits.take(4)
         }
         
-        Log.d("Clock24", "Final extracted digits: $digits (count: ${digits.size})")
-        digits.take(4) // Final safety check - only return 4 digits
+        Log.d("Clock24", "Final digits: $paddedDigits, AM/PM: $amPm")
+        Pair(paddedDigits, amPm)
     }
-
+    
+    val (timeList, amPm) = timeData
+    
     // Only render if we have exactly 4 digits
     if (timeList.size != 4) {
         Log.w("Clock24", "Skipping render - expected 4 digits but got ${timeList.size}")
@@ -77,10 +84,11 @@ internal fun Clock24(
     Row(
         modifier = modifier
             .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.Center
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        timeList.take(4).forEachIndexed { index, digit ->
-            // Safety check: ensure digit is valid (0-9)
+        // Hour digits (first 2)
+        timeList.take(2).forEachIndexed { index, digit ->
             if (digit !in 0..9) {
                 Log.w("Clock24", "Invalid digit: $digit at index $index, skipping")
                 return@forEachIndexed
@@ -95,9 +103,63 @@ internal fun Clock24(
                 offsetAnimationSpec = offsetAnimationSpec,
                 colorAnimationSpec = colorAnimationSpec
             )
-            if (index != timeList.lastIndex) {
+            if (index < 1) {
                 HorizontalSpacer(spacing = digitSpacing)
             }
+        }
+        
+        // Colon separator - size it to match digit height
+        val colonTextSize = with(LocalDensity.current) {
+            // Digit height is approximately 3 analog clocks + 2 spacings
+            val clockSizePx = analogClockRadius * 2
+            val spacingPx = analogClockSpacing.toPx()
+            val digitHeightPx = clockSizePx * 3 + spacingPx * 2
+            digitHeightPx.toSp()
+        }
+        Text(
+            text = ":",
+            color = handleColor,
+            style = MaterialTheme.typography.headlineLarge.copy(fontSize = colonTextSize),
+            modifier = Modifier.padding(horizontal = digitSpacing)
+        )
+        
+        // Minute digits (last 2)
+        timeList.drop(2).forEachIndexed { index, digit ->
+            if (digit !in 0..9) {
+                Log.w("Clock24", "Invalid digit: $digit at index ${index + 2}, skipping")
+                return@forEachIndexed
+            }
+            
+            DigitWithAnalogClocks(
+                digit = Digit.ALL[digit],
+                analogClockRadius = analogClockRadius,
+                analogClockSpacing = analogClockSpacing,
+                handleColor = handleColor,
+                handleWidth = handleWidth,
+                offsetAnimationSpec = offsetAnimationSpec,
+                colorAnimationSpec = colorAnimationSpec
+            )
+            if (index < 1) {
+                HorizontalSpacer(spacing = digitSpacing)
+            }
+        }
+        
+        // AM/PM indicator - size it to match digit height
+        if (amPm.isNotEmpty()) {
+            HorizontalSpacer(spacing = digitSpacing)
+            val amPmTextSize = with(LocalDensity.current) {
+                // Digit height is approximately 3 analog clocks + 2 spacings
+                val clockSizePx = analogClockRadius * 2
+                val spacingPx = analogClockSpacing.toPx()
+                val digitHeightPx = clockSizePx * 3 + spacingPx * 2
+                digitHeightPx.toSp()
+            }
+            Text(
+                text = amPm,
+                color = handleColor,
+                style = MaterialTheme.typography.headlineLarge.copy(fontSize = amPmTextSize),
+                modifier = Modifier.padding(start = digitSpacing)
+            )
         }
     }
 }

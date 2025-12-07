@@ -69,11 +69,11 @@ fun HomeScreenContent(
     
     // Get clock state
     val clockState = remember {
-        val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(System.currentTimeMillis())
+        val time = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(System.currentTimeMillis())
         ClockWidgetUiComponentState(
             currentTime = time,
             showClock24 = true,
-            use24Hour = true,
+            use24Hour = false,
             clockAlignment = ClockAlignment.START,
             clock24AnimationDuration = 2100,
             eventSink = {}
