@@ -168,15 +168,15 @@ fun HomeScreenContent(
             ) {
                 VerticalSpacer(spacing = topPadding)
                 
-                DecoratedLunarCalendar(
-                    state = lunarCalendarState,
-                    onClick = onLunarCalendarClick ?: {},
-                    horizontalPadding = horizontalPadding
-                )
                 ClockWidgetUiComponent(
                     state = clockState,
                     horizontalPadding = horizontalPadding,
                     onClick = onClockClick
+                )
+                DecoratedLunarCalendar(
+                    state = lunarCalendarState,
+                    onClick = onLunarCalendarClick ?: {},
+                    horizontalPadding = horizontalPadding
                 )
 
                 Box(

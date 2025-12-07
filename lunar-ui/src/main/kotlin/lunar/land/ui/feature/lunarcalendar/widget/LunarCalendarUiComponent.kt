@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import lunar.land.ui.feature.lunarcalendar.widget.ui.LunarCalendarContent
 
@@ -15,19 +16,25 @@ import lunar.land.ui.feature.lunarcalendar.widget.ui.LunarCalendarContent
 fun LunarCalendarUiComponent(
     state: LunarCalendarUiComponentState,
     modifier: Modifier = Modifier,
+    height: Dp = 74.dp,
     iconSize: Dp = 40.dp,
     horizontalPadding: Dp = 0.dp,
     backgroundColor: Color = Color.Transparent,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    textSize: TextUnit? = null,
+    supportingTextSize: TextUnit? = null,
     onClick: (() -> Unit)? = null
 ) {
     LunarCalendarUiComponentInternal(
         modifier = modifier,
         state = state,
+        height = height,
         iconSize = iconSize,
         horizontalPadding = horizontalPadding,
         backgroundColor = backgroundColor,
         contentColor = contentColor,
+        textSize = textSize,
+        supportingTextSize = supportingTextSize,
         onClick = onClick
     )
 }
@@ -41,6 +48,8 @@ private fun LunarCalendarUiComponentInternal(
     horizontalPadding: Dp = 0.dp,
     backgroundColor: Color = Color.Transparent,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    textSize: TextUnit? = null,
+    supportingTextSize: TextUnit? = null,
     onClick: (() -> Unit)? = null
 ) {
     AnimatedVisibility(
@@ -59,6 +68,8 @@ private fun LunarCalendarUiComponentInternal(
             horizontalPadding = horizontalPadding,
             backgroundColor = backgroundColor,
             contentColor = contentColor,
+            textSize = textSize,
+            supportingTextSize = supportingTextSize,
             onClick = onClick
         )
     }

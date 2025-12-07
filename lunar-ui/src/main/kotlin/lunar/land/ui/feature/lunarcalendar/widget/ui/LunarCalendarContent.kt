@@ -10,7 +10,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import lunar.land.ui.core.model.common.State
 import lunar.land.ui.core.model.common.getOrNull
 import lunar.land.ui.core.model.lunarphase.LunarPhaseDetails
@@ -28,6 +30,8 @@ internal fun LunarCalendarContent(
     horizontalPadding: Dp = 0.dp,
     backgroundColor: Color = Color.Transparent,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    textSize: TextUnit? = null,
+    supportingTextSize: TextUnit? = null,
     onClick: (() -> Unit)? = null
 ) {
     ListItem(
@@ -38,7 +42,9 @@ internal fun LunarCalendarContent(
         colors = ListItemDefaults.colors(
             containerColor = backgroundColor,
             supportingColor = contentColor,
-            headlineColor = contentColor
+            headlineColor = contentColor,
+            leadingIconColor = contentColor,
+            trailingIconColor = contentColor
         ),
         leadingContent = {
             lunarPhaseDetails.getOrNull()?.let {
@@ -54,7 +60,8 @@ internal fun LunarCalendarContent(
                 LunarPhaseName(
                     lunarPhaseDetails = it,
                     showIlluminationPercent = showIlluminationPercent,
-                    textColor = contentColor
+                    textColor = contentColor,
+                    fontSize = textSize
                 )
             }
         },
@@ -63,7 +70,8 @@ internal fun LunarCalendarContent(
                 upcomingLunarPhase.getOrNull()?.let {
                     UpcomingLunarPhaseDetails(
                         upcomingLunarPhase = it,
-                        textColor = contentColor.copy(alpha = 0.8f)
+                        textColor = contentColor, // Use full white color, no transparency
+                        fontSize = supportingTextSize ?: textSize // Use supporting text size if provided
                     )
                 }
             }

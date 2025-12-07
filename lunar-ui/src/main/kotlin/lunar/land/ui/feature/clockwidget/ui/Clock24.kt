@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -119,7 +120,10 @@ internal fun Clock24(
         Text(
             text = ":",
             color = handleColor,
-            style = MaterialTheme.typography.headlineLarge.copy(fontSize = colonTextSize),
+            style = MaterialTheme.typography.headlineLarge.copy(
+                fontSize = colonTextSize,
+                fontWeight = FontWeight.Normal
+            ),
             modifier = Modifier.padding(horizontal = digitSpacing)
         )
         
@@ -157,7 +161,10 @@ internal fun Clock24(
             Text(
                 text = amPm,
                 color = handleColor,
-                style = MaterialTheme.typography.headlineLarge.copy(fontSize = amPmTextSize),
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontSize = amPmTextSize,
+                    fontWeight = FontWeight.Normal
+                ),
                 modifier = Modifier.padding(start = digitSpacing)
             )
         }

@@ -6,6 +6,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.sp
 import lunar.land.ui.core.model.common.asPercent
 import lunar.land.ui.core.model.lunarphase.LunarPhaseDetails
 import lunar.land.ui.core.ui.extensions.string
@@ -15,7 +17,8 @@ internal fun LunarPhaseName(
     modifier: Modifier = Modifier,
     lunarPhaseDetails: LunarPhaseDetails,
     showIlluminationPercent: Boolean,
-    textColor: Color
+    textColor: Color,
+    fontSize: TextUnit? = null
 ) {
     val phaseNameAndIlluminationPercentPair = lunarPhaseDetails.run {
         lunarPhase.phaseNameUiText.string() to (illumination * 100).asPercent()
@@ -30,8 +33,15 @@ internal fun LunarPhaseName(
     ) {
         Text(
             text = it,
-            color = textColor,
-            style = MaterialTheme.typography.titleMedium
+            color = Color.White, // Force white color
+            style = if (fontSize != null) {
+                MaterialTheme.typography.titleMedium.copy(
+                    fontSize = fontSize,
+                    color = Color.White
+                )
+            } else {
+                MaterialTheme.typography.titleMedium.copy(color = Color.White)
+            }
         )
     }
 }
