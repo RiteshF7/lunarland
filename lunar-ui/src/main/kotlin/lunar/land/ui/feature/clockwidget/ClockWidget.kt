@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import android.util.Log
 import androidx.lifecycle.Lifecycle
 import lunar.land.ui.core.model.ClockAlignment
 import lunar.land.ui.core.ui.effects.OnLifecycleEventChange
@@ -85,6 +86,8 @@ private fun ClockWidgetUiComponent(
         clickableNoRipple { onClick?.invoke() }
     }
 
+    Log.d("ClockWidget", "Rendering Clock24 with currentTime: '${state.currentTime}'")
+    
     Column(
         horizontalAlignment = BiasAlignment.Horizontal(bias = horizontalBias),
         modifier = modifier

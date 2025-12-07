@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import android.util.Log
 import lunar.land.ui.core.model.Constants.Defaults.DEFAULT_CLOCK_24_ANALOG_RADIUS
 import lunar.land.ui.core.ui.HorizontalSpacer
 import lunar.land.ui.core.ui.VerticalSpacer
@@ -42,15 +43,49 @@ internal fun Clock24(
     colorAnimationSpec: AnimationSpec<Color> = tween(durationMillis = 900)
 ) {
     val timeList = remember(key1 = currentTime) {
-        currentTime.toCharArray().filterNot { it == ':' }.map { it.toString().toInt() }
+        Log.d("Clock24", "Raw currentTime: '$currentTime' (length: ${currentTime.length})")
+        // Log each character and its code
+        currentTime.toCharArray().forEachIndexed { index, char ->
+            Log.d("Clock24", "  Char[$index]: '$char' (code: ${char.code.toChar()})")
+        }
+        
+        // Trim and only keep numeric digits (0-9), filter out everything else
+        // For HH:mm format, we should have exactly 4 digits
+        val cleanedTime = currentTime.trim()
+        val allDigits = cleanedTime.toCharArray().filter { it.isDigit() }
+        Log.d("Clock24", "All digits found: ${allDigits.joinToString("")}")
+        
+        val digits = allDigits
+            .take(4) // Ensure we only take 4 digits for HH:mm format
+            .map { it.toString().toInt() }
+        
+        // Only proceed if we have exactly 4 digits
+        if (digits.size != 4) {
+            Log.w("Clock24", "Expected 4 digits but got ${digits.size}. Digits: $digits")
+        }
+        
+        Log.d("Clock24", "Final extracted digits: $digits (count: ${digits.size})")
+        digits.take(4) // Final safety check - only return 4 digits
     }
 
+    // Only render if we have exactly 4 digits
+    if (timeList.size != 4) {
+        Log.w("Clock24", "Skipping render - expected 4 digits but got ${timeList.size}")
+        return
+    }
+    
     Row(
         modifier = modifier
             .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.Center
     ) {
-        timeList.forEachIndexed { index, digit ->
+        timeList.take(4).forEachIndexed { index, digit ->
+            // Safety check: ensure digit is valid (0-9)
+            if (digit !in 0..9) {
+                Log.w("Clock24", "Invalid digit: $digit at index $index, skipping")
+                return@forEachIndexed
+            }
+            
             DigitWithAnalogClocks(
                 digit = Digit.ALL[digit],
                 analogClockRadius = analogClockRadius,
@@ -117,7 +152,7 @@ private fun AnalogClock(
 ) {
     val size = LocalDensity.current.run { radius.toDp() * 2 }
     val center = Offset(x = radius, y = radius)
-    val disabledColor = handleColor.copy(alpha = 0.16f)
+    val disabledColor = handleColor.copy(alpha = 0f) // Fully transparent for NONE handles
 
     fun offsetFromAngle(angle: Double) = Offset(
         x = radius * cos(x = Math.toRadians(angle)).toFloat(),
@@ -148,18 +183,23 @@ private fun AnalogClock(
     Canvas(
         modifier = modifier.size(size = size)
     ) {
-        drawLine(
-            color = handleColorFirst,
-            start = center,
-            end = endFirst,
-            strokeWidth = handleWidth
-        )
-        drawLine(
-            color = handleColorSecond,
-            start = center,
-            end = endSecond,
-            strokeWidth = handleWidth
-        )
+        // Only draw lines if the handle is not NONE (fully transparent)
+        if (analogClockPhase.first != AnalogClockHandlePhase.NONE && handleColorFirst.alpha > 0f) {
+            drawLine(
+                color = handleColorFirst,
+                start = center,
+                end = endFirst,
+                strokeWidth = handleWidth
+            )
+        }
+        if (analogClockPhase.second != AnalogClockHandlePhase.NONE && handleColorSecond.alpha > 0f) {
+            drawLine(
+                color = handleColorSecond,
+                start = center,
+                end = endSecond,
+                strokeWidth = handleWidth
+            )
+        }
     }
 }
 
