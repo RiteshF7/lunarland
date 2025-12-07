@@ -22,6 +22,7 @@ internal fun DecoratedLunarCalendar(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
     horizontalPadding: Dp,
+    currentTime: String? = null,
     contentColor: Color = Color.White
 ) {
     val density = LocalDensity.current
@@ -46,6 +47,7 @@ internal fun DecoratedLunarCalendar(
             contentColor = contentColor,
             textSize = textSize,
             supportingTextSize = supportingTextSize,
+            currentTime = currentTime,
             onClick = onClick
         )
     }

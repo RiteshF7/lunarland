@@ -44,7 +44,6 @@ import lunar.land.ui.core.model.lunarphase.UpcomingLunarPhase
 import lunar.land.ui.core.ui.AISphere
 import lunar.land.ui.core.ui.SearchField
 import lunar.land.ui.core.ui.VerticalSpacer
-import lunar.land.ui.feature.clockwidget.ClockWidgetUiComponent
 import lunar.land.ui.feature.clockwidget.ClockWidgetUiComponentState
 import lunar.land.ui.feature.favorites.FavoritesListUiComponent
 import lunar.land.ui.feature.favorites.FavoritesListUiComponentState
@@ -168,15 +167,11 @@ fun HomeScreenContent(
             ) {
                 VerticalSpacer(spacing = topPadding)
                 
-                ClockWidgetUiComponent(
-                    state = clockState,
-                    horizontalPadding = horizontalPadding,
-                    onClick = onClockClick
-                )
                 DecoratedLunarCalendar(
                     state = lunarCalendarState,
                     onClick = onLunarCalendarClick ?: {},
-                    horizontalPadding = horizontalPadding
+                    horizontalPadding = horizontalPadding,
+                    currentTime = clockState.currentTime
                 )
 
                 Box(

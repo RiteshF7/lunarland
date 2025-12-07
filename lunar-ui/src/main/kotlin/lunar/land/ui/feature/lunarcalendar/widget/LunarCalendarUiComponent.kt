@@ -23,6 +23,7 @@ fun LunarCalendarUiComponent(
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     textSize: TextUnit? = null,
     supportingTextSize: TextUnit? = null,
+    currentTime: String? = null,
     onClick: (() -> Unit)? = null
 ) {
     LunarCalendarUiComponentInternal(
@@ -35,6 +36,7 @@ fun LunarCalendarUiComponent(
         contentColor = contentColor,
         textSize = textSize,
         supportingTextSize = supportingTextSize,
+        currentTime = currentTime,
         onClick = onClick
     )
 }
@@ -50,6 +52,7 @@ private fun LunarCalendarUiComponentInternal(
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     textSize: TextUnit? = null,
     supportingTextSize: TextUnit? = null,
+    currentTime: String? = null,
     onClick: (() -> Unit)? = null
 ) {
     AnimatedVisibility(
@@ -63,6 +66,7 @@ private fun LunarCalendarUiComponentInternal(
             upcomingLunarPhase = state.upcomingLunarPhase,
             showIlluminationPercent = state.showIlluminationPercent,
             showUpcomingPhaseDetails = state.showUpcomingPhaseDetails,
+            currentTime = currentTime,
             height = height,
             iconSize = iconSize,
             horizontalPadding = horizontalPadding,

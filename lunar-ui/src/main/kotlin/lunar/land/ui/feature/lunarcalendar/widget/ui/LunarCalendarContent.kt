@@ -1,12 +1,14 @@
 ﻿package lunar.land.ui.feature.lunarcalendar.widget.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
@@ -25,6 +27,7 @@ internal fun LunarCalendarContent(
     upcomingLunarPhase: State<UpcomingLunarPhase>,
     showIlluminationPercent: Boolean,
     showUpcomingPhaseDetails: Boolean,
+    currentTime: String? = null,
     height: Dp = 74.dp,
     iconSize: Dp = 40.dp,
     horizontalPadding: Dp = 0.dp,
@@ -34,48 +37,56 @@ internal fun LunarCalendarContent(
     supportingTextSize: TextUnit? = null,
     onClick: (() -> Unit)? = null
 ) {
-    ListItem(
+    Column(
         modifier = Modifier
             .height(height = height)
             .clickable(enabled = onClick != null) { onClick?.invoke() }
             .padding(horizontal = horizontalPadding),
-        colors = ListItemDefaults.colors(
-            containerColor = backgroundColor,
-            supportingColor = contentColor,
-            headlineColor = contentColor,
-            leadingIconColor = contentColor,
-            trailingIconColor = contentColor
-        ),
-        leadingContent = {
-            lunarPhaseDetails.getOrNull()?.let {
-                LunarPhaseMoonIcon(
-                    phaseAngle = it.phaseAngle,
-                    illumination = it.illumination,
-                    moonSize = iconSize
-                )
-            }
-        },
-        headlineContent = {
-            lunarPhaseDetails.getOrNull()?.let {
-                LunarPhaseName(
-                    lunarPhaseDetails = it,
-                    showIlluminationPercent = showIlluminationPercent,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        // Moon icon
+        lunarPhaseDetails.getOrNull()?.let {
+            LunarPhaseMoonIcon(
+                phaseAngle = it.phaseAngle,
+                illumination = it.illumination,
+                moonSize = iconSize
+            )
+        }
+        
+        // Clock (time)
+        if (currentTime != null && textSize != null) {
+            Text(
+                text = currentTime,
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontSize = textSize,
+                    color = Color.White
+                ),
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+        }
+        
+        // Full Moon info
+        lunarPhaseDetails.getOrNull()?.let {
+            LunarPhaseName(
+                lunarPhaseDetails = it,
+                showIlluminationPercent = showIlluminationPercent,
+                textColor = contentColor,
+                fontSize = textSize
+            )
+        }
+        
+        // Next waning info
+        if (showUpcomingPhaseDetails) {
+            upcomingLunarPhase.getOrNull()?.let {
+                UpcomingLunarPhaseDetails(
+                    upcomingLunarPhase = it,
                     textColor = contentColor,
-                    fontSize = textSize
+                    fontSize = supportingTextSize ?: textSize
                 )
             }
-        },
-        supportingContent = if (showUpcomingPhaseDetails) {
-            @Composable {
-                upcomingLunarPhase.getOrNull()?.let {
-                    UpcomingLunarPhaseDetails(
-                        upcomingLunarPhase = it,
-                        textColor = contentColor, // Use full white color, no transparency
-                        fontSize = supportingTextSize ?: textSize // Use supporting text size if provided
-                    )
-                }
-            }
-        } else null
-    )
+        }
+    }
 }
 
