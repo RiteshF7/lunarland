@@ -19,7 +19,8 @@ internal fun ClockText(
         color = Color.White,
         style = MaterialTheme.typography.titleMedium.copy(
             fontSize = fontSize,
-            color = Color.White
+            color = Color.White,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold
         ),
         modifier = modifier
     )

@@ -46,6 +46,7 @@ fun LunarHomeWidget(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = horizontalPadding)
+            .padding(top = 32.dp)
             .then(
                 if (onClick != null) {
                     Modifier.clickable { onClick() }
