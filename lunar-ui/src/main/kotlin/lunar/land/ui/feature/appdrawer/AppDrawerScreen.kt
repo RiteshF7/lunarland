@@ -1,6 +1,8 @@
 package lunar.land.ui.feature.appdrawer
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -28,13 +30,17 @@ fun AppDrawerScreen(
     val context = LocalContext.current
     
     AppDrawerContainer {
+        val scrollState = rememberScrollState()
+        
         Column(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
         ) {
             // Add space on top of search bar
             Spacer(modifier = Modifier.height(24.dp))
             
-            // Search bar at the top
+            // Search bar at the top - fixed position
             SearchField(
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = stringResource(id = R.string.search),
@@ -45,7 +51,7 @@ fun AppDrawerScreen(
             
             Spacer(modifier = Modifier.height(20.dp))
             
-            // App list
+            // App list - scrollable
             if (uiState.isLoading) {
                 // TODO: Add loading indicator
             } else {
@@ -63,6 +69,9 @@ fun AppDrawerScreen(
                     }
                 }
             }
+            
+            // Add bottom padding for better scrolling experience
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
