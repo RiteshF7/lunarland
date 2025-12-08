@@ -220,52 +220,126 @@ class TaskExecutorViewModel(
                 val adbSetupCommand = """
                     export TMPDIR="${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"
                     mkdir -p "${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"
-                    # Kill and restart ADB server
-                    echo "Restarting ADB server..."
-                    adb kill-server 2>&1 || true
-                    sleep 0.5
-                    adb start-server 2>&1 || true
-                    sleep 1
-                    # Enable TCP/IP mode on port 5558 (try to use any available device)
-                    echo "Enabling ADB TCP/IP mode on port 5558..."
-                    # First, check for any available devices (USB or TCP/IP)
-                    USB_DEVICE=$(adb devices | grep -v "List" | grep "device" | head -1 | awk '{print ${'$'}1}')
-                    if [ -n "${'$'}USB_DEVICE" ]; then
-                        echo "Found device: ${'$'}USB_DEVICE, enabling TCP/IP mode..."
-                        adb -s ${'$'}USB_DEVICE tcpip 5558 2>&1 || {
-                            # If that fails, try without specifying device
-                            adb tcpip 5558 2>&1 || true
-                        }
+                    # Ensure system ADB is in PATH (use system binaries)
+                    export PATH="/system/bin:/system/xbin:${'$'}PATH"
+                    # Check if ADB is available
+                    ADB_CMD=""
+                    if command -v adb >/dev/null 2>&1; then
+                        ADB_CMD="adb"
+                    elif [ -f /data/data/com.termux/files/usr/bin/adb ]; then
+                        ADB_CMD="/data/data/com.termux/files/usr/bin/adb"
                     else
-                        # No device found, try to enable TCP/IP anyway (might work if already connected)
-                        adb tcpip 5558 2>&1 || true
+                        echo "⚠ ADB not found in Termux!"
+                        echo "⚠ Please install ADB by running: pkg install android-tools"
+                        echo "⚠ After installation, restart Termux or run: source ~/.bashrc"
+                        echo ""
+                        echo "Skipping ADB setup - ADB not installed"
+                        ADB_CMD=""
                     fi
-                    sleep 1
-                    # Try to connect ADB to localhost (but don't require it)
-                    echo "Attempting to connect ADB to localhost:5558..."
-                    adb disconnect 127.0.0.1:5558 2>&1 || true
-                    sleep 0.5
-                    adb connect 127.0.0.1:5558 2>&1 || true
-                    sleep 1.5
-                    # Check if connection succeeded
-                    if adb devices 2>&1 | grep -q "127.0.0.1:5558.*device"; then
-                        echo "✓ ADB connected to localhost:5558"
-                    else
-                        echo "⚠ ADB localhost connection not established (will use available devices)"
+                    if [ -n "${'$'}ADB_CMD" ]; then
+                        echo "Using ADB: ${'$'}ADB_CMD"
+                        # Start ADB server if not running
+                        echo "Starting ADB server..."
+                        ${'$'}ADB_CMD start-server 2>&1 || true
+                        sleep 2
+                        # Get device serial from system properties
+                        DEVICE_SERIAL=$(getprop ro.serialno 2>/dev/null || echo "")
+                        echo "Device serial: ${'$'}DEVICE_SERIAL"
+                        # Check current devices
+                        echo ""
+                        echo "=== Current ADB devices ==="
+                        ${'$'}ADB_CMD devices -l 2>&1
+                        echo "=========================="
+                        # When running ADB inside the device, it might not show the device itself
+                        # We need to enable TCP/IP mode first, then connect via localhost
+                        DEVICE_COUNT=$(${'$'}ADB_CMD devices 2>&1 | grep -v "List" | grep -cE "device|unauthorized|offline" || echo "0")
+                        if [ "${'$'}DEVICE_COUNT" -eq 0 ]; then
+                            echo ""
+                            echo "No devices found in ADB list."
+                            echo "This is normal when running ADB inside the device itself."
+                            echo "Attempting to enable TCP/IP mode and connect..."
+                            # First, try to enable TCP/IP mode (this might fail if no device is connected)
+                            # We'll try port 5555 first
+                            echo "Enabling TCP/IP mode on port 5555..."
+                            ${'$'}ADB_CMD tcpip 5555 2>&1 || {
+                                echo "⚠ Could not enable TCP/IP mode (device may need to be connected via USB first)"
+                                echo "⚠ If you're connected via USB from a computer, run: adb tcpip 5555"
+                            }
+                            sleep 2
+                            # Try connecting to localhost on port 5555
+                            echo "Connecting to localhost:5555..."
+                            ${'$'}ADB_CMD connect 127.0.0.1:5555 2>&1 || true
+                            sleep 2
+                            # Check connection status
+                            CONNECTION_STATUS=$(${'$'}ADB_CMD devices 2>&1 | grep "127.0.0.1:5555" || echo "")
+                            if echo "${'$'}CONNECTION_STATUS" | grep -q "device"; then
+                                echo "✓ Successfully connected to device via localhost:5555"
+                            elif echo "${'$'}CONNECTION_STATUS" | grep -q "unauthorized"; then
+                                echo "⚠ Device connected but unauthorized. Please authorize on device screen."
+                                echo "⚠ After authorization, device will appear in 'adb devices'"
+                                # Try to reconnect to trigger authorization prompt
+                                ${'$'}ADB_CMD reconnect 2>&1 || true
+                                sleep 2
+                            elif echo "${'$'}CONNECTION_STATUS" | grep -q "offline"; then
+                                echo "⚠ Device is offline. Trying to reconnect..."
+                                ${'$'}ADB_CMD reconnect 2>&1 || true
+                                sleep 2
+                            else
+                                echo "⚠ Could not connect to device. TCP/IP mode may need to be enabled externally."
+                                echo "⚠ To fix: Connect device via USB from computer and run: adb tcpip 5555"
+                            fi
+                            # Count devices again after reconnection attempt
+                            DEVICE_COUNT=$(${'$'}ADB_CMD devices 2>&1 | grep -v "List" | grep -cE "device|unauthorized|offline" || echo "0")
+                            # Show current device list
+                            echo ""
+                            echo "=== ADB devices after connection attempt ==="
+                            ${'$'}ADB_CMD devices -l 2>&1
+                            echo "==========================================="
+                        else
+                            echo ""
+                            echo "✓ Found ${'$'}DEVICE_COUNT device(s) in ADB list"
+                        fi
+                        # Enable TCP/IP mode on port 5558 for droidrun
+                        echo ""
+                        echo "Setting up TCP/IP mode on port 5558 for droidrun..."
+                        # Try to find any connected device
+                        CONNECTED_DEVICE=$(${'$'}ADB_CMD devices 2>&1 | grep -v "List" | grep "device" | head -1 | awk '{print ${'$'}1}')
+                        if [ -n "${'$'}CONNECTED_DEVICE" ]; then
+                            echo "Found device: ${'$'}CONNECTED_DEVICE, enabling TCP/IP mode on port 5558..."
+                            ${'$'}ADB_CMD -s ${'$'}CONNECTED_DEVICE tcpip 5558 2>&1 || {
+                                echo "⚠ Failed to enable TCP/IP on port 5558, trying alternative..."
+                                ${'$'}ADB_CMD tcpip 5558 2>&1 || true
+                            }
+                            sleep 1
+                            # Connect to localhost:5558
+                            ${'$'}ADB_CMD disconnect 127.0.0.1:5558 2>&1 || true
+                            sleep 0.5
+                            ${'$'}ADB_CMD connect 127.0.0.1:5558 2>&1 || true
+                            sleep 1.5
+                        else
+                            echo "⚠ No device found to enable TCP/IP mode"
+                        fi
+                        # Final device list
+                        echo ""
+                        echo "=== Final ADB devices list ==="
+                        ${'$'}ADB_CMD devices 2>&1
+                        echo "=============================="
                     fi
-                    echo "Current ADB devices:"
-                    adb devices 2>&1
-                    # Setup TMPDIR in .bashrc (but NOT ANDROID_SERIAL - we'll set it only when needed)
+                    # Setup TMPDIR in .bashrc
                     if ! grep -q "export TMPDIR" "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null; then
                         echo 'export TMPDIR="${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"' >> "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc"
                         mkdir -p "${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"
+                    fi
+                    # Ensure PATH includes system binaries in .bashrc
+                    if ! grep -q "export PATH.*system" "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null; then
+                        echo 'export PATH="/system/bin:/system/xbin:${'$'}PATH"' >> "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc"
                     fi
                     # Remove ANDROID_SERIAL from .bashrc if it exists (to allow all devices to show)
                     if grep -q "export ANDROID_SERIAL" "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null; then
                         sed -i '/export ANDROID_SERIAL/d' "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc"
                         echo "Removed global ANDROID_SERIAL to allow all devices to be visible"
                     fi
-                    echo "ADB environment configured (all devices visible)"
+                    echo "ADB environment configured"
                 """.trimIndent()
                 
                 mainHandler.post {
