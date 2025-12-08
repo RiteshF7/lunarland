@@ -26,6 +26,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -177,7 +179,23 @@ fun HomeScreenContent(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black) // Fully opaque black background
+                        .background(
+                            brush = Brush.radialGradient(
+                                center = Offset(0.5f, 0.05f), // Top-center for natural light effect
+                                radius = 1.0f, // Smaller radius for more concentrated, MAXIMUM visible gradient
+                                colors = listOf(
+                                    Color(0xFF5a5a5a),  // MAXIMUM lighter at center - creates MAXIMUM visible depth
+                                    Color(0xFF4f4f4f),  // Very light grey
+                                    Color(0xFF454545),  // Light grey
+                                    Color(0xFF3a3a3a),  // Medium-light grey
+                                    Color(0xFF2f2f2f),  // Medium grey
+                                    Color(0xFF252525),  // Dark grey
+                                    Color(0xFF1a1a1a),  // Very dark
+                                    Color(0xFF0f0f0f),   // Almost black
+                                    Color(0xFF000000)    // Pure black at edges
+                                )
+                            )
+                        )
                         .onSwipeDown {
                             isAppDrawerOpen = false
                         }
@@ -193,42 +211,40 @@ fun HomeScreenContent(
                 exit = fadeOut()
             ) {
                 Column(
-                    verticalArrangement = Arrangement.Bottom
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                VerticalSpacer(spacing = topPadding)
-                
-                LunarHomeWidget(
-                    state = lunarHomeWidgetState,
-                    horizontalPadding = horizontalPadding,
-                    onClick = onLunarCalendarClick ?: onClockClick
-                )
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    AISphere(size = 20.dp)
-                }
-
-                FavoritesListUiComponent(
-                    state = favoritesListState,
-                    contentPadding = bottomPadding,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                )
-                SearchField(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = bottomPadding),
-                    placeholder = stringResource(id = R.string.search),
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
-                )
-                VerticalSpacer(spacing = bottomPadding)
+                    // Top section with space and lunar widget
+                    Column {
+                        VerticalSpacer(spacing = topPadding + 40.dp) // Extra space on top
+                        
+                        LunarHomeWidget(
+                            state = lunarHomeWidgetState,
+                            horizontalPadding = horizontalPadding,
+                            onClick = onLunarCalendarClick ?: onClockClick
+                        )
+                    }
+                    
+                    // Bottom section with favorites and search
+                    Column {
+                        FavoritesListUiComponent(
+                            state = favoritesListState,
+                            contentPadding = bottomPadding,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp)
+                        )
+                        SearchField(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = bottomPadding),
+                            placeholder = stringResource(id = R.string.search),
+                            query = searchQuery,
+                            onQueryChange = { searchQuery = it },
+                            paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
+                        )
+                        VerticalSpacer(spacing = bottomPadding)
+                    }
                 }
             }
         }

@@ -18,22 +18,25 @@ import androidx.compose.ui.graphics.Color
 fun HomeScreenBackground(
     modifier: Modifier = Modifier
 ) {
-    // Create a beautiful, clearly visible gradient with depth
+    // Create a beautiful, MAXIMUM visibility gradient with depth
     // Radial gradient from top creates a natural light source effect
-    // Noticeable color variations that complement the glowing app items
+    // EXTREMELY noticeable color variations that complement the glowing app items
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(
                 brush = Brush.radialGradient(
-                    center = Offset(0.5f, 0.15f), // Top-center for natural light effect
-                    radius = 1.3f, // Medium radius for clearly visible gradient
+                    center = Offset(0.5f, 0.05f), // Top-center for natural light effect
+                    radius = 1.0f, // Smaller radius for more concentrated, MAXIMUM visible gradient
                     colors = listOf(
-                        Color(0xFF252525),  // Clearly lighter at center - creates visible depth
-                        Color(0xFF1f1f1f),  // Dark grey
-                        Color(0xFF181818),  // Darker grey
-                        Color(0xFF121212),  // Very dark
-                        Color(0xFF0a0a0a),   // Almost black
+                        Color(0xFF5a5a5a),  // MAXIMUM lighter at center - creates MAXIMUM visible depth
+                        Color(0xFF4f4f4f),  // Very light grey
+                        Color(0xFF454545),  // Light grey
+                        Color(0xFF3a3a3a),  // Medium-light grey
+                        Color(0xFF2f2f2f),  // Medium grey
+                        Color(0xFF252525),  // Dark grey
+                        Color(0xFF1a1a1a),  // Very dark
+                        Color(0xFF0f0f0f),   // Almost black
                         Color(0xFF000000)    // Pure black at edges
                     )
                 )
