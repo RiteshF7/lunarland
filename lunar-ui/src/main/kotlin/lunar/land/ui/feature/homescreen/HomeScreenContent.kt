@@ -6,8 +6,11 @@ import android.content.pm.ResolveInfo
 import android.graphics.Color as GraphicsColor
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -179,8 +182,16 @@ fun HomeScreenContent(
             // App Drawer overlay with black background to hide home screen
             AnimatedVisibility(
                 visible = isAppDrawerOpen,
-                enter = fadeIn(),
-                exit = fadeOut(),
+                enter = fadeIn(animationSpec = tween(200)) + 
+                        slideInVertically(
+                            initialOffsetY = { it },
+                            animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                        ),
+                exit = fadeOut(animationSpec = tween(150)) + 
+                       slideOutVertically(
+                           targetOffsetY = { it },
+                           animationSpec = tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                       ),
                 modifier = Modifier.fillMaxSize()
             ) {
                 // Handle back press to close app drawer instead of exiting app

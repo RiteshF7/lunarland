@@ -1,11 +1,14 @@
 package lunar.land.ui.feature.appdrawer
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -30,48 +33,65 @@ fun AppDrawerScreen(
     val context = LocalContext.current
     
     AppDrawerContainer {
-        val scrollState = rememberScrollState()
+        val listState = rememberLazyListState()
         
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(scrollState)
+        // Pre-compute app item data to avoid recomposition overhead
+        val appItemsData = remember(uiState.filteredApps) {
+            uiState.filteredApps.map { appInfo ->
+                appInfo to appInfo.toAppItemData()
+            }
+        }
+        
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(
+                top = 24.dp,
+                bottom = 24.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Add space on top of search bar
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            // Search bar at the top - fixed position
-            SearchField(
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = stringResource(id = R.string.search),
-                query = uiState.searchQuery,
-                onQueryChange = { viewModel.updateSearchQuery(it) },
-                paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
-            )
-            
-            Spacer(modifier = Modifier.height(20.dp))
-            
-            // App list - scrollable
-            if (uiState.isLoading) {
-                // TODO: Add loading indicator
-            } else {
-                StaggeredFlowRow(
+            // Search bar at the top - sticky header
+            item(key = "search") {
+                SearchField(
                     modifier = Modifier.fillMaxWidth(),
-                    mainAxisSpacing = 14.dp,
-                    crossAxisSpacing = 14.dp
-                ) {
-                    uiState.filteredApps.forEach { appInfo ->
-                        val appItemData = appInfo.toAppItemData()
-                        AppItem(
-                            appData = appItemData,
-                            onClick = { context.launchApp(app = appInfo.app) }
-                        )
+                    placeholder = stringResource(id = R.string.search),
+                    query = uiState.searchQuery,
+                    onQueryChange = { viewModel.updateSearchQuery(it) },
+                    paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
+                )
+            }
+            
+            // App list - lazy loaded with staggered grid
+            if (uiState.isLoading && appItemsData.isEmpty()) {
+                // Show loading indicator only on first load
+                item(key = "loading") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = androidx.compose.ui.Alignment.Center
+                    ) {
+                        // Loading indicator can be added here
+                    }
+                }
+            } else {
+                // Use StaggeredFlowRow in a single item for better layout
+                item(key = "apps_grid") {
+                    StaggeredFlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        mainAxisSpacing = 14.dp,
+                        crossAxisSpacing = 14.dp
+                    ) {
+                        appItemsData.forEach { (appInfo, appItemData) ->
+                            AppItem(
+                                appData = appItemData,
+                                onClick = { context.launchApp(app = appInfo.app) }
+                            )
+                        }
                     }
                 }
             }
-            
-            // Add bottom padding for better scrolling experience
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

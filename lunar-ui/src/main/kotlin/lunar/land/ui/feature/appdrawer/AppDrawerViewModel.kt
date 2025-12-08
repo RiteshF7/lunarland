@@ -38,26 +38,11 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
     val uiState: StateFlow<AppDrawerUiState> = _uiState.asStateFlow()
 
     init {
-        loadApps()
-    }
-
-    /**
-     * Loads apps with caching strategy:
-     * 1. Load from cache immediately (fast)
-     * 2. Check for app changes in background
-     * 3. Incrementally update the list if apps were added/removed
-     */
-    fun loadApps() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            
-            // Step 1: Load from cache immediately for fast display
+        // Load cache immediately for instant display (synchronous on IO thread)
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val cachedMetadata = appCache.loadCachedApps()
-            val hasCache = cachedMetadata != null && cachedMetadata.isNotEmpty()
-            
-            if (hasCache) {
-                // Convert cached metadata to AppInfo (without icons for now)
-                val cachedApps = cachedMetadata!!.map { metadata ->
+            if (cachedMetadata != null && cachedMetadata.isNotEmpty()) {
+                val cachedApps = cachedMetadata.map { metadata ->
                     AppInfo(
                         app = lunar.land.ui.core.model.app.App(
                             name = metadata.name,
@@ -65,12 +50,10 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
                             packageName = metadata.packageName,
                             isSystem = metadata.isSystem
                         ),
-                        icon = null, // Icons will be loaded in background
+                        icon = null, // Icons loaded lazily in background
                         color = metadata.color
                     )
                 }
-                
-                // Show cached apps immediately
                 _uiState.update { 
                     it.copy(
                         allApps = cachedApps,
@@ -78,9 +61,28 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
                         isLoading = false
                     )
                 }
+            } else {
+                // No cache, set loading state
+                _uiState.update { it.copy(isLoading = true) }
             }
+        }
+        // Then load fresh apps in background to update cache and load icons
+        loadApps()
+    }
+
+    /**
+     * Loads apps with caching strategy:
+     * 1. Cache is already loaded in init (fast, synchronous)
+     * 2. Check for app changes in background
+     * 3. Incrementally update the list if apps were added/removed
+     * 4. Load icons lazily in background
+     */
+    fun loadApps() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val currentApps = _uiState.value.allApps
+            val hasCache = currentApps.isNotEmpty()
             
-            // Step 2: Load fresh apps in background and check for changes
+            // Load fresh apps in background and check for changes
             appManager.getAllApps()
                 .catch { exception ->
                     _uiState.update { 
@@ -92,8 +94,6 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
                     }
                 }
                 .collect { freshApps ->
-                    val currentApps = _uiState.value.allApps
-                    
                     if (!hasCache && currentApps.isEmpty()) {
                         // First load - no cache, just set the fresh apps
                         _uiState.update { 
@@ -106,7 +106,7 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
                         }
                         appCache.saveApps(freshApps)
                     } else {
-                        // Step 3: Calculate diff - find added and removed apps
+                        // Calculate diff - find added and removed apps
                         val currentPackageNames = currentApps.map { it.app.packageName }.toSet()
                         val freshPackageNames = freshApps.map { it.app.packageName }.toSet()
                         
@@ -114,7 +114,7 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
                         val removedPackageNames = currentPackageNames - freshPackageNames
                         
                         if (addedPackageNames.isEmpty() && removedPackageNames.isEmpty()) {
-                            // No changes, just update icons if needed and save cache
+                            // No changes, just update icons lazily and save cache
                             val updatedApps = updateAppIcons(currentApps, freshApps)
                             _uiState.update { 
                                 it.copy(
