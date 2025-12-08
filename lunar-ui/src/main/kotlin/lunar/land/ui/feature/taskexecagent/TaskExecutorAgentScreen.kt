@@ -44,7 +44,26 @@ fun TaskExecutorAgentScreen(
     val uiState by viewModel.uiState.collectAsState()
     var currentMode by remember { mutableStateOf(TaskExecutorMode.VOICE) }
     var isTextInputFocused by remember { mutableStateOf(false) }
+    var showSphereAfterExecute by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    
+    // Show sphere when task starts running (even in text mode)
+    LaunchedEffect(uiState.isTaskRunning) {
+        if (uiState.isTaskRunning) {
+            showSphereAfterExecute = true
+        }
+    }
+    
+    // Hide sphere when task completes and we're in text mode
+    LaunchedEffect(uiState.taskStatus, currentMode) {
+        if (currentMode == TaskExecutorMode.TEXT && 
+            (uiState.taskStatus == TaskStatus.SUCCESS || uiState.taskStatus == TaskStatus.ERROR || uiState.taskStatus == TaskStatus.STOPPED) &&
+            !uiState.isTaskRunning) {
+            // Delay hiding to show completion state briefly
+            delay(2000)
+            showSphereAfterExecute = false
+        }
+    }
     
     // Voice input handler
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -137,12 +156,18 @@ fun TaskExecutorAgentScreen(
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                if (currentMode == TaskExecutorMode.TEXT) {
-                    // Text mode: Hide sphere, only show text input
+                // Show sphere if: in voice mode OR task is running OR just executed in text mode
+                val shouldShowSphere = currentMode == TaskExecutorMode.VOICE || 
+                                      uiState.isTaskRunning || 
+                                      showSphereAfterExecute
+                
+                if (currentMode == TaskExecutorMode.TEXT && !shouldShowSphere) {
+                    // Text mode: Show text input when not running
                     TextInputPanel(
                         onExecute = { command ->
                             if (command.isNotBlank() && uiState.taskStatus != TaskStatus.RUNNING) {
                                 viewModel.dispatchCommand(command)
+                                showSphereAfterExecute = true
                             }
                         },
                         onFocusChange = { focused ->
@@ -153,7 +178,7 @@ fun TaskExecutorAgentScreen(
                             .padding(horizontal = 8.dp)
                     )
                 } else {
-                    // Voice mode: Show sphere with status
+                    // Show sphere (voice mode or after executing in text mode)
                     SphereVisualizer(
                         modifier = Modifier.size(200.dp),
                         isListening = isListening,
@@ -164,30 +189,37 @@ fun TaskExecutorAgentScreen(
                             if (uiState.taskStatus != TaskStatus.RUNNING) {
                                 // Will be handled by pointer input below
                             }
+                        },
+                        onStopTask = {
+                            if (uiState.isTaskRunning) {
+                                viewModel.stopCurrentTask()
+                            }
                         }
                     )
                     
-                    // Voice input gesture handler
-                    Box(
-                        modifier = Modifier
-                            .size(200.dp)
-                            .pointerInput(uiState.taskStatus) {
-                                if (uiState.taskStatus != TaskStatus.RUNNING) {
-                                    detectTapGestures(
-                                        onPress = { _ ->
-                                            scope.launch {
-                                                // Start voice input when pressed
-                                                voiceInputHandler.startListening()
-                                                // Wait for release
-                                                tryAwaitRelease()
-                                                // Stop voice input when released
-                                                voiceInputHandler.stopListening()
+                    // Voice input gesture handler (only in voice mode and when not running)
+                    if (currentMode == TaskExecutorMode.VOICE) {
+                        Box(
+                            modifier = Modifier
+                                .size(200.dp)
+                                .pointerInput(uiState.taskStatus) {
+                                    if (uiState.taskStatus != TaskStatus.RUNNING) {
+                                        detectTapGestures(
+                                            onPress = { _ ->
+                                                scope.launch {
+                                                    // Start voice input when pressed
+                                                    voiceInputHandler.startListening()
+                                                    // Wait for release
+                                                    tryAwaitRelease()
+                                                    // Stop voice input when released
+                                                    voiceInputHandler.stopListening()
+                                                }
                                             }
-                                        }
-                                    )
+                                        )
+                                    }
                                 }
-                            }
-                    )
+                        )
+                    }
                     
                     // Show transcription text if available
                     if (transcriptionText.isNotEmpty()) {

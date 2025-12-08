@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,12 +17,14 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlinx.coroutines.delay
+import lunar.land.ui.R
 import lunar.land.ui.core.theme.LunarTheme
 import com.termux.app.taskexecutor.model.TaskStatus
 
@@ -36,7 +39,8 @@ fun SphereVisualizer(
     isListening: Boolean = false,
     taskStatus: TaskStatus = TaskStatus.STOPPED,
     isTaskRunning: Boolean = false,
-    onSphereClick: (() -> Unit)? = null
+    onSphereClick: (() -> Unit)? = null,
+    onStopTask: (() -> Unit)? = null
 ) {
     // Determine sphere color based on task status
     val sphereColor = when (taskStatus) {
@@ -331,6 +335,29 @@ fun SphereVisualizer(
                 LoadingIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
                 StatusText(text = "Listening...")
+            }
+        }
+        
+        // Stop button overlay when task is running
+        if (isTaskRunning && onStopTask != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(
+                        color = Color(0xFF, 0x33, 0x33).copy(alpha = 0.9f)
+                    )
+                    .clickable(onClick = onStopTask),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_close),
+                    contentDescription = "Stop Task",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
     }
