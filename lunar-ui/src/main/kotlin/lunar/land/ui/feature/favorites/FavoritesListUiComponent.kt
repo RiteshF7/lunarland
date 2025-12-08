@@ -1,5 +1,6 @@
 ﻿package lunar.land.ui.feature.favorites
 
+import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -72,7 +73,18 @@ private fun FavoritesListUiComponent(
                     }
                     AppItem(
                         appData = appItemData,
-                        onClick = { context.launchApp(app = favoriteAppWithColor.app) }
+                        onClick = {
+                            // Special handling for Driver Activity
+                            if (favoriteAppWithColor.app.displayName == "Driver" && 
+                                favoriteAppWithColor.app.packageName == context.packageName) {
+                                // Launch DriverActivity directly
+                                val intent = Intent(context, Class.forName("com.termux.app.DriverActivity"))
+                                context.startActivity(intent)
+                            } else {
+                                // Launch other apps normally
+                                context.launchApp(app = favoriteAppWithColor.app)
+                            }
+                        }
                     )
                 }
             }
@@ -90,18 +102,34 @@ private fun AppWithColor.toAppItemData(context: android.content.Context): AppIte
     
     // Get app icon drawable - try to get from launcher activity first, then fallback to application icon
     val iconDrawable = try {
-        // Try to get icon from launcher activity (preferred method)
-        val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
-            addCategory(android.content.Intent.CATEGORY_LAUNCHER)
-            setPackage(app.packageName)
-        }
-        val resolveInfos = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
-        resolveInfos.firstOrNull()?.activityInfo?.let { activityInfo ->
-            activityInfo.loadIcon(packageManager)
-        } ?: run {
-            // Fallback to application icon
-            val appInfo = packageManager.getApplicationInfo(app.packageName, 0)
-            packageManager.getApplicationIcon(appInfo)
+        // Special handling for Driver Activity
+        if (app.displayName == "Driver" && app.packageName == context.packageName) {
+            // Try to get DriverActivity icon or use app icon
+            try {
+                val driverActivityInfo = packageManager.getActivityInfo(
+                    android.content.ComponentName(context.packageName, "com.termux.app.DriverActivity"),
+                    PackageManager.GET_META_DATA
+                )
+                driverActivityInfo.loadIcon(packageManager)
+            } catch (e: Exception) {
+                // Fallback to application icon
+                val appInfo = packageManager.getApplicationInfo(app.packageName, 0)
+                packageManager.getApplicationIcon(appInfo)
+            }
+        } else {
+            // Try to get icon from launcher activity (preferred method)
+            val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+                addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+                setPackage(app.packageName)
+            }
+            val resolveInfos = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            resolveInfos.firstOrNull()?.activityInfo?.let { activityInfo ->
+                activityInfo.loadIcon(packageManager)
+            } ?: run {
+                // Fallback to application icon
+                val appInfo = packageManager.getApplicationInfo(app.packageName, 0)
+                packageManager.getApplicationIcon(appInfo)
+            }
         }
     } catch (e: Exception) {
         null

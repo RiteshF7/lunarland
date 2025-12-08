@@ -116,7 +116,7 @@ fun HomeScreenContent(
         )
     }
     
-    // Get favorite apps (first 8 apps from launcher)
+    // Get favorite apps (first 7 apps from launcher) + Driver Activity button
     val favoritesListState = remember {
         val intent = Intent(Intent.ACTION_MAIN).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
@@ -126,7 +126,7 @@ fun HomeScreenContent(
             PackageManager.MATCH_DEFAULT_ONLY
         )
         
-        val favoriteApps = resolveInfos.take(8).mapNotNull { resolveInfo ->
+        val favoriteApps = resolveInfos.take(7).mapNotNull { resolveInfo ->
             val activityInfo = resolveInfo.activityInfo ?: return@mapNotNull null
             val app = App(
                 name = activityInfo.loadLabel(packageManager).toString(),
@@ -146,8 +146,18 @@ fun HomeScreenContent(
             AppWithColor(app = app, color = color)
         }
         
+        // Add Driver Activity as a favorite app item
+        val driverApp = App(
+            name = "Driver",
+            displayName = "Driver",
+            packageName = context.packageName,
+            isSystem = false
+        )
+        val driverColor = GraphicsColor.rgb(100, 150, 255) // Blue color for driver
+        val driverAppWithColor = AppWithColor(app = driverApp, color = driverColor)
+        
         FavoritesListUiComponentState(
-            favoritesList = persistentListOf<AppWithColor>().addAll(favoriteApps),
+            favoritesList = persistentListOf<AppWithColor>().addAll(favoriteApps).add(driverAppWithColor),
             eventSink = { /* TODO: Handle events */ }
         )
     }
