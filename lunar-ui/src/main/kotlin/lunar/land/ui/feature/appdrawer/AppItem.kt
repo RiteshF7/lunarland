@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -180,6 +181,10 @@ fun AppItem(
     val isPressed by interactionSource.collectIsPressedAsState()
     val density = LocalDensity.current
     
+    // Get theme colors
+    val colorScheme = MaterialTheme.colorScheme
+    val typography = MaterialTheme.typography
+    
     // Enhanced 3D perspective - much closer camera for dramatic 3D effect
     // Using 400dp for very strong perspective and depth
     val cameraDistance = with(density) { 400.dp.toPx() }
@@ -234,66 +239,74 @@ fun AppItem(
         animationSpec = tween(300)
     )
     
-    // Vibrant 3D gradient with strong highlights and depth
+    // Use theme colors with app color blend
     val baseColor = appData.backgroundColor
     val glowColor = appData.glowColor
     
-    // Create vibrant, light gradient for 3D glowing effect
-    val topHighlight = Color.White.copy(alpha = if (isInteracting) 0.6f else 0.4f)
+    // Create theme-aware gradient using surface colors
+    val topHighlight = colorScheme.surface.copy(alpha = if (isInteracting) 0.6f else 0.4f)
     val lightColor = Color(
-        red = (baseColor.red * 0.9f + 0.1f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.9f + 0.1f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.9f + 0.1f).coerceIn(0f, 1f),
-        alpha = if (isInteracting) 0.5f else 0.35f
-    )
-    val midColor = Color(
-        red = (baseColor.red * 0.8f + 0.15f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.8f + 0.15f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.8f + 0.15f).coerceIn(0f, 1f),
+        red = (baseColor.red * 0.7f + colorScheme.surfaceVariant.red * 0.3f).coerceIn(0f, 1f),
+        green = (baseColor.green * 0.7f + colorScheme.surfaceVariant.green * 0.3f).coerceIn(0f, 1f),
+        blue = (baseColor.blue * 0.7f + colorScheme.surfaceVariant.blue * 0.3f).coerceIn(0f, 1f),
         alpha = if (isInteracting) 0.4f else 0.3f
     )
+    val midColor = Color(
+        red = (baseColor.red * 0.6f + colorScheme.primaryContainer.red * 0.4f).coerceIn(0f, 1f),
+        green = (baseColor.green * 0.6f + colorScheme.primaryContainer.green * 0.4f).coerceIn(0f, 1f),
+        blue = (baseColor.blue * 0.6f + colorScheme.primaryContainer.blue * 0.4f).coerceIn(0f, 1f),
+        alpha = if (isInteracting) 0.35f else 0.25f
+    )
     val accentColor = Color(
-        red = (baseColor.red * 0.7f + 0.25f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.7f + 0.25f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.7f + 0.25f).coerceIn(0f, 1f),
-        alpha = if (isInteracting) 0.3f else 0.25f
+        red = (baseColor.red * 0.5f + colorScheme.primary.red * 0.5f).coerceIn(0f, 1f),
+        green = (baseColor.green * 0.5f + colorScheme.primary.green * 0.5f).coerceIn(0f, 1f),
+        blue = (baseColor.blue * 0.5f + colorScheme.primary.blue * 0.5f).coerceIn(0f, 1f),
+        alpha = if (isInteracting) 0.25f else 0.2f
     )
     
-    // Add glow color to gradient for vibrant 3D effect
-    val glowTint = glowColor.copy(alpha = if (isInteracting) 0.25f else 0.15f)
+    // Add glow color to gradient with theme integration
+    val glowTint = Color(
+        red = (glowColor.red * 0.7f + colorScheme.primary.red * 0.3f).coerceIn(0f, 1f),
+        green = (glowColor.green * 0.7f + colorScheme.primary.green * 0.3f).coerceIn(0f, 1f),
+        blue = (glowColor.blue * 0.7f + colorScheme.primary.blue * 0.3f).coerceIn(0f, 1f),
+        alpha = if (isInteracting) 0.2f else 0.12f
+    )
     
-    // Strong 3D gradient with glow integration
+    // Theme-aware gradient with glow integration
     val gradientColors = listOf(
-        topHighlight,  // Bright top highlight
-        lightColor,    // Main light color
-        midColor,      // Mid tone
-        glowTint,      // Glow tint for vibrant effect
-        accentColor    // Accent color
+        topHighlight,      // Theme surface highlight
+        lightColor,        // Blended light color
+        midColor,          // Blended mid tone
+        glowTint,          // Theme-integrated glow
+        accentColor        // Theme-primary blend
     )
     
-    // Strong shadows for 3D depth effect
+    // Subtle, soft shadows for 3D depth effect (softer and less rectangular)
     val shadowElevation = when {
-        isHovered && !isPressed -> 20.dp
-        isPressed -> 8.dp
-        else -> 10.dp
+        isHovered && !isPressed -> 8.dp
+        isPressed -> 4.dp
+        else -> 6.dp
     }
     
-    // Strong glow intensity for glowing 3D effect
+    // Subtle glow intensity for soft glowing 3D effect
     val glowIntensity = when {
-        isHovered && !isPressed -> 32.dp
-        isPressed -> 16.dp
-        else -> 20.dp
+        isHovered && !isPressed -> 12.dp
+        isPressed -> 6.dp
+        else -> 8.dp
     }
     
-    // Animated glow alpha for pulsing effect
+    // Animated glow alpha for subtle pulsing effect
     val glowAlpha by animateFloatAsState(
         targetValue = when {
-            isHovered && !isPressed -> 0.7f
-            isPressed -> 0.5f
-            else -> 0.4f
+            isHovered && !isPressed -> 0.35f
+            isPressed -> 0.25f
+            else -> 0.2f
         },
         animationSpec = tween(300)
     )
+    
+    // Use larger corner radius for softer, less rectangular appearance
+    val cornerRadius = 24.dp
     
     // Outer Box for strong glow effect with multiple layers
     Box(
@@ -307,26 +320,19 @@ fun AppItem(
                     Modifier.fillMaxWidth()
                 }
             )
-            // Outer glow layer - strongest
+            // Soft outer glow layer with theme colors
             .shadow(
                 elevation = glowIntensity,
-                shape = RoundedCornerShape(18.dp),
-                ambientColor = glowColor.copy(alpha = glowAlpha * 0.8f),
-                spotColor = glowColor.copy(alpha = glowAlpha)
+                shape = RoundedCornerShape(cornerRadius),
+                ambientColor = colorScheme.primary.copy(alpha = glowAlpha * 0.4f),
+                spotColor = glowColor.copy(alpha = glowAlpha * 0.5f)
             )
-            // Middle glow layer for depth
+            // Soft middle glow layer for subtle depth
             .shadow(
-                elevation = glowIntensity * 0.6f,
-                shape = RoundedCornerShape(18.dp),
-                ambientColor = glowColor.copy(alpha = glowAlpha * 0.5f),
-                spotColor = glowColor.copy(alpha = glowAlpha * 0.6f)
-            )
-            // Inner glow layer
-            .shadow(
-                elevation = glowIntensity * 0.3f,
-                shape = RoundedCornerShape(18.dp),
-                ambientColor = glowColor.copy(alpha = glowAlpha * 0.3f),
-                spotColor = glowColor.copy(alpha = glowAlpha * 0.4f)
+                elevation = glowIntensity * 0.5f,
+                shape = RoundedCornerShape(cornerRadius),
+                ambientColor = colorScheme.primary.copy(alpha = glowAlpha * 0.25f),
+                spotColor = glowColor.copy(alpha = glowAlpha * 0.3f)
             )
     ) {
         // Inner Box for content with 3D effects
@@ -354,15 +360,15 @@ fun AppItem(
                     val rotationFactor = kotlin.math.abs(rotationX) / 90f
                     this.alpha = 1f - rotationFactor * 0.15f
                 }
-                // Strong 3D shadow for depth
+                // Soft, subtle shadow using theme colors for depth
                 .shadow(
                     elevation = shadowElevation,
-                    shape = RoundedCornerShape(18.dp),
-                    ambientColor = Color.Black.copy(alpha = if (isInteracting) 0.15f else 0.1f),
-                    spotColor = Color.Black.copy(alpha = if (isInteracting) 0.2f else 0.15f)
+                    shape = RoundedCornerShape(cornerRadius),
+                    ambientColor = colorScheme.scrim.copy(alpha = if (isInteracting) 0.08f else 0.05f),
+                    spotColor = colorScheme.scrim.copy(alpha = if (isInteracting) 0.12f else 0.08f)
                 )
-                .clip(RoundedCornerShape(18.dp))
-                // Vibrant 3D gradient background with glow
+                .clip(RoundedCornerShape(cornerRadius))
+                // Theme-aware gradient background with glow
                 .background(
                     brush = Brush.linearGradient(
                         start = Offset(0f, 0f),
@@ -370,11 +376,11 @@ fun AppItem(
                         colors = gradientColors
                     )
                 )
-                // Glowing border for 3D effect (outer white border)
+                // Subtle border using theme outline color
                 .border(
-                    width = if (isInteracting) 2.dp else 1.5.dp,
-                    color = Color.White.copy(alpha = if (isInteracting) 0.7f else 0.5f),
-                    shape = RoundedCornerShape(18.dp)
+                    width = if (isInteracting) 1.5.dp else 1.dp,
+                    color = colorScheme.outlineVariant.copy(alpha = if (isInteracting) 0.4f else 0.25f),
+                    shape = RoundedCornerShape(cornerRadius)
                 )
                 .clickable(
                     interactionSource = interactionSource,
@@ -382,14 +388,14 @@ fun AppItem(
                     onClick = onClick
                 )
         ) {
-            // Inner Box with glow border overlay
+            // Inner Box with subtle theme-based glow border
             Box(
                 modifier = Modifier
                     .matchParentSize()
                     .border(
                         width = 0.5.dp,
-                        color = glowColor.copy(alpha = if (isInteracting) 0.4f else 0.25f),
-                        shape = RoundedCornerShape(18.dp)
+                        color = colorScheme.primary.copy(alpha = if (isInteracting) 0.25f else 0.15f),
+                        shape = RoundedCornerShape(cornerRadius)
                     )
             )
             // Content with padding
@@ -424,9 +430,10 @@ fun AppItem(
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = appData.name,
-                        color = Color(0xFF2A2A2A), // Slightly lighter dark text for better contrast
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold, // Bolder for 3D look
+                        color = colorScheme.onSurface,
+                        style = typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium
+                        ),
                         modifier = Modifier.weight(1f)
                     )
                 }

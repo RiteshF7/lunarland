@@ -6,12 +6,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 /**
@@ -25,17 +25,19 @@ fun AppDrawerContainer(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+    
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFFFFFFFF),  // Pure white center
-                        Color(0xFFF8FAFC),  // Very light gray-white
-                        Color(0xFFF1F5F9),  // Light blue-gray
-                        Color(0xFFE8F0F8),  // Soft blue-white
-                        Color(0xFFE0EBF5)   // Light blue
+                        colorScheme.surface,              // Theme surface center
+                        colorScheme.surfaceVariant.copy(alpha = 0.3f),  // Theme surface variant
+                        colorScheme.primaryContainer.copy(alpha = 0.15f), // Theme primary container
+                        colorScheme.secondaryContainer.copy(alpha = 0.1f), // Theme secondary container
+                        colorScheme.background           // Theme background
                     ),
                     center = Offset(500f, 300f),
                     radius = 1200f
