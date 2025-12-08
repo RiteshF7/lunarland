@@ -249,6 +249,12 @@ fun AppItem(
         else -> 3.dp
     }
     
+    // Animated border alpha based on interaction state
+    val borderAlpha by animateFloatAsState(
+        targetValue = if (isInteracting) 1.0f else 0.7f,
+        animationSpec = tween(200)
+    )
+    
     // Outer Box for glow effect
     Box(
         modifier = modifier
@@ -323,6 +329,11 @@ fun AppItem(
                         colors = gradientColors
                     )
                 )
+                .border(
+                    width = 1.5.dp,
+                    color = appData.glowColor.copy(alpha = borderAlpha),
+                    shape = RoundedCornerShape(12.dp)
+                )
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -340,13 +351,13 @@ fun AppItem(
                 Icon(
                     imageVector = appData.icon,
                     contentDescription = appData.name,
-                    tint = appData.textColor,
+                    tint = Color.White,
                     modifier = Modifier.size(22.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = appData.name,
-                    color = appData.textColor,
+                    color = Color.White,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f)
