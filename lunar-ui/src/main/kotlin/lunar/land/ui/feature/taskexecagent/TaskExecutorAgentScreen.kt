@@ -53,29 +53,10 @@ fun TaskExecutorAgentScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Header Section with Mode Toggle
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                PageHeader(
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                // Mode Toggle Button
-                ModeToggleButton(
-                    isTextMode = isTextMode,
-                    onToggle = { 
-                        isTextMode = !isTextMode
-                        // Reset focus state when switching modes
-                        isTextInputFocused = false
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp)
-                )
-            }
+            // Header Section
+            PageHeader(
+                modifier = Modifier.fillMaxWidth()
+            )
 
             // Main Content Area
             Box(
@@ -99,7 +80,7 @@ fun TaskExecutorAgentScreen(
                             modifier = Modifier.padding(bottom = 24.dp)
                         ) {
                             SphereVisualizer(
-                                modifier = Modifier.size(200.dp),
+                                modifier = Modifier.size(150.dp),
                                 isListening = isListening
                             )
                         }
@@ -120,19 +101,38 @@ fun TaskExecutorAgentScreen(
                 } else {
                     // Voice mode: Always show sphere
                     SphereVisualizer(
-                        modifier = Modifier.size(280.dp),
+                        modifier = Modifier.size(200.dp),
                         isListening = isListening
                     )
                 }
             }
 
             // Footer Section
-            PageFooter(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                aiStatus = aiStatus,
-                isTextMode = isTextMode,
-                onTextModeClick = onTextModeClick
-            )
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Mode Toggle Button - moved to just above info text
+                ModeToggleButton(
+                    isTextMode = isTextMode,
+                    onToggle = { 
+                        isTextMode = !isTextMode
+                        // Reset focus state when switching modes
+                        isTextInputFocused = false
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                )
+                
+                PageFooter(
+                    modifier = Modifier.fillMaxWidth(),
+                    aiStatus = aiStatus,
+                    isTextMode = isTextMode,
+                    onTextModeClick = onTextModeClick
+                )
+            }
         }
     }
 }

@@ -251,7 +251,7 @@ fun SphereVisualizer(
         ) {
             val center = Offset(size.width / 2f, size.height / 2f)
             val baseRadius = size.minDimension / 2f * scale
-            val dotOrbitRadius = baseRadius * 1.15f // Dots orbit slightly outside the sphere
+            val dotOrbitRadius = baseRadius * 1.05f // Dots orbit closer to the sphere
             val dotCount = 12 // Number of rotating dots
             val dotRadius = 4.dp.toPx()
             
