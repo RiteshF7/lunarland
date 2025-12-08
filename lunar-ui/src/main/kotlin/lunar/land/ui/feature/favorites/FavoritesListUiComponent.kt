@@ -111,15 +111,16 @@ private fun AppWithColor.toAppItemData(context: android.content.Context): AppIte
     val colorInt = color ?: lunar.land.ui.manager.model.AppInfo.generateColor(app.packageName)
     val color = Color(colorInt)
     
-    // Create dark grey background with subtle color tint for dark theme
-    // Blend app color with dark greys for pleasing appearance on black
-    val baseGrey = 0.15f  // Base dark grey
-    val colorTint = 0.1f  // Subtle color tint
+    // Create vibrant background that matches app's color theme
+    // Use more of the app's actual color for better visual harmony
+    val baseDark = 0.12f  // Base dark value for depth
+    val colorContribution = 0.35f  // Strong color contribution for theme matching
     
+    // Blend app color more prominently to match content
     val backgroundColor = Color(
-        red = (color.red * colorTint + baseGrey).coerceIn(0f, 1f),
-        green = (color.green * colorTint + baseGrey).coerceIn(0f, 1f),
-        blue = (color.blue * colorTint + baseGrey).coerceIn(0f, 1f),
+        red = (color.red * colorContribution + baseDark).coerceIn(0f, 1f),
+        green = (color.green * colorContribution + baseDark).coerceIn(0f, 1f),
+        blue = (color.blue * colorContribution + baseDark).coerceIn(0f, 1f),
         alpha = 1f
     )
     
