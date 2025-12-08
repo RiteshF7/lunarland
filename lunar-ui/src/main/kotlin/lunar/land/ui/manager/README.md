@@ -25,9 +25,18 @@ This module handles fetching and processing app information in a clean, efficien
 
 - **Parallel Processing**: Apps are processed concurrently using `async`/`awaitAll`
 - **Flow-based**: Uses Kotlin Flow for reactive data streams
+- **Color Extraction**: Extracts dominant colors from app icons using Android Palette API
 - **Error Handling**: Gracefully handles errors without crashing
 - **Resource Management**: All heavy operations run on IO dispatcher
 - **Clean Architecture**: Separation of concerns with dedicated manager layer
+
+## Components
+
+### ColorExtractor
+- Extracts dominant colors from app icons
+- Uses Android Palette API for accurate color extraction
+- Falls back to generated color if extraction fails
+- Processes colors on background thread for performance
 
 ## Usage
 

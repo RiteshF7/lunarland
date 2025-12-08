@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import lunar.land.ui.core.model.app.App
 import lunar.land.ui.manager.model.AppInfo
+import android.graphics.Color as GraphicsColor
 
 /**
  * Manager responsible for fetching and processing app information.
@@ -76,8 +77,9 @@ class AppManager(private val context: Context) {
             // Load app icon (resource-intensive operation)
             val icon = loadAppIcon(activityInfo) ?: return@withContext null
 
-            // Generate color
-            val color = AppInfo.generateColor(app.packageName)
+            // Extract dominant color from icon, fallback to generated color
+            val fallbackColor = AppInfo.generateColor(app.packageName)
+            val color = ColorExtractor.extractDominantColor(icon, fallbackColor)
 
             AppInfo(app = app, icon = icon, color = color)
         } catch (e: Exception) {
