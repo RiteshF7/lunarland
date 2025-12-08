@@ -43,33 +43,36 @@ fun AppItem(
     val isHovered by interactionSource.collectIsHoveredAsState()
     val isPressed by interactionSource.collectIsPressedAsState()
     
-    // Enhanced 3D transform animations
+    // Use press state for touch interactions (works on both touch and pointer devices)
+    val isInteracting = isPressed || isHovered
+    
+    // 3D transform animations matching HTML/CSS behavior
+    // Default: rotateX(0deg), Hover: rotateX(-2deg) translateY(-4px), Active: rotateX(0deg) translateY(-1px)
     val rotationX by animateFloatAsState(
-        targetValue = if (isHovered && !isPressed) -5f else if (isPressed) -2f else 0f,
-        animationSpec = tween(300)
+        targetValue = when {
+            isHovered && !isPressed -> -2f  // Slight upward tilt on hover (matches HTML: -2deg)
+            isPressed -> 0f  // No tilt on active/press (matches HTML: 0deg)
+            else -> 0f  // Default no tilt (matches HTML: 0deg)
+        },
+        animationSpec = tween(200)  // Matches CSS: transition 0.2s
     )
     
     val rotationY by animateFloatAsState(
-        targetValue = if (isHovered && !isPressed) 2f else if (isPressed) 1f else 0f,
-        animationSpec = tween(300)
+        targetValue = 0f  // No Y rotation in HTML
     )
     
+    // Translation: hover moves up -4px, active moves up -1px
     val translationY by animateFloatAsState(
         targetValue = when {
-            isHovered && !isPressed -> -8f
-            isPressed -> -2f
-            else -> 0f
+            isHovered && !isPressed -> -4f  // Move up on hover (matches HTML: -4px)
+            isPressed -> -1f  // Slight move up on active (matches HTML: -1px)
+            else -> 0f  // Default no translation
         },
-        animationSpec = tween(300)
+        animationSpec = tween(200)  // Matches CSS: transition 0.2s
     )
     
     val scale by animateFloatAsState(
-        targetValue = when {
-            isHovered && !isPressed -> 1.05f
-            isPressed -> 0.98f
-            else -> 1f
-        },
-        animationSpec = tween(300)
+        targetValue = 1f  // No scale in HTML, only transform
     )
     
     // Create gradient from bg color to darker version
