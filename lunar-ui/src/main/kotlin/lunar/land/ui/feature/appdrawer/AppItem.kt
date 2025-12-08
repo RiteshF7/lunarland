@@ -242,42 +242,61 @@ fun AppItem(
     val baseColor = appData.backgroundColor
     val glowColor = appData.glowColor
     
-    // Dark background optimized alpha values - lighter for visibility on black
-    val highlightAlpha = if (isInteracting) 0.5f else 0.35f
-    val lightAlpha = if (isInteracting) 0.4f else 0.3f
-    val midAlpha = if (isInteracting) 0.35f else 0.25f
+    // Dramatic 3D upward lift effect - much stronger contrast
+    // Very bright top, very dark bottom for pronounced 3D effect
+    val topHighlightAlpha = if (isInteracting) 0.9f else 0.75f  // Very bright top
+    val highlightAlpha = if (isInteracting) 0.7f else 0.55f
+    val lightAlpha = if (isInteracting) 0.55f else 0.4f
+    val midAlpha = if (isInteracting) 0.4f else 0.3f
     val accentAlpha = if (isInteracting) 0.3f else 0.2f
+    val bottomAlpha = if (isInteracting) 0.2f else 0.15f
     val glowTintAlpha = if (isInteracting) 0.25f else 0.15f
     
-    // Create gradient optimized for dark black background
-    // Use lighter greys with subtle color tints
-    val lightGrey = Color(0xFF2a2a2a)  // Light grey for highlights
-    val midGrey = Color(0xFF1f1f1f)    // Medium grey
-    val darkGrey = Color(0xFF181818)   // Dark grey
+    // Create dramatic gradient with MUCH stronger contrast for 3D effect
+    // Very bright at top, very dark at bottom
+    val almostWhite = Color(0xFF4a4a4a)    // Almost white grey for top highlight
+    val veryLightGrey = Color(0xFF3a3a3a)   // Very light grey
+    val lightGrey = Color(0xFF2a2a2a)       // Light grey
+    val midGrey = Color(0xFF1f1f1f)         // Medium grey
+    val darkGrey = Color(0xFF181818)       // Dark grey
+    val almostBlack = Color(0xFF0a0a0a)    // Almost black for bottom
     
+    // Dramatic top highlight - almost white for strong 3D lift
     val topHighlight = Color(
-        red = (baseColor.red * 0.3f + lightGrey.red * 0.7f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.3f + lightGrey.green * 0.7f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.3f + lightGrey.blue * 0.7f).coerceIn(0f, 1f),
+        red = (baseColor.red * 0.2f + almostWhite.red * 0.8f).coerceIn(0f, 1f),
+        green = (baseColor.green * 0.2f + almostWhite.green * 0.8f).coerceIn(0f, 1f),
+        blue = (baseColor.blue * 0.2f + almostWhite.blue * 0.8f).coerceIn(0f, 1f),
+        alpha = topHighlightAlpha
+    )
+    val highlight = Color(
+        red = (baseColor.red * 0.25f + veryLightGrey.red * 0.75f).coerceIn(0f, 1f),
+        green = (baseColor.green * 0.25f + veryLightGrey.green * 0.75f).coerceIn(0f, 1f),
+        blue = (baseColor.blue * 0.25f + veryLightGrey.blue * 0.75f).coerceIn(0f, 1f),
         alpha = highlightAlpha
     )
     val lightColor = Color(
-        red = (baseColor.red * 0.4f + midGrey.red * 0.6f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.4f + midGrey.green * 0.6f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.4f + midGrey.blue * 0.6f).coerceIn(0f, 1f),
+        red = (baseColor.red * 0.3f + lightGrey.red * 0.7f).coerceIn(0f, 1f),
+        green = (baseColor.green * 0.3f + lightGrey.green * 0.7f).coerceIn(0f, 1f),
+        blue = (baseColor.blue * 0.3f + lightGrey.blue * 0.7f).coerceIn(0f, 1f),
         alpha = lightAlpha
     )
     val midColor = Color(
-        red = (baseColor.red * 0.3f + darkGrey.red * 0.7f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.3f + darkGrey.green * 0.7f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.3f + darkGrey.blue * 0.7f).coerceIn(0f, 1f),
+        red = (baseColor.red * 0.25f + midGrey.red * 0.75f).coerceIn(0f, 1f),
+        green = (baseColor.green * 0.25f + midGrey.green * 0.75f).coerceIn(0f, 1f),
+        blue = (baseColor.blue * 0.25f + midGrey.blue * 0.75f).coerceIn(0f, 1f),
         alpha = midAlpha
     )
-    val accentColor = Color(
-        red = (baseColor.red * 0.5f + glowColor.red * 0.5f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.5f + glowColor.green * 0.5f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.5f + glowColor.blue * 0.5f).coerceIn(0f, 1f),
+    val darkColor = Color(
+        red = (baseColor.red * 0.2f + darkGrey.red * 0.8f).coerceIn(0f, 1f),
+        green = (baseColor.green * 0.2f + darkGrey.green * 0.8f).coerceIn(0f, 1f),
+        blue = (baseColor.blue * 0.2f + darkGrey.blue * 0.8f).coerceIn(0f, 1f),
         alpha = accentAlpha
+    )
+    val bottomColor = Color(
+        red = (baseColor.red * 0.15f + almostBlack.red * 0.85f).coerceIn(0f, 1f),
+        green = (baseColor.green * 0.15f + almostBlack.green * 0.85f).coerceIn(0f, 1f),
+        blue = (baseColor.blue * 0.15f + almostBlack.blue * 0.85f).coerceIn(0f, 1f),
+        alpha = bottomAlpha
     )
     
     // Glow tint for dark background - more visible
@@ -288,13 +307,16 @@ fun AppItem(
         alpha = glowTintAlpha
     )
     
-    // Dark background optimized gradient
+    // Dramatic 3D gradient - very bright top, very dark bottom
+    // Creates strong upward lift perception
     val gradientColors = listOf(
-        topHighlight,      // Light grey with color tint
-        lightColor,        // Medium grey with color tint
-        midColor,          // Dark grey with color tint
-        glowTint,          // Glow color
-        accentColor        // Accent blend
+        topHighlight,      // Almost white top - maximum brightness
+        highlight,         // Very light highlight
+        lightColor,         // Light
+        midColor,          // Medium
+        darkColor,         // Dark
+        glowTint,          // Glow for depth
+        bottomColor        // Almost black bottom - maximum darkness
     )
     
     // Subtle, soft shadows for 3D depth effect (softer and less rectangular)
@@ -384,18 +406,18 @@ fun AppItem(
                     spotColor = Color.Black.copy(alpha = if (isInteracting) 0.5f else 0.4f)
                 )
                 .clip(RoundedCornerShape(cornerRadius))
-                // Theme-aware gradient background with glow
+                // Dramatic upward 3D gradient - very bright top, very dark bottom
                 .background(
                     brush = Brush.linearGradient(
-                        start = Offset(0f, 0f),
-                        end = Offset(0f, 1200f),
+                        start = Offset(0f, 0f),      // Top - brightest (almost white)
+                        end = Offset(0f, 1200f),    // Bottom - darkest (almost black)
                         colors = gradientColors
                     )
                 )
-                // Subtle border for dark background - light grey
+                // Top border highlight for 3D effect - simulates light reflection
                 .border(
                     width = if (isInteracting) 1.5.dp else 1.dp,
-                    color = Color(0xFF3a3a3a).copy(alpha = if (isInteracting) 0.6f else 0.4f),
+                    color = Color(0xFF4a4a4a).copy(alpha = if (isInteracting) 0.8f else 0.6f),
                     shape = RoundedCornerShape(cornerRadius)
                 )
                 .clickable(
@@ -404,6 +426,22 @@ fun AppItem(
                     onClick = onClick
                 )
         ) {
+            // Top highlight border for 3D effect - simulates light reflection
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(RoundedCornerShape(cornerRadius))
+                    .background(
+                        brush = Brush.linearGradient(
+                            start = Offset(0f, 0f),
+                            end = Offset(0f, 40f),  // Only top portion
+                            colors = listOf(
+                                Color.White.copy(alpha = if (isInteracting) 0.15f else 0.1f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
             // Inner Box with subtle glow border for dark background
             Box(
                 modifier = Modifier
