@@ -7,6 +7,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.termux.BuildConfig
+import com.termux.app.TaskExecutorViewModel
+import com.termux.app.TaskExecutorViewModelFactory
 import lunar.land.ui.core.homescreen.HomeScreenPager
 import lunar.land.ui.core.model.Theme
 import lunar.land.ui.core.theme.LauncherTheme
@@ -29,14 +33,24 @@ class LunarHomeScreenActivity : ComponentActivity() {
         enableEdgeToEdge()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         
+        // Get Google API key from BuildConfig
+        val googleApiKey = BuildConfig.GOOGLE_API_KEY ?: ""
+        
         setContent {
             ProvideSystemUiController {
                 LauncherTheme(currentTheme = Theme.FOLLOW_SYSTEM) {
+                    val taskExecutorViewModel: TaskExecutorViewModel = viewModel(
+                        factory = TaskExecutorViewModelFactory(
+                            this@LunarHomeScreenActivity,
+                            googleApiKey
+                        )
+                    )
                     HomeScreenPager(
                         modifier = Modifier.fillMaxSize(),
                         taskExecutorContent = {
                             TaskExecutorAgentScreen(
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier.fillMaxSize(),
+                                viewModel = taskExecutorViewModel
                             )
                         }
                     )

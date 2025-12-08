@@ -26,11 +26,6 @@
             android:label="@string/application_name"
             android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
 
-        <activity
-            android:name=".app.TaskExecutorActivity"
-            android:exported="false"
-            android:label="@string/task_executor_title"
-            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
 
         <receiver
             android:name=".app.TaskExecutorNotificationReceiver"

@@ -125,7 +125,7 @@ public class DriverActivity extends AppCompatActivity {
         }
         if (taskExecutorButton != null) {
             taskExecutorButton.setOnClickListener(view ->
-                startActivity(new Intent(this, TaskExecutorActivity.class))
+                startActivity(new Intent(this, TaskExecutorAgentActivity.class))
             );
         }
         if (launchLunarHomeScreenButton != null) {

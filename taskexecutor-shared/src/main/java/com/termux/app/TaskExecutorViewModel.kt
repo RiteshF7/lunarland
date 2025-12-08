@@ -11,9 +11,6 @@ import android.os.Looper
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.termux.BuildConfig
-import com.termux.app.TermuxInstaller
-import com.termux.app.TermuxService
 import com.termux.app.taskexecutor.model.TaskExecutorUiState
 import com.termux.app.taskexecutor.model.TaskStatus
 import com.termux.shared.logger.Logger
@@ -32,14 +29,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import java.util.concurrent.atomic.AtomicInteger
 
-class TaskExecutorViewModelFactory(private val activity: Activity) : ViewModelProvider.Factory {
+class TaskExecutorViewModelFactory(
+    private val activity: Activity,
+    private val googleApiKey: String = ""
+) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return TaskExecutorViewModel(activity) as T
+        return TaskExecutorViewModel(activity, googleApiKey) as T
     }
 }
 
-class TaskExecutorViewModel(private val activity: Activity) : AndroidViewModel(activity.application) {
+class TaskExecutorViewModel(
+    private val activity: Activity,
+    private val googleApiKey: String = ""
+) : AndroidViewModel(activity.application) {
     
     private val LOG_TAG = "TaskExecutorViewModel"
     
@@ -158,7 +161,7 @@ class TaskExecutorViewModel(private val activity: Activity) : AndroidViewModel(a
             )
             if (currentSession != null) {
                 try {
-                    val shellManagerField = TermuxService::class.java.getDeclaredField("mShellManager")
+                    val shellManagerField = termuxService!!.javaClass.getDeclaredField("mShellManager")
                     shellManagerField.isAccessible = true
                     val shellManager = shellManagerField.get(termuxService)
                     val sessionsField = shellManager.javaClass.getDeclaredField("mTermuxSessions")
@@ -289,7 +292,7 @@ class TaskExecutorViewModel(private val activity: Activity) : AndroidViewModel(a
         
         Thread {
             try {
-                val apiKeyFromProps = BuildConfig.GOOGLE_API_KEY
+                val apiKeyFromProps = googleApiKey
                 
                 if (apiKeyFromProps.isBlank()) {
                     mainHandler.post {

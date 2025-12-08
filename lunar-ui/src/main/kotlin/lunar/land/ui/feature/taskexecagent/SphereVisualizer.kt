@@ -23,20 +23,36 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlinx.coroutines.delay
 import lunar.land.ui.core.theme.LunarTheme
+import com.termux.app.taskexecutor.model.TaskStatus
 
 /**
  * The glowing sphere visualizer with texture and pulse animation.
  * This is the central interactive element of the UI.
+ * Supports different visual states based on task status.
  */
 @Composable
 fun SphereVisualizer(
     modifier: Modifier = Modifier,
-    isListening: Boolean = false
+    isListening: Boolean = false,
+    taskStatus: TaskStatus = TaskStatus.STOPPED,
+    isTaskRunning: Boolean = false,
+    onSphereClick: (() -> Unit)? = null
 ) {
+    // Determine sphere color based on task status
+    val sphereColor = when (taskStatus) {
+        TaskStatus.ERROR -> Color(0xFF, 0x33, 0x33) // Red for error
+        TaskStatus.SUCCESS -> LunarTheme.AccentColor // Default accent for success
+        TaskStatus.RUNNING -> LunarTheme.AccentColor // Default accent for running
+        TaskStatus.STOPPED -> LunarTheme.AccentColor // Default accent for idle
+    }
+    
+    // Animation state: only animate when running, not on idle/stopped
+    val shouldAnimate = isTaskRunning || taskStatus == TaskStatus.RUNNING
+    
     val infiniteTransition = rememberInfiniteTransition(label = "sphere_pulse")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = 1.02f,
+        targetValue = if (shouldAnimate) 1.02f else 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(4000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -55,12 +71,23 @@ fun SphereVisualizer(
         label = "dot_rotation"
     )
 
-    // Ripple animation state
+    // Ripple animation state - trigger on click or when task starts running
     var rippleTrigger by remember { mutableStateOf(0) }
     var isAnimating by remember { mutableStateOf(false) }
     
+    // Auto-start ripple when task starts running
+    LaunchedEffect(isTaskRunning, taskStatus) {
+        if (isTaskRunning && taskStatus == TaskStatus.RUNNING) {
+            rippleTrigger++
+            isAnimating = true
+        } else if (taskStatus == TaskStatus.SUCCESS || taskStatus == TaskStatus.ERROR) {
+            // Stop animation on success/error
+            isAnimating = false
+        }
+    }
+    
     val rippleProgress by animateFloatAsState(
-        targetValue = if (isAnimating) 1f else 0f,
+        targetValue = if (isAnimating && shouldAnimate) 1f else 0f,
         animationSpec = tween(
             durationMillis = 1200,
             easing = FastOutSlowInEasing
@@ -68,9 +95,9 @@ fun SphereVisualizer(
         label = "ripple_progress"
     )
     
-    // Reset animation state after completion
-    LaunchedEffect(rippleProgress, isAnimating) {
-        if (rippleProgress >= 1f && isAnimating) {
+    // Reset animation state after completion (only if not running)
+    LaunchedEffect(rippleProgress, isAnimating, shouldAnimate) {
+        if (rippleProgress >= 1f && isAnimating && !shouldAnimate) {
             delay(50) // Small delay to ensure animation fully completes
             isAnimating = false
         }
@@ -78,11 +105,20 @@ fun SphereVisualizer(
 
     Box(
         modifier = modifier
-            .clickable {
-                // Trigger ripple animation
-                rippleTrigger++
-                isAnimating = true
-            },
+            .then(
+                if (onSphereClick != null && !isTaskRunning) {
+                    Modifier.clickable {
+                        // Trigger ripple animation on click (only if not running)
+                        rippleTrigger++
+                        if (shouldAnimate) {
+                            isAnimating = true
+                        }
+                        onSphereClick()
+                    }
+                } else {
+                    Modifier
+                }
+            ),
         contentAlignment = Alignment.Center
     ) {
         // Ripple effect canvas (extends to full screen)
@@ -112,7 +148,7 @@ fun SphereVisualizer(
                     
                     if (rippleAlpha > 0.01f) {
                         drawCircle(
-                            color = LunarTheme.AccentColor.copy(alpha = rippleAlpha),
+                            color = sphereColor.copy(alpha = rippleAlpha),
                             radius = rippleRadius,
                             center = center,
                             style = Stroke(
@@ -153,7 +189,7 @@ fun SphereVisualizer(
                 val strokeWidth = 2.dp.toPx() * rippleWidth
                 
                 drawCircle(
-                    color = LunarTheme.AccentColor.copy(alpha = glowAlpha),
+                    color = sphereColor.copy(alpha = glowAlpha),
                     radius = glowRadius,
                     center = center,
                     style = Stroke(
@@ -191,7 +227,7 @@ fun SphereVisualizer(
                 val strokeWidthPx = baseStrokeWidthPx * rippleWidth
                 
                 drawCircle(
-                    color = LunarTheme.AccentColor.copy(alpha = layerAlpha),
+                    color = sphereColor.copy(alpha = layerAlpha),
                     radius = layerRadius,
                     center = center,
                     style = Stroke(
@@ -219,7 +255,7 @@ fun SphereVisualizer(
                 val strokeWidth = 1.5f.dp.toPx() * rippleWidth
                 
                 drawCircle(
-                    color = LunarTheme.AccentColor.copy(alpha = innerAlpha),
+                    color = sphereColor.copy(alpha = innerAlpha),
                     radius = innerRadius,
                     center = center,
                     style = Stroke(
@@ -232,9 +268,9 @@ fun SphereVisualizer(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        LunarTheme.AccentColor.copy(alpha = 0.25f),
-                        LunarTheme.AccentColor.copy(alpha = LunarTheme.Alpha.Medium),
-                        LunarTheme.AccentColor.copy(alpha = LunarTheme.Alpha.VeryLow),
+                        sphereColor.copy(alpha = 0.25f),
+                        sphereColor.copy(alpha = LunarTheme.Alpha.Medium),
+                        sphereColor.copy(alpha = LunarTheme.Alpha.VeryLow),
                         Color.Transparent
                     ),
                     center = center,
@@ -269,17 +305,19 @@ fun SphereVisualizer(
                 val distanceFromTop = (dotY - (center.y - dotOrbitRadius)) / (dotOrbitRadius * 2f)
                 val opacity = 0.3f + (distanceFromTop * 0.7f).coerceIn(0f, 1f)
                 
-                // Draw dot with glow
-                drawCircle(
-                    color = LunarTheme.AccentColor.copy(alpha = opacity * 0.4f),
-                    radius = dotRadius * 1.8f,
-                    center = Offset(dotX, dotY)
-                )
-                drawCircle(
-                    color = LunarTheme.AccentColor.copy(alpha = opacity),
-                    radius = dotRadius,
-                    center = Offset(dotX, dotY)
-                )
+                // Draw dot with glow - only show dots when running
+                if (shouldAnimate) {
+                    drawCircle(
+                        color = sphereColor.copy(alpha = opacity * 0.4f),
+                        radius = dotRadius * 1.8f,
+                        center = Offset(dotX, dotY)
+                    )
+                    drawCircle(
+                        color = sphereColor.copy(alpha = opacity),
+                        radius = dotRadius,
+                        center = Offset(dotX, dotY)
+                    )
+                }
             }
         }
 
@@ -297,4 +335,3 @@ fun SphereVisualizer(
         }
     }
 }
-
