@@ -51,6 +51,13 @@
         android:layout_marginTop="12dp"
         android:text="Preview AI Agent Sphere" />
 
+    <Button
+        android:id="@+id/driver_test_app_drawer_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Test App Drawer UI" />
+
     <TextView
         android:id="@+id/driver_status_view"
         android:layout_width="match_parent"

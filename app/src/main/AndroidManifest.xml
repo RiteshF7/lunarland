@@ -68,6 +68,12 @@
             android:label="AI Agent Interaction Sphere"
             android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
 
+        <activity
+            android:name=".app.AppDrawerActivity"
+            android:exported="false"
+            android:label="App Drawer UI"
+            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
+
     </application>
 
 </manifest>

@@ -52,3 +52,29 @@ inline fun Modifier.onSwipeDown(
     )
 }
 
+inline fun Modifier.onSwipeUp(
+    enabled: Boolean = true,
+    crossinline action: () -> Unit
+) = composed {
+    val velocityThreshold = 600f
+    var yStart = 0f
+    var yDrag = 0f
+
+    this then Modifier.draggable(
+        enabled = enabled,
+        orientation = Orientation.Vertical,
+        onDragStarted = {
+            yStart = it.y
+            yDrag = yStart
+        },
+        state = rememberDraggableState { delta ->
+            yDrag += delta
+        },
+        onDragStopped = { velocity ->
+            if (yStart > yDrag && velocity < -velocityThreshold) {
+                action()
+            }
+        }
+    )
+}
+

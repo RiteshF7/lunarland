@@ -4,6 +4,10 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.graphics.Color as GraphicsColor
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +47,9 @@ import lunar.land.ui.core.model.lunarphase.UpcomingLunarPhase
 import lunar.land.ui.core.ui.AISphere
 import lunar.land.ui.core.ui.SearchField
 import lunar.land.ui.core.ui.VerticalSpacer
+import lunar.land.ui.core.ui.extensions.onSwipeDown
+import lunar.land.ui.core.ui.extensions.onSwipeUp
+import lunar.land.ui.feature.appdrawer.AppDrawerScreen
 import lunar.land.ui.feature.favorites.FavoritesListUiComponent
 import lunar.land.ui.feature.favorites.FavoritesListUiComponentState
 import lunar.land.ui.feature.lunarHomewidget.LunarHomeWidget
@@ -63,6 +70,7 @@ fun HomeScreenContent(
     val context = LocalContext.current
     val packageManager = context.packageManager
     var searchQuery by remember { mutableStateOf("") }
+    var isAppDrawerOpen by remember { mutableStateOf(false) }
     
     // Create simplified lunar home widget state
     val lunarHomeWidgetState = remember {
@@ -145,8 +153,31 @@ fun HomeScreenContent(
         val bottomPadding = contentPaddingValues.calculateBottomPadding()
 
         Box(
-            modifier = modifier.fillMaxSize()
+            modifier = modifier
+                .fillMaxSize()
+                .onSwipeUp {
+                    isAppDrawerOpen = true
+                }
         ) {
+            // App Drawer overlay
+            AnimatedVisibility(
+                visible = isAppDrawerOpen,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .onSwipeDown {
+                            isAppDrawerOpen = false
+                        }
+                ) {
+                    AppDrawerScreen()
+                }
+            }
+            
+            // Home Screen Content
             Column(
                 verticalArrangement = Arrangement.Bottom
             ) {
