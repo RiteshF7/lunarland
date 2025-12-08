@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -38,26 +39,33 @@ fun SearchField(
     paddingValues: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val isDarkMode = isSystemInDarkTheme()
     val cornerRadius = 24.dp
     
-    // Create theme-aware gradient background similar to app items
+    // Adjust alpha values for dark mode for better visibility
+    val surfaceAlpha = if (isDarkMode) 0.3f else 0.5f
+    val surfaceVariantAlpha1 = if (isDarkMode) 0.25f else 0.35f
+    val primaryContainerAlpha = if (isDarkMode) 0.15f else 0.2f
+    val surfaceVariantAlpha2 = if (isDarkMode) 0.2f else 0.25f
+    
+    // Create theme-aware gradient background similar to app items (works for both light and dark)
     val gradientColors = listOf(
-        colorScheme.surface.copy(alpha = 0.5f),
-        colorScheme.surfaceVariant.copy(alpha = 0.35f),
-        colorScheme.primaryContainer.copy(alpha = 0.2f),
-        colorScheme.surfaceVariant.copy(alpha = 0.25f)
+        colorScheme.surface.copy(alpha = surfaceAlpha),
+        colorScheme.surfaceVariant.copy(alpha = surfaceVariantAlpha1),
+        colorScheme.primaryContainer.copy(alpha = primaryContainerAlpha),
+        colorScheme.surfaceVariant.copy(alpha = surfaceVariantAlpha2)
     )
     
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(paddingValues = paddingValues)
-            // Soft shadow matching app drawer style
+            // Soft shadow matching app drawer style (adjusted for dark mode)
             .shadow(
                 elevation = 6.dp,
                 shape = RoundedCornerShape(cornerRadius),
-                ambientColor = colorScheme.scrim.copy(alpha = 0.05f),
-                spotColor = colorScheme.scrim.copy(alpha = 0.08f)
+                ambientColor = colorScheme.scrim.copy(alpha = if (isDarkMode) 0.15f else 0.05f),
+                spotColor = colorScheme.scrim.copy(alpha = if (isDarkMode) 0.2f else 0.08f)
             )
             .clip(RoundedCornerShape(cornerRadius))
             // Theme-aware gradient background

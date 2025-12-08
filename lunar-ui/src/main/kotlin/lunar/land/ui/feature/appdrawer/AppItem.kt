@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -181,9 +182,10 @@ fun AppItem(
     val isPressed by interactionSource.collectIsPressedAsState()
     val density = LocalDensity.current
     
-    // Get theme colors
+    // Get theme colors and check dark mode
     val colorScheme = MaterialTheme.colorScheme
     val typography = MaterialTheme.typography
+    val isDarkMode = isSystemInDarkTheme()
     
     // Enhanced 3D perspective - much closer camera for dramatic 3D effect
     // Using 400dp for very strong perspective and depth
@@ -243,25 +245,56 @@ fun AppItem(
     val baseColor = appData.backgroundColor
     val glowColor = appData.glowColor
     
-    // Create theme-aware gradient using surface colors
-    val topHighlight = colorScheme.surface.copy(alpha = if (isInteracting) 0.6f else 0.4f)
+    // Adjust alpha values based on dark mode for better visibility
+    val highlightAlpha = if (isDarkMode) {
+        if (isInteracting) 0.4f else 0.25f
+    } else {
+        if (isInteracting) 0.6f else 0.4f
+    }
+    
+    val lightAlpha = if (isDarkMode) {
+        if (isInteracting) 0.3f else 0.2f
+    } else {
+        if (isInteracting) 0.4f else 0.3f
+    }
+    
+    val midAlpha = if (isDarkMode) {
+        if (isInteracting) 0.25f else 0.15f
+    } else {
+        if (isInteracting) 0.35f else 0.25f
+    }
+    
+    val accentAlpha = if (isDarkMode) {
+        if (isInteracting) 0.2f else 0.15f
+    } else {
+        if (isInteracting) 0.25f else 0.2f
+    }
+    
+    val glowTintAlpha = if (isDarkMode) {
+        if (isInteracting) 0.15f else 0.1f
+    } else {
+        if (isInteracting) 0.2f else 0.12f
+    }
+    
+    // Create theme-aware gradient using surface colors (works for both light and dark)
+    val topHighlight = colorScheme.surface.copy(alpha = highlightAlpha)
     val lightColor = Color(
         red = (baseColor.red * 0.7f + colorScheme.surfaceVariant.red * 0.3f).coerceIn(0f, 1f),
         green = (baseColor.green * 0.7f + colorScheme.surfaceVariant.green * 0.3f).coerceIn(0f, 1f),
         blue = (baseColor.blue * 0.7f + colorScheme.surfaceVariant.blue * 0.3f).coerceIn(0f, 1f),
-        alpha = if (isInteracting) 0.4f else 0.3f
+        alpha = lightAlpha
     )
     val midColor = Color(
         red = (baseColor.red * 0.6f + colorScheme.primaryContainer.red * 0.4f).coerceIn(0f, 1f),
         green = (baseColor.green * 0.6f + colorScheme.primaryContainer.green * 0.4f).coerceIn(0f, 1f),
         blue = (baseColor.blue * 0.6f + colorScheme.primaryContainer.blue * 0.4f).coerceIn(0f, 1f),
-        alpha = if (isInteracting) 0.35f else 0.25f
+        alpha = midAlpha
     )
     val accentColor = Color(
         red = (baseColor.red * 0.5f + colorScheme.primary.red * 0.5f).coerceIn(0f, 1f),
         green = (baseColor.green * 0.5f + colorScheme.primary.green * 0.5f).coerceIn(0f, 1f),
         blue = (baseColor.blue * 0.5f + colorScheme.primary.blue * 0.5f).coerceIn(0f, 1f),
-        alpha = if (isInteracting) 0.25f else 0.2f
+        alpha = accentAlpha
     )
     
     // Add glow color to gradient with theme integration
@@ -269,10 +302,10 @@ fun AppItem(
         red = (glowColor.red * 0.7f + colorScheme.primary.red * 0.3f).coerceIn(0f, 1f),
         green = (glowColor.green * 0.7f + colorScheme.primary.green * 0.3f).coerceIn(0f, 1f),
         blue = (glowColor.blue * 0.7f + colorScheme.primary.blue * 0.3f).coerceIn(0f, 1f),
-        alpha = if (isInteracting) 0.2f else 0.12f
+        alpha = glowTintAlpha
     )
     
-    // Theme-aware gradient with glow integration
+    // Theme-aware gradient with glow integration (works for both light and dark)
     val gradientColors = listOf(
         topHighlight,      // Theme surface highlight
         lightColor,        // Blended light color
@@ -295,12 +328,12 @@ fun AppItem(
         else -> 8.dp
     }
     
-    // Animated glow alpha for subtle pulsing effect
+    // Animated glow alpha for subtle pulsing effect (adjusted for dark mode)
     val glowAlpha by animateFloatAsState(
         targetValue = when {
-            isHovered && !isPressed -> 0.35f
-            isPressed -> 0.25f
-            else -> 0.2f
+            isHovered && !isPressed -> if (isDarkMode) 0.4f else 0.35f
+            isPressed -> if (isDarkMode) 0.3f else 0.25f
+            else -> if (isDarkMode) 0.25f else 0.2f
         },
         animationSpec = tween(300)
     )
