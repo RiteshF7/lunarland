@@ -28,7 +28,7 @@ fun AppDrawerContainer(
             .fillMaxSize()
             .background(Color.Black)
             .then(modifier),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.TopCenter
     ) {
         Box(
             modifier = Modifier

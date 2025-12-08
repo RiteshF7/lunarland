@@ -2,6 +2,7 @@ package lunar.land.ui.feature.appdrawer
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,13 +21,39 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.Drawable
 
+/**
+ * Converts a Drawable to a Painter for use in Compose
+ */
+@Composable
+private fun rememberDrawablePainter(drawable: Drawable?): Painter? {
+    return remember(drawable) {
+        drawable?.let {
+            val bitmap = Bitmap.createBitmap(
+                it.intrinsicWidth.coerceAtLeast(1),
+                it.intrinsicHeight.coerceAtLeast(1),
+                Bitmap.Config.ARGB_8888
+            )
+            val canvas = Canvas(bitmap)
+            it.setBounds(0, 0, canvas.width, canvas.height)
+            it.draw(canvas)
+            BitmapPainter(bitmap.asImageBitmap())
+        }
+    }
+}
 
 @Composable
 fun AppItemBorderGlowBox(
@@ -269,7 +296,7 @@ fun AppItem(
             )
             .shadow(
                 elevation = glowIntensity,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(8.dp),
                 ambientColor = appData.glowColor.copy(alpha = 0.7f),
                 spotColor = appData.glowColor.copy(alpha = 0.9f)
             )
@@ -302,25 +329,25 @@ fun AppItem(
                 // Outer glow shadow layer
                 .shadow(
                     elevation = glowIntensity,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(8.dp),
                     ambientColor = appData.glowColor.copy(alpha = 0.6f),
                     spotColor = appData.glowColor.copy(alpha = 0.8f)
                 )
                 // Main depth shadow
                 .shadow(
                     elevation = shadowElevation,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(8.dp),
                     ambientColor = Color.Black.copy(alpha = 0.6f),
                     spotColor = Color.Black.copy(alpha = 0.5f)
                 )
                 // Inner shadow for depth
                 .shadow(
                     elevation = innerShadowElevation,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(8.dp),
                     ambientColor = Color.Black.copy(alpha = 0.3f),
                     spotColor = Color.Black.copy(alpha = 0.2f)
                 )
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(8.dp))
                 // Enhanced multi-stop gradient for 3D lighting
                 .background(
                     brush = Brush.linearGradient(
@@ -332,14 +359,14 @@ fun AppItem(
                 .border(
                     width = 1.5.dp,
                     color = appData.glowColor.copy(alpha = borderAlpha),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(8.dp)
                 )
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = onClick
                 )
-                .padding(horizontal = 16.dp, vertical = 18.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -348,12 +375,22 @@ fun AppItem(
                 horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = appData.icon,
-                    contentDescription = appData.name,
-                    tint = appData.textColor,
-                    modifier = Modifier.size(22.dp)
-                )
+                // Use Drawable icon if available, otherwise fall back to ImageVector
+                val drawablePainter = rememberDrawablePainter(appData.iconDrawable)
+                if (drawablePainter != null) {
+                    Image(
+                        painter = drawablePainter,
+                        contentDescription = appData.name,
+                        modifier = Modifier.size(22.dp)
+                    )
+                } else if (appData.icon != null) {
+                    Icon(
+                        imageVector = appData.icon,
+                        contentDescription = appData.name,
+                        tint = appData.textColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = appData.name,
