@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import lunar.land.ui.core.theme.LunarTheme
 
 /**
  * Modern container for the app drawer with black background matching TaskExecutorAgentScreen theme.
@@ -23,11 +24,10 @@ fun AppDrawerContainer(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    // Pure black background matching TaskExecutorAgentScreen theme
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(LunarTheme.BackgroundColor)
             .then(modifier),
         contentAlignment = Alignment.TopCenter
     ) {
@@ -35,7 +35,7 @@ fun AppDrawerContainer(
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 600.dp)
-                .padding(horizontal = 20.dp, vertical = 24.dp)
+                .padding(horizontal = LunarTheme.Spacing.ExtraLarge, vertical = LunarTheme.Spacing.XXLarge)
         ) {
             content()
         }

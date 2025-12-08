@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
+import lunar.land.ui.core.theme.LunarTheme
 
 /**
  * Animated loading spinner indicator.
@@ -50,7 +51,7 @@ fun LoadingIndicator(
 
         // Animated arc
         drawArc(
-            color = Color(0xFF4DFF88),
+            color = LunarTheme.AccentColor,
             startAngle = rotationAngle - 90f,
             sweepAngle = 270f,
             useCenter = false,

@@ -22,6 +22,7 @@ import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlinx.coroutines.delay
+import lunar.land.ui.core.theme.LunarTheme
 
 /**
  * The glowing sphere visualizer with texture and pulse animation.
@@ -111,7 +112,7 @@ fun SphereVisualizer(
                     
                     if (rippleAlpha > 0.01f) {
                         drawCircle(
-                            color = Color(0xFF4DFF88).copy(alpha = rippleAlpha),
+                            color = LunarTheme.AccentColor.copy(alpha = rippleAlpha),
                             radius = rippleRadius,
                             center = center,
                             style = Stroke(
@@ -152,7 +153,7 @@ fun SphereVisualizer(
                 val strokeWidth = 2.dp.toPx() * rippleWidth
                 
                 drawCircle(
-                    color = Color(0xFF4DFF88).copy(alpha = glowAlpha),
+                    color = LunarTheme.AccentColor.copy(alpha = glowAlpha),
                     radius = glowRadius,
                     center = center,
                     style = Stroke(
@@ -190,7 +191,7 @@ fun SphereVisualizer(
                 val strokeWidthPx = baseStrokeWidthPx * rippleWidth
                 
                 drawCircle(
-                    color = Color(0xFF4DFF88).copy(alpha = layerAlpha),
+                    color = LunarTheme.AccentColor.copy(alpha = layerAlpha),
                     radius = layerRadius,
                     center = center,
                     style = Stroke(
@@ -218,7 +219,7 @@ fun SphereVisualizer(
                 val strokeWidth = 1.5f.dp.toPx() * rippleWidth
                 
                 drawCircle(
-                    color = Color(0xFF4DFF88).copy(alpha = innerAlpha),
+                    color = LunarTheme.AccentColor.copy(alpha = innerAlpha),
                     radius = innerRadius,
                     center = center,
                     style = Stroke(
@@ -231,9 +232,9 @@ fun SphereVisualizer(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFF4DFF88).copy(alpha = 0.25f),
-                        Color(0xFF4DFF88).copy(alpha = 0.15f),
-                        Color(0xFF4DFF88).copy(alpha = 0.05f),
+                        LunarTheme.AccentColor.copy(alpha = 0.25f),
+                        LunarTheme.AccentColor.copy(alpha = LunarTheme.Alpha.Medium),
+                        LunarTheme.AccentColor.copy(alpha = LunarTheme.Alpha.VeryLow),
                         Color.Transparent
                     ),
                     center = center,
@@ -270,12 +271,12 @@ fun SphereVisualizer(
                 
                 // Draw dot with glow
                 drawCircle(
-                    color = Color(0xFF4DFF88).copy(alpha = opacity * 0.4f),
+                    color = LunarTheme.AccentColor.copy(alpha = opacity * 0.4f),
                     radius = dotRadius * 1.8f,
                     center = Offset(dotX, dotY)
                 )
                 drawCircle(
-                    color = Color(0xFF4DFF88).copy(alpha = opacity),
+                    color = LunarTheme.AccentColor.copy(alpha = opacity),
                     radius = dotRadius,
                     center = Offset(dotX, dotY)
                 )

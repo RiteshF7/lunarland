@@ -59,6 +59,7 @@ import lunar.land.ui.feature.favorites.FavoritesListUiComponent
 import lunar.land.ui.feature.favorites.FavoritesListUiComponentState
 import lunar.land.ui.feature.lunarHomewidget.LunarHomeWidget
 import lunar.land.ui.feature.lunarHomewidget.LunarHomeWidgetState
+import lunar.land.ui.core.theme.LunarTheme
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -160,7 +161,7 @@ fun HomeScreenContent(
         Box(
             modifier = modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .background(LunarTheme.BackgroundColor)
                 .onSwipeUp {
                     isAppDrawerOpen = true
                 }
@@ -180,7 +181,7 @@ fun HomeScreenContent(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black)
+                        .background(LunarTheme.BackgroundColor)
                         .onSwipeDown {
                             isAppDrawerOpen = false
                         }

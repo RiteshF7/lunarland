@@ -16,13 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import lunar.land.ui.R
-
-/**
- * Manrope font family matching the HTML design.
- */
-private val manropeFontFamily = FontFamily(
-    Font(resId = R.font.manrope_variable, weight = FontWeight.Normal)
-)
+import lunar.land.ui.core.theme.LunarTheme
 
 /**
  * Neural Network Active status indicator component.
@@ -32,17 +26,13 @@ private val manropeFontFamily = FontFamily(
 fun NeuralNetworkStatus(
     modifier: Modifier = Modifier
 ) {
-    // Use a subtle dark background that matches the theme
-    val cardBackgroundColor = Color(0xFF0e1a10).copy(alpha = 0.6f) // Subtle dark background
-    val accentColor = Color(0xFF4DFF88)
-    
     Box(
         modifier = modifier
             .background(
-                color = cardBackgroundColor,
-                shape = RoundedCornerShape(16.dp)
+                color = LunarTheme.SecondaryBackgroundColor.copy(alpha = 0.6f),
+                shape = RoundedCornerShape(LunarTheme.CornerRadius.Large)
             )
-            .padding(horizontal = 20.dp, vertical = 12.dp)
+            .padding(horizontal = LunarTheme.Spacing.ExtraLarge, vertical = LunarTheme.Spacing.Medium)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -53,21 +43,17 @@ fun NeuralNetworkStatus(
                 modifier = Modifier
                     .size(10.dp)
                     .background(
-                        color = accentColor,
+                        color = LunarTheme.AccentColor,
                         shape = CircleShape
                     )
             )
             
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(LunarTheme.Spacing.Large))
             
             Text(
                 text = "Neural Network Active",
-                style = MaterialTheme.typography.bodySmall.copy(
-                    fontFamily = manropeFontFamily,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                ),
-                color = Color.White.copy(alpha = 0.8f)
+                style = LunarTheme.Typography.BodySmall,
+                color = LunarTheme.TextPrimary.copy(alpha = 0.8f)
             )
         }
     }

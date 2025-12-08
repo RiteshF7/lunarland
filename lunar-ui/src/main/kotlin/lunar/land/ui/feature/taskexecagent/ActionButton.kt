@@ -19,13 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import lunar.land.ui.R
-
-/**
- * Manrope font family matching the HTML design.
- */
-private val manropeFontFamily = FontFamily(
-    Font(resId = R.font.manrope_variable, weight = FontWeight.Normal)
-)
+import lunar.land.ui.core.theme.LunarTheme
 
 /**
  * Action button for initiating voice input.
@@ -39,10 +33,10 @@ fun ActionButton(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF1E1E1E).copy(alpha = 0.5f))
+            .clip(RoundedCornerShape(LunarTheme.CornerRadius.Medium))
+            .background(LunarTheme.InactiveBackgroundColor.copy(alpha = 0.5f))
             .clickable(onClick = onClick)
-            .padding(16.dp),
+            .padding(LunarTheme.Spacing.Large),
         contentAlignment = Alignment.Center
     ) {
         Row(
@@ -53,19 +47,16 @@ fun ActionButton(
             Icon(
                 painter = painterResource(id = R.drawable.ic_mic),
                 contentDescription = "Microphone",
-                tint = Color.White,
+                tint = LunarTheme.TextPrimary,
                 modifier = Modifier.size(24.dp)
             )
             
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(LunarTheme.Spacing.Medium))
             
             Text(
                 text = "Click to Speak",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = manropeFontFamily,
-                    fontSize = 18.sp
-                ),
-                color = Color.White
+                style = LunarTheme.Typography.BodyLarge.copy(fontSize = 18.sp),
+                color = LunarTheme.TextPrimary
             )
         }
     }

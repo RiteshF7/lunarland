@@ -30,13 +30,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import lunar.land.ui.R
-
-/**
- * Manrope font family matching TaskExecutorAgentScreen theme.
- */
-private val manropeFontFamily = FontFamily(
-    Font(resId = R.font.manrope_variable, weight = FontWeight.Normal)
-)
+import lunar.land.ui.core.theme.LunarTheme
 
 @Composable
 fun SearchField(
@@ -44,31 +38,25 @@ fun SearchField(
     placeholder: String,
     query: String,
     onQueryChange: (String) -> Unit,
-    paddingValues: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+    paddingValues: PaddingValues = PaddingValues(horizontal = LunarTheme.Spacing.XXLarge, vertical = LunarTheme.Spacing.Medium)
 ) {
-    // Theme colors from TaskExecutorAgentScreen
-    val accentColor = Color(0xFF4DFF88)
-    val inputBackgroundColor = Color(0xFF1a1f1a)
-    val borderColor = Color(0xFF2a3a2a)
-    val cornerRadius = 16.dp
-    
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(paddingValues = paddingValues)
-            .clip(RoundedCornerShape(cornerRadius))
+            .clip(RoundedCornerShape(LunarTheme.CornerRadius.Large))
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        inputBackgroundColor.copy(alpha = 0.8f),
-                        inputBackgroundColor.copy(alpha = 0.6f)
+                        LunarTheme.InactiveBackgroundColor.copy(alpha = 0.8f),
+                        LunarTheme.InactiveBackgroundColor.copy(alpha = 0.6f)
                     )
                 )
             )
             .border(
-                width = 1.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(cornerRadius)
+                width = LunarTheme.BorderWidth,
+                color = LunarTheme.BorderColor,
+                shape = RoundedCornerShape(LunarTheme.CornerRadius.Large)
             )
     ) {
         TextField(
@@ -80,14 +68,10 @@ fun SearchField(
             placeholder = {
                 Text(
                     text = placeholder,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontFamily = manropeFontFamily,
-                        fontSize = 14.sp
-                    ),
-                    color = Color.White.copy(alpha = 0.4f)
+                    style = LunarTheme.Typography.Placeholder
                 )
             },
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(LunarTheme.CornerRadius.Medium),
             singleLine = true,
             keyboardOptions = KeyboardOptions(
                 autoCorrect = false,
@@ -97,23 +81,19 @@ fun SearchField(
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,
                 disabledContainerColor = Color.Transparent,
-                focusedIndicatorColor = accentColor.copy(alpha = 0.5f),
-                unfocusedIndicatorColor = borderColor,
-                disabledIndicatorColor = borderColor,
-                cursorColor = accentColor,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White.copy(alpha = 0.9f)
+                focusedIndicatorColor = LunarTheme.AccentColor.copy(alpha = 0.5f),
+                unfocusedIndicatorColor = LunarTheme.BorderColor,
+                disabledIndicatorColor = LunarTheme.BorderColor,
+                cursorColor = LunarTheme.AccentColor,
+                focusedTextColor = LunarTheme.TextPrimary,
+                unfocusedTextColor = LunarTheme.TextPrimary.copy(alpha = 0.9f)
             ),
-            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                fontFamily = manropeFontFamily,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            ),
+            textStyle = LunarTheme.Typography.Input,
             leadingIcon = {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_search),
                     contentDescription = stringResource(id = R.string.search),
-                    tint = Color.White.copy(alpha = 0.4f)
+                    tint = LunarTheme.TextTertiary
                 )
             },
             trailingIcon = {
@@ -127,7 +107,7 @@ fun SearchField(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_close),
                             contentDescription = stringResource(id = R.string.clear),
-                            tint = Color.White.copy(alpha = 0.4f)
+                            tint = LunarTheme.TextTertiary
                         )
                     }
                 }

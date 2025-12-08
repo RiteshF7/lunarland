@@ -14,13 +14,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import lunar.land.ui.R
-
-/**
- * Manrope font family matching the HTML design.
- */
-private val manropeFontFamily = FontFamily(
-    Font(resId = R.font.manrope_variable, weight = FontWeight.Normal)
-)
+import lunar.land.ui.core.theme.LunarTheme
 
 /**
  * Footer component containing status indicator and tap and hold instruction.
@@ -51,14 +45,10 @@ fun PageFooter(
             } else {
                 "Press and hold the AI sphere to initiate command sequence."
             },
-            style = MaterialTheme.typography.bodySmall.copy(
-                fontFamily = manropeFontFamily,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
-            ),
-            color = Color.White.copy(alpha = 0.8f),
+            style = LunarTheme.Typography.BodySmall,
+            color = LunarTheme.TextPrimary.copy(alpha = 0.8f),
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = LunarTheme.Spacing.Large)
         )
     }
 }

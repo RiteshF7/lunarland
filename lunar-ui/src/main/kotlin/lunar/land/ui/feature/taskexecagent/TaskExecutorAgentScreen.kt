@@ -23,13 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import lunar.land.ui.R
-
-/**
- * Manrope font family matching the HTML design.
- */
-private val manropeFontFamily = FontFamily(
-    Font(resId = R.font.manrope_variable, weight = FontWeight.Normal)
-)
+import lunar.land.ui.core.theme.LunarTheme
 
 /**
  * Main screen composable for the AI Agent Interaction Sphere.
@@ -46,19 +40,16 @@ fun TaskExecutorAgentScreen(
     var isTextMode by remember { mutableStateOf(false) }
     var isTextInputFocused by remember { mutableStateOf(false) }
     
-    // Use black background
-    val backgroundColor = Color.Black
-    
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(backgroundColor)
+            .background(LunarTheme.BackgroundColor)
     ) {
         
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 24.dp),
+                .padding(horizontal = LunarTheme.Spacing.ExtraLarge, vertical = LunarTheme.Spacing.XXLarge),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {

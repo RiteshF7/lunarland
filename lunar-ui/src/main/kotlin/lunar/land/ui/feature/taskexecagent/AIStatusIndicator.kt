@@ -26,13 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import lunar.land.ui.R
-
-/**
- * Manrope font family matching the HTML design.
- */
-private val manropeFontFamily = FontFamily(
-    Font(resId = R.font.manrope_variable, weight = FontWeight.Normal)
-)
+import lunar.land.ui.core.theme.LunarTheme
 
 /**
  * AI status indicator showing the current operational status.
@@ -67,26 +61,22 @@ fun AIStatusIndicator(
                     val glowRadius = size.minDimension * 1.5f
                     val center = Offset(size.width / 2f, size.height / 2f)
                     drawCircle(
-                        color = Color(0xFF4DFF88).copy(alpha = 0.3f),
+                        color = LunarTheme.AccentColor.copy(alpha = LunarTheme.Alpha.High),
                         radius = glowRadius,
                         center = center
                     )
                 }
                 .clip(CircleShape)
-                .background(Color(0xFF4DFF88))
+                .background(LunarTheme.AccentColor)
                 .rotate(rotationAngle)
         )
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(LunarTheme.Spacing.Medium))
 
         Text(
             text = "Status: $status",
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontFamily = manropeFontFamily,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            ),
-            color = Color.White
+            style = LunarTheme.Typography.BodyMedium,
+            color = LunarTheme.TextPrimary
         )
     }
 }

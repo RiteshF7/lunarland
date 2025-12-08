@@ -31,13 +31,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
 import lunar.land.ui.R
-
-/**
- * Manrope font family matching TaskExecutorAgentScreen theme.
- */
-private val manropeFontFamily = FontFamily(
-    Font(resId = R.font.manrope_variable, weight = FontWeight.Normal)
-)
+import lunar.land.ui.core.theme.LunarTheme
 
 /**
  * Converts a Drawable to a Painter for use in Compose
@@ -76,15 +70,6 @@ fun AppItem(
     // Use press state for touch interactions
     val isInteracting = isPressed || isHovered
     
-    // Theme colors matching ModeToggleButton
-    val accentColor = Color(0xFF4DFF88)
-    val inactiveBackgroundColor = Color(0xFF1a1f1a)
-    val borderColor = Color(0xFF2a3a2a)
-    
-    // Theme matching corner radius - same as ModeToggleButton
-    val cornerRadius = 12.dp
-    val typography = MaterialTheme.typography
-    
     Box(
         modifier = modifier
             .then(
@@ -96,19 +81,19 @@ fun AppItem(
                     Modifier.fillMaxWidth()
                 }
             )
-            .clip(RoundedCornerShape(cornerRadius))
+            .clip(RoundedCornerShape(LunarTheme.CornerRadius.Small))
             .background(
                 brush = Brush.horizontalGradient(
                     colors = listOf(
-                        if (isInteracting) accentColor.copy(alpha = 0.15f) else inactiveBackgroundColor,
-                        if (isInteracting) accentColor.copy(alpha = 0.08f) else inactiveBackgroundColor
+                        if (isInteracting) LunarTheme.AccentColor.copy(alpha = LunarTheme.Alpha.Medium) else LunarTheme.InactiveBackgroundColor,
+                        if (isInteracting) LunarTheme.AccentColor.copy(alpha = LunarTheme.Alpha.Low) else LunarTheme.InactiveBackgroundColor
                     )
                 )
             )
             .border(
-                width = 1.dp,
-                color = if (isInteracting) accentColor.copy(alpha = 0.3f) else borderColor,
-                shape = RoundedCornerShape(cornerRadius)
+                width = LunarTheme.BorderWidth,
+                color = if (isInteracting) LunarTheme.AccentColor.copy(alpha = LunarTheme.Alpha.High) else LunarTheme.BorderColor,
+                shape = RoundedCornerShape(LunarTheme.CornerRadius.Small)
             )
             .clickable(
                 interactionSource = interactionSource,
@@ -136,19 +121,15 @@ fun AppItem(
                 Icon(
                     imageVector = appData.icon,
                     contentDescription = appData.name,
-                    tint = Color.White,
+                    tint = LunarTheme.TextPrimary,
                     modifier = Modifier.size(24.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(LunarTheme.Spacing.Medium))
             Text(
                 text = appData.name,
-                color = Color.White,
-                style = typography.bodyMedium.copy(
-                    fontFamily = manropeFontFamily,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                ),
+                color = LunarTheme.TextPrimary,
+                style = LunarTheme.Typography.BodyMedium,
                 modifier = Modifier.weight(1f)
             )
         }

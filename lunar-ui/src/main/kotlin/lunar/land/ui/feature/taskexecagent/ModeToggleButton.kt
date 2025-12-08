@@ -21,13 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import lunar.land.ui.R
-
-/**
- * Manrope font family matching the HTML design.
- */
-private val manropeFontFamily = FontFamily(
-    Font(resId = R.font.manrope_variable, weight = FontWeight.Normal)
-)
+import lunar.land.ui.core.theme.LunarTheme
 
 /**
  * Toggle button component for switching between text and voice modes.
@@ -39,11 +33,6 @@ fun ModeToggleButton(
     onToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accentColor = Color(0xFF4DFF88)
-    val backgroundColor = Color(0xFF0a0f0a)
-    val inactiveBackgroundColor = Color(0xFF1a1f1a)
-    val borderColor = Color(0xFF2a3a2a)
-    
     val animatedProgressState = animateFloatAsState(
         targetValue = if (isTextMode) 1f else 0f,
         animationSpec = tween(
@@ -56,22 +45,22 @@ fun ModeToggleButton(
     
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(LunarTheme.CornerRadius.Medium))
             .background(
                 brush = Brush.horizontalGradient(
                     colors = listOf(
-                        if (isTextMode) accentColor.copy(alpha = 0.15f) else inactiveBackgroundColor,
-                        if (isTextMode) accentColor.copy(alpha = 0.08f) else inactiveBackgroundColor
+                        if (isTextMode) LunarTheme.AccentColor.copy(alpha = LunarTheme.Alpha.Medium) else LunarTheme.InactiveBackgroundColor,
+                        if (isTextMode) LunarTheme.AccentColor.copy(alpha = LunarTheme.Alpha.Low) else LunarTheme.InactiveBackgroundColor
                     )
                 )
             )
             .border(
-                width = 1.dp,
-                color = if (isTextMode) accentColor.copy(alpha = 0.3f) else borderColor,
-                shape = RoundedCornerShape(12.dp)
+                width = LunarTheme.BorderWidth,
+                color = if (isTextMode) LunarTheme.AccentColor.copy(alpha = LunarTheme.Alpha.High) else LunarTheme.BorderColor,
+                shape = RoundedCornerShape(LunarTheme.CornerRadius.Medium)
             )
             .clickable { onToggle() }
-            .padding(horizontal = 4.dp, vertical = 4.dp)
+            .padding(horizontal = LunarTheme.Spacing.ExtraSmall, vertical = LunarTheme.Spacing.ExtraSmall)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -104,31 +93,29 @@ private fun ModeButton(
     animatedProgress: Float,
     modifier: Modifier = Modifier
 ) {
-    val accentColor = Color(0xFF4DFF88)
-    val backgroundColor = Color(0xFF0a0f0a)
-    val activeTextColor = Color.White
-    val inactiveTextColor = Color.White.copy(alpha = 0.6f)
+    val activeTextColor = LunarTheme.TextPrimary
+    val inactiveTextColor = LunarTheme.TextSecondary
     
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(LunarTheme.CornerRadius.Small))
             .background(
                 color = if (isActive) {
-                    accentColor.copy(alpha = 0.2f * animatedProgress)
+                    LunarTheme.AccentColor.copy(alpha = 0.2f * animatedProgress)
                 } else {
                     Color.Transparent
                 }
             )
-            .padding(vertical = 10.dp, horizontal = 16.dp),
+            .padding(vertical = 10.dp, horizontal = LunarTheme.Spacing.Large),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontFamily = manropeFontFamily,
-                fontSize = 14.sp,
-                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium
-            ),
+            style = if (isActive) {
+                LunarTheme.Typography.BodyMedium.copy(fontWeight = FontWeight.SemiBold)
+            } else {
+                LunarTheme.Typography.BodyMedium
+            },
             color = if (isActive) {
                 Color(
                     red = inactiveTextColor.red + (activeTextColor.red - inactiveTextColor.red) * animatedProgress,

@@ -14,13 +14,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import lunar.land.ui.R
-
-/**
- * Manrope font family matching the HTML design.
- */
-private val manropeFontFamily = FontFamily(
-    Font(resId = R.font.manrope_variable, weight = FontWeight.Normal)
-)
+import lunar.land.ui.core.theme.LunarTheme
 
 /**
  * Header component displaying the title and instructions.
@@ -35,24 +29,21 @@ fun PageHeader(
     ) {
         Text(
             text = "Agent Loon ",
-            style = MaterialTheme.typography.headlineLarge.copy(
-                fontFamily = manropeFontFamily,
+            style = LunarTheme.Typography.DisplayLarge.copy(
                 fontWeight = FontWeight.Black,
                 fontSize = 36.sp,
                 letterSpacing = (-0.5).sp
             ),
-            color = Color.White,
+            color = LunarTheme.TextPrimary,
             textAlign = TextAlign.Start
         )
         
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(LunarTheme.Spacing.Small))
         
         Text(
             text = "Navigator of Lunar Land. Your voice in the void.",
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontFamily = manropeFontFamily
-            ),
-            color = Color.White,
+            style = LunarTheme.Typography.BodyMedium,
+            color = LunarTheme.TextPrimary,
             textAlign = TextAlign.Start
         )
     }

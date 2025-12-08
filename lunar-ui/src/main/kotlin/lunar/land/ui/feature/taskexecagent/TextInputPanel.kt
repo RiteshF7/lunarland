@@ -31,13 +31,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import lunar.land.ui.R
-
-/**
- * Manrope font family matching the HTML design.
- */
-private val manropeFontFamily = FontFamily(
-    Font(resId = R.font.manrope_variable, weight = FontWeight.Normal)
-)
+import lunar.land.ui.core.theme.LunarTheme
 
 /**
  * Text input panel component with input field and execute button.
@@ -51,30 +45,26 @@ fun TextInputPanel(
 ) {
     var text by remember { mutableStateOf("") }
     var isFocused by remember { mutableStateOf(false) }
-    val accentColor = Color(0xFF4DFF88)
-    val backgroundColor = Color(0xFF0a0f0a)
-    val inputBackgroundColor = Color(0xFF1a1f1a)
-    val borderColor = Color(0xFF2a3a2a)
     val interactionSource = remember { MutableInteractionSource() }
     
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(LunarTheme.CornerRadius.Large))
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        inputBackgroundColor.copy(alpha = 0.8f),
-                        inputBackgroundColor.copy(alpha = 0.6f)
+                        LunarTheme.InactiveBackgroundColor.copy(alpha = 0.8f),
+                        LunarTheme.InactiveBackgroundColor.copy(alpha = 0.6f)
                     )
                 )
             )
             .border(
-                width = 1.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(16.dp)
+                width = LunarTheme.BorderWidth,
+                color = LunarTheme.BorderColor,
+                shape = RoundedCornerShape(LunarTheme.CornerRadius.Large)
             )
-            .padding(16.dp),
+            .padding(LunarTheme.Spacing.Large),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Input field
@@ -95,29 +85,21 @@ fun TextInputPanel(
             placeholder = {
                 Text(
                     text = "Enter your command...",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontFamily = manropeFontFamily,
-                        fontSize = 14.sp
-                    ),
-                    color = Color.White.copy(alpha = 0.4f)
+                    style = LunarTheme.Typography.Placeholder
                 )
             },
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,
                 disabledContainerColor = Color.Transparent,
-                focusedIndicatorColor = accentColor.copy(alpha = 0.5f),
-                unfocusedIndicatorColor = borderColor,
-                disabledIndicatorColor = borderColor,
-                cursorColor = accentColor,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White.copy(alpha = 0.9f)
+                focusedIndicatorColor = LunarTheme.AccentColor.copy(alpha = 0.5f),
+                unfocusedIndicatorColor = LunarTheme.BorderColor,
+                disabledIndicatorColor = LunarTheme.BorderColor,
+                cursorColor = LunarTheme.AccentColor,
+                focusedTextColor = LunarTheme.TextPrimary,
+                unfocusedTextColor = LunarTheme.TextPrimary.copy(alpha = 0.9f)
             ),
-            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                fontFamily = manropeFontFamily,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            ),
+            textStyle = LunarTheme.Typography.Input,
             singleLine = false,
             maxLines = 3,
             keyboardOptions = KeyboardOptions(
@@ -154,11 +136,6 @@ private fun ExecuteButton(
     isEnabled: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val accentColor = Color(0xFF4DFF88)
-    val backgroundColor = Color(0xFF0a0f0a)
-    val disabledColor = Color(0xFF1a1f1a)
-    val borderColor = Color(0xFF2a3a2a)
-    
     val animatedAlpha by animateFloatAsState(
         targetValue = if (isEnabled) 1f else 0.5f,
         animationSpec = tween(
@@ -170,29 +147,29 @@ private fun ExecuteButton(
     
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(LunarTheme.CornerRadius.Medium))
             .background(
                 brush = if (isEnabled) {
                     Brush.horizontalGradient(
                         colors = listOf(
-                            accentColor.copy(alpha = 0.2f * animatedAlpha),
-                            accentColor.copy(alpha = 0.15f * animatedAlpha)
+                            LunarTheme.AccentColor.copy(alpha = 0.2f * animatedAlpha),
+                            LunarTheme.AccentColor.copy(alpha = LunarTheme.Alpha.Medium * animatedAlpha)
                         )
                     )
                 } else {
                     Brush.horizontalGradient(
-                        colors = listOf(disabledColor, disabledColor)
+                        colors = listOf(LunarTheme.InactiveBackgroundColor, LunarTheme.InactiveBackgroundColor)
                     )
                 }
             )
             .border(
-                width = 1.dp,
+                width = LunarTheme.BorderWidth,
                 color = if (isEnabled) {
-                    accentColor.copy(alpha = 0.4f * animatedAlpha)
+                    LunarTheme.AccentColor.copy(alpha = 0.4f * animatedAlpha)
                 } else {
-                    borderColor
+                    LunarTheme.BorderColor
                 },
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(LunarTheme.CornerRadius.Medium)
             )
             .then(
                 if (isEnabled) {
@@ -206,16 +183,13 @@ private fun ExecuteButton(
     ) {
         Text(
             text = "Execute",
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontFamily = manropeFontFamily,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold
-            ),
-            color = if (isEnabled) {
-                accentColor.copy(alpha = animatedAlpha)
-            } else {
-                Color.White.copy(alpha = 0.4f)
-            }
+            style = LunarTheme.Typography.Button.copy(
+                color = if (isEnabled) {
+                    LunarTheme.AccentColor.copy(alpha = animatedAlpha)
+                } else {
+                    LunarTheme.TextDisabled
+                }
+            )
         )
     }
 }
