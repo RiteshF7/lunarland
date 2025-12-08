@@ -66,38 +66,18 @@ fun TaskExecutorAgentScreen(
                 contentAlignment = Alignment.Center
             ) {
                 if (isTextMode) {
-                    // Text mode: Show sphere when not typing, hide when typing
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        // Show sphere when text input is not focused (to show agent state)
-                        AnimatedVisibility(
-                            visible = !isTextInputFocused,
-                            enter = fadeIn() + scaleIn(initialScale = 0.8f),
-                            exit = fadeOut() + scaleOut(targetScale = 0.8f),
-                            modifier = Modifier.padding(bottom = 24.dp)
-                        ) {
-                            SphereVisualizer(
-                                modifier = Modifier.size(150.dp),
-                                isListening = isListening
-                            )
-                        }
-                        
-                        // Text Input Panel
-                        TextInputPanel(
-                            onExecute = { command ->
-                                onExecuteCommand(command)
-                            },
-                            onFocusChange = { focused ->
-                                isTextInputFocused = focused
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp)
-                        )
-                    }
+                    // Text mode: Hide sphere, only show text input
+                    TextInputPanel(
+                        onExecute = { command ->
+                            onExecuteCommand(command)
+                        },
+                        onFocusChange = { focused ->
+                            isTextInputFocused = focused
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp)
+                    )
                 } else {
                     // Voice mode: Always show sphere
                     SphereVisualizer(

@@ -253,7 +253,7 @@ fun SphereVisualizer(
             val baseRadius = size.minDimension / 2f * scale
             val dotOrbitRadius = baseRadius * 1.05f // Dots orbit closer to the sphere
             val dotCount = 12 // Number of rotating dots
-            val dotRadius = 4.dp.toPx()
+            val dotRadius = 2.5.dp.toPx()
             
             repeat(dotCount) { i ->
                 // Calculate angle for each dot with rotation
