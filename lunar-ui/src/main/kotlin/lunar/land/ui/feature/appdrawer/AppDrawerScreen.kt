@@ -31,6 +31,9 @@ fun AppDrawerScreen(
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
+            // Add space on top of search bar
+            Spacer(modifier = Modifier.height(24.dp))
+            
             // Search bar at the top
             SearchField(
                 modifier = Modifier.fillMaxWidth(),

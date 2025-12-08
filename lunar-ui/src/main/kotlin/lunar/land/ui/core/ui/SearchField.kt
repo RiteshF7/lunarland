@@ -39,24 +39,68 @@ fun SearchField(
 ) {
     val cornerRadius = 24.dp
     
-    // Dark background optimized colors - light greys with subtle tints
-    val lightGrey = Color(0xFF2a2a2a)
-    val midGrey = Color(0xFF1f1f1f)
-    val darkGrey = Color(0xFF181818)
+    // Match AppItem theme colors for consistency
+    val almostWhite = Color(0xFF4a4a4a)    // Almost white grey for top highlight
+    val veryLightGrey = Color(0xFF3a3a3a)   // Very light grey
+    val lightGrey = Color(0xFF2a2a2a)       // Light grey
+    val midGrey = Color(0xFF1f1f1f)         // Medium grey
+    val darkGrey = Color(0xFF181818)       // Dark grey
+    val almostBlack = Color(0xFF0a0a0a)    // Almost black for bottom
     
-    // Create gradient background optimized for dark black background
+    // Create dramatic gradient matching AppItem theme - bright top, dark bottom
+    // Using similar alpha values as AppItem for consistency
+    val topHighlight = Color(
+        red = (almostWhite.red * 0.8f).coerceIn(0f, 1f),
+        green = (almostWhite.green * 0.8f).coerceIn(0f, 1f),
+        blue = (almostWhite.blue * 0.8f).coerceIn(0f, 1f),
+        alpha = 0.75f
+    )
+    val highlight = Color(
+        red = (veryLightGrey.red * 0.75f).coerceIn(0f, 1f),
+        green = (veryLightGrey.green * 0.75f).coerceIn(0f, 1f),
+        blue = (veryLightGrey.blue * 0.75f).coerceIn(0f, 1f),
+        alpha = 0.55f
+    )
+    val lightColor = Color(
+        red = (lightGrey.red * 0.7f).coerceIn(0f, 1f),
+        green = (lightGrey.green * 0.7f).coerceIn(0f, 1f),
+        blue = (lightGrey.blue * 0.7f).coerceIn(0f, 1f),
+        alpha = 0.4f
+    )
+    val midColor = Color(
+        red = (midGrey.red * 0.75f).coerceIn(0f, 1f),
+        green = (midGrey.green * 0.75f).coerceIn(0f, 1f),
+        blue = (midGrey.blue * 0.75f).coerceIn(0f, 1f),
+        alpha = 0.3f
+    )
+    val darkColor = Color(
+        red = (darkGrey.red * 0.8f).coerceIn(0f, 1f),
+        green = (darkGrey.green * 0.8f).coerceIn(0f, 1f),
+        blue = (darkGrey.blue * 0.8f).coerceIn(0f, 1f),
+        alpha = 0.2f
+    )
+    val bottomColor = Color(
+        red = (almostBlack.red * 0.85f).coerceIn(0f, 1f),
+        green = (almostBlack.green * 0.85f).coerceIn(0f, 1f),
+        blue = (almostBlack.blue * 0.85f).coerceIn(0f, 1f),
+        alpha = 0.15f
+    )
+    
+    // Dramatic gradient matching AppItem - very bright top, very dark bottom
     val gradientColors = listOf(
-        lightGrey.copy(alpha = 0.4f),
-        midGrey.copy(alpha = 0.35f),
-        darkGrey.copy(alpha = 0.3f),
-        midGrey.copy(alpha = 0.25f)
+        topHighlight,      // Almost white top - maximum brightness
+        highlight,         // Very light highlight
+        lightColor,         // Light
+        midColor,          // Medium
+        darkColor,         // Dark
+        bottomColor        // Almost black bottom - maximum darkness
     )
     
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(paddingValues = paddingValues)
-            // Soft shadow for dark background
+            // Soft shadow matching AppItem style
             .shadow(
                 elevation = 6.dp,
                 shape = RoundedCornerShape(cornerRadius),
@@ -64,21 +108,38 @@ fun SearchField(
                 spotColor = Color.Black.copy(alpha = 0.4f)
             )
             .clip(RoundedCornerShape(cornerRadius))
-            // Theme-aware gradient background
+            // Dramatic upward 3D gradient matching AppItem - very bright top, very dark bottom
             .background(
                 brush = Brush.linearGradient(
-                    start = Offset(0f, 0f),
-                    end = Offset(0f, 1000f),
+                    start = Offset(0f, 0f),      // Top - brightest (almost white)
+                    end = Offset(0f, 1200f),    // Bottom - darkest (almost black)
                     colors = gradientColors
                 )
             )
-            // Subtle border for dark background - light grey
+            // Top border highlight matching AppItem - simulates light reflection
             .border(
                 width = 1.dp,
-                color = Color(0xFF3a3a3a).copy(alpha = 0.4f),
+                color = Color(0xFF4a4a4a).copy(alpha = 0.6f),
                 shape = RoundedCornerShape(cornerRadius)
             )
     ) {
+        // Top highlight overlay matching AppItem theme
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(RoundedCornerShape(cornerRadius))
+                .background(
+                    brush = Brush.linearGradient(
+                        start = Offset(0f, 0f),
+                        end = Offset(0f, 40f),  // Only top portion
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.1f),
+                            Color.Transparent
+                        )
+                    )
+                )
+        )
+        
         TextField(
             modifier = Modifier
                 .fillMaxWidth()
