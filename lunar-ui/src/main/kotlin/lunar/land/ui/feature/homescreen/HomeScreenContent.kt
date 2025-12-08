@@ -32,7 +32,6 @@ import kotlinx.datetime.toLocalDateTime
 import lunar.land.ui.R
 import lunar.land.ui.core.homescreen.model.HomePadding
 import lunar.land.ui.core.homescreen.model.LocalHomePadding
-import lunar.land.ui.core.model.ClockAlignment
 import lunar.land.ui.core.model.app.App
 import lunar.land.ui.core.model.app.AppWithColor
 import lunar.land.ui.core.model.common.State
@@ -44,11 +43,10 @@ import lunar.land.ui.core.model.lunarphase.UpcomingLunarPhase
 import lunar.land.ui.core.ui.AISphere
 import lunar.land.ui.core.ui.SearchField
 import lunar.land.ui.core.ui.VerticalSpacer
-import lunar.land.ui.feature.clockwidget.ClockWidgetUiComponentState
 import lunar.land.ui.feature.favorites.FavoritesListUiComponent
 import lunar.land.ui.feature.favorites.FavoritesListUiComponentState
-import lunar.land.ui.feature.lunarcalendar.widget.LunarCalendarUiComponentState
-import lunar.land.ui.feature.homescreen.ui.DecoratedLunarCalendar
+import lunar.land.ui.feature.lunarHomewidget.LunarHomeWidget
+import lunar.land.ui.feature.lunarHomewidget.LunarHomeWidgetState
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -66,22 +64,9 @@ fun HomeScreenContent(
     val packageManager = context.packageManager
     var searchQuery by remember { mutableStateOf("") }
     
-    // Get clock state
-    val clockState = remember {
+    // Create simplified lunar home widget state
+    val lunarHomeWidgetState = remember {
         val time = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(System.currentTimeMillis())
-        ClockWidgetUiComponentState(
-            currentTime = time,
-            showClock24 = true,
-            use24Hour = false,
-            clockAlignment = ClockAlignment.START,
-            clock24AnimationDuration = 2100,
-            eventSink = {}
-        )
-    }
-    
-    // Get lunar calendar state (simplified - can be enhanced later)
-    val lunarCalendarState = remember {
-        // Create mock lunar phase data for display
         val clock = kotlinx.datetime.Clock.System
         val now = clock.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
         
@@ -108,12 +93,12 @@ fun HomeScreenContent(
             dateTime = now
         )
         
-        LunarCalendarUiComponentState(
-            showLunarPhase = true,
-            showIlluminationPercent = true,
-            showUpcomingPhaseDetails = true,
+        LunarHomeWidgetState(
+            currentTime = time,
             lunarPhaseDetails = State.Success(mockLunarPhaseDetails),
-            upcomingLunarPhase = State.Success(mockUpcomingLunarPhase)
+            upcomingLunarPhase = State.Success(mockUpcomingLunarPhase),
+            showIlluminationPercent = true,
+            showUpcomingPhaseDetails = true
         )
     }
     
@@ -167,11 +152,10 @@ fun HomeScreenContent(
             ) {
                 VerticalSpacer(spacing = topPadding)
                 
-                DecoratedLunarCalendar(
-                    state = lunarCalendarState,
-                    onClick = onLunarCalendarClick ?: {},
+                LunarHomeWidget(
+                    state = lunarHomeWidgetState,
                     horizontalPadding = horizontalPadding,
-                    currentTime = clockState.currentTime
+                    onClick = onLunarCalendarClick ?: onClockClick
                 )
 
                 Box(
