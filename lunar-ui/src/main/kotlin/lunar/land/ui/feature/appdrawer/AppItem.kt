@@ -29,12 +29,22 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
+import lunar.land.ui.R
+
+/**
+ * Manrope font family matching TaskExecutorAgentScreen theme.
+ */
+private val manropeFontFamily = FontFamily(
+    Font(resId = R.font.manrope_variable, weight = FontWeight.Normal)
+)
 
 /**
  * Converts a Drawable to a Painter for use in Compose
@@ -133,116 +143,30 @@ fun AppItem(
         animationSpec = tween(300)
     )
     
-    // Use app colors optimized for pure black background - brighter and more vibrant
+    // Theme colors from TaskExecutorAgentScreen
+    val accentColor = Color(0xFF4DFF88)
+    val inputBackgroundColor = Color(0xFF1a1f1a)
+    val borderColor = Color(0xFF2a3a2a)
+    
+    // Use theme background colors with subtle app color tint
     val baseColor = appData.backgroundColor
-    val glowColor = appData.glowColor
-    
-    // Enhanced brightness and contrast for pure black background
-    // Much brighter colors to stand out beautifully on black
-    val topHighlightAlpha = if (isInteracting) 1f else 0.9f  // Maximum brightness
-    val highlightAlpha = if (isInteracting) 0.85f else 0.75f
-    val lightAlpha = if (isInteracting) 0.7f else 0.6f
-    val midAlpha = if (isInteracting) 0.55f else 0.45f
-    val accentAlpha = if (isInteracting) 0.4f else 0.3f
-    val bottomAlpha = if (isInteracting) 0.25f else 0.2f
-    val glowTintAlpha = if (isInteracting) 0.4f else 0.3f
-    
-    // Create vibrant gradient with strong contrast for pure black background
-    // Much brighter colors that pop on black - using lighter greys with color tints
-    val almostWhite = Color(0xFF6a6a6a)    // Brighter grey for top highlight
-    val veryLightGrey = Color(0xFF5a5a5a)   // Brighter light grey
-    val lightGrey = Color(0xFF4a4a4a)       // Brighter grey
-    val midGrey = Color(0xFF3a3a3a)         // Medium-bright grey
-    val darkGrey = Color(0xFF2a2a2a)       // Darker but still visible grey
-    val almostBlack = Color(0xFF1a1a1a)    // Dark but not pure black for bottom
-    
-    // Vibrant gradient that matches app's color theme
-    // Use more of the base color throughout for better harmony with content
-    val topHighlight = Color(
-        red = (baseColor.red * 0.7f + almostWhite.red * 0.3f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.7f + almostWhite.green * 0.3f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.7f + almostWhite.blue * 0.3f).coerceIn(0f, 1f),
-        alpha = topHighlightAlpha
-    )
-    val highlight = Color(
-        red = (baseColor.red * 0.75f + veryLightGrey.red * 0.25f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.75f + veryLightGrey.green * 0.25f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.75f + veryLightGrey.blue * 0.25f).coerceIn(0f, 1f),
-        alpha = highlightAlpha
-    )
-    val lightColor = Color(
-        red = (baseColor.red * 0.8f + lightGrey.red * 0.2f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.8f + lightGrey.green * 0.2f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.8f + lightGrey.blue * 0.2f).coerceIn(0f, 1f),
-        alpha = lightAlpha
-    )
-    val midColor = Color(
-        red = (baseColor.red * 0.85f + midGrey.red * 0.15f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.85f + midGrey.green * 0.15f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.85f + midGrey.blue * 0.15f).coerceIn(0f, 1f),
-        alpha = midAlpha
-    )
-    val darkColor = Color(
-        red = (baseColor.red * 0.75f + darkGrey.red * 0.25f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.75f + darkGrey.green * 0.25f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.75f + darkGrey.blue * 0.25f).coerceIn(0f, 1f),
-        alpha = accentAlpha
-    )
-    val bottomColor = Color(
-        red = (baseColor.red * 0.6f + almostBlack.red * 0.4f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.6f + almostBlack.green * 0.4f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.6f + almostBlack.blue * 0.4f).coerceIn(0f, 1f),
-        alpha = bottomAlpha
+    val baseBackground = Color(
+        red = (baseColor.red * 0.2f + inputBackgroundColor.red * 0.8f).coerceIn(0f, 1f),
+        green = (baseColor.green * 0.2f + inputBackgroundColor.green * 0.8f).coerceIn(0f, 1f),
+        blue = (baseColor.blue * 0.2f + inputBackgroundColor.blue * 0.8f).coerceIn(0f, 1f),
+        alpha = 1f
     )
     
-    // Enhanced glow tint - much more vibrant and visible on black
-    val glowTint = Color(
-        red = (glowColor.red * 0.9f + 0.15f).coerceIn(0f, 1f),
-        green = (glowColor.green * 0.9f + 0.15f).coerceIn(0f, 1f),
-        blue = (glowColor.blue * 0.9f + 0.15f).coerceIn(0f, 1f),
-        alpha = glowTintAlpha
-    )
-    
-    // Dramatic 3D gradient - very bright top, very dark bottom
-    // Creates strong upward lift perception
+    // Simple gradient matching TaskExecutorAgentScreen theme
     val gradientColors = listOf(
-        topHighlight,      // Almost white top - maximum brightness
-        highlight,         // Very light highlight
-        lightColor,         // Light
-        midColor,          // Medium
-        darkColor,         // Dark
-        glowTint,          // Glow for depth
-        bottomColor        // Almost black bottom - maximum darkness
+        baseBackground.copy(alpha = if (isInteracting) 0.9f else 0.8f),
+        baseBackground.copy(alpha = if (isInteracting) 0.7f else 0.6f)
     )
     
-    // Enhanced shadows for better depth on black background
-    val shadowElevation = when {
-        isHovered && !isPressed -> 12.dp
-        isPressed -> 6.dp
-        else -> 8.dp
-    }
+    // Theme matching corner radius
+    val cornerRadius = 16.dp
     
-    // Stronger glow intensity for beautiful glowing effect on black
-    val glowIntensity = when {
-        isHovered && !isPressed -> 20.dp
-        isPressed -> 12.dp
-        else -> 16.dp
-    }
-    
-    // Enhanced glow alpha - much more visible and beautiful on black
-    val glowAlpha by animateFloatAsState(
-        targetValue = when {
-            isHovered && !isPressed -> 0.8f
-            isPressed -> 0.6f
-            else -> 0.65f
-        },
-        animationSpec = tween(300)
-    )
-    
-    // Use larger corner radius for softer, less rectangular appearance
-    val cornerRadius = 24.dp
-    
-    // Outer Box for strong glow effect with multiple layers
+    // Outer Box matching TaskExecutorAgentScreen theme
     Box(
         modifier = modifier
             .then(
@@ -253,27 +177,6 @@ fun AppItem(
                 } else {
                     Modifier.fillMaxWidth()
                 }
-            )
-            // Strong outer glow layer - beautiful and vibrant on black
-            .shadow(
-                elevation = glowIntensity,
-                shape = RoundedCornerShape(cornerRadius),
-                ambientColor = glowColor.copy(alpha = glowAlpha * 0.6f),
-                spotColor = glowColor.copy(alpha = glowAlpha * 0.8f)
-            )
-            // Enhanced middle glow layer for depth and beauty
-            .shadow(
-                elevation = glowIntensity * 0.7f,
-                shape = RoundedCornerShape(cornerRadius),
-                ambientColor = glowColor.copy(alpha = glowAlpha * 0.4f),
-                spotColor = glowColor.copy(alpha = glowAlpha * 0.5f)
-            )
-            // Additional inner glow layer for extra depth
-            .shadow(
-                elevation = glowIntensity * 0.4f,
-                shape = RoundedCornerShape(cornerRadius),
-                ambientColor = glowColor.copy(alpha = glowAlpha * 0.3f),
-                spotColor = glowColor.copy(alpha = glowAlpha * 0.35f)
             )
     ) {
         // Inner Box for content with 3D effects
@@ -301,26 +204,17 @@ fun AppItem(
                     val rotationFactor = kotlin.math.abs(rotationX) / 90f
                     this.alpha = 1f - rotationFactor * 0.15f
                 }
-                // Enhanced shadow for better depth on black background
-                .shadow(
-                    elevation = shadowElevation,
-                    shape = RoundedCornerShape(cornerRadius),
-                    ambientColor = Color.Black.copy(alpha = if (isInteracting) 0.6f else 0.5f),
-                    spotColor = Color.Black.copy(alpha = if (isInteracting) 0.7f else 0.6f)
-                )
                 .clip(RoundedCornerShape(cornerRadius))
-                // Dramatic upward 3D gradient - very bright top, very dark bottom
+                // Theme matching gradient background
                 .background(
-                    brush = Brush.linearGradient(
-                        start = Offset(0f, 0f),      // Top - brightest (almost white)
-                        end = Offset(0f, 1200f),    // Bottom - darkest (almost black)
+                    brush = Brush.verticalGradient(
                         colors = gradientColors
                     )
                 )
-                // Enhanced top border highlight - brighter and more visible on black
+                // Thin border matching TaskExecutorAgentScreen theme
                 .border(
-                    width = if (isInteracting) 2.dp else 1.5.dp,
-                    color = Color(0xFF7a7a7a).copy(alpha = if (isInteracting) 0.9f else 0.75f),
+                    width = 1.dp,
+                    color = if (isInteracting) accentColor.copy(alpha = 0.3f) else borderColor,
                     shape = RoundedCornerShape(cornerRadius)
                 )
                 .clickable(
@@ -329,32 +223,6 @@ fun AppItem(
                     onClick = onClick
                 )
         ) {
-            // Enhanced top highlight - brighter and more beautiful on black
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .clip(RoundedCornerShape(cornerRadius))
-                    .background(
-                        brush = Brush.linearGradient(
-                            start = Offset(0f, 0f),
-                            end = Offset(0f, 50f),  // Slightly larger highlight area
-                            colors = listOf(
-                                Color.White.copy(alpha = if (isInteracting) 0.25f else 0.18f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-            )
-            // Inner Box with vibrant glow border - much more visible on black
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .border(
-                        width = if (isInteracting) 1.dp else 0.75.dp,
-                        color = glowColor.copy(alpha = if (isInteracting) 0.5f else 0.4f),
-                        shape = RoundedCornerShape(cornerRadius)
-                    )
-            )
             // Content with padding
             Box(
                 modifier = Modifier
@@ -380,15 +248,17 @@ fun AppItem(
                         Icon(
                             imageVector = appData.icon,
                             contentDescription = appData.name,
-                            tint = appData.textColor,
+                            tint = Color.White.copy(alpha = 0.9f), // White icon matching theme
                             modifier = Modifier.size(22.dp)
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = appData.name,
-                        color = appData.textColor, // Use app-specific text color for dark background
+                        color = Color.White.copy(alpha = 0.9f), // White text matching theme
                         style = typography.bodyMedium.copy(
+                            fontFamily = manropeFontFamily,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
                         ),
                         modifier = Modifier.weight(1f)
