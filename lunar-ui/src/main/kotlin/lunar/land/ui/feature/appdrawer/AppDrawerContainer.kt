@@ -9,11 +9,13 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 /**
- * Container for the app drawer with black background and centered layout.
+ * Modern container for the app drawer with vibrant gradient background.
  * 
  * @param modifier Modifier for styling and layout
  * @param content The app drawer content
@@ -26,7 +28,18 @@ fun AppDrawerContainer(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFFF5F7FA), // Soft light blue-gray
+                        Color(0xFFE8ECF1), // Lighter gray-blue
+                        Color(0xFFF0F4F8), // Very light blue
+                        Color(0xFFFFFFFF)  // Pure white
+                    ),
+                    start = Offset(0f, 0f),
+                    end = Offset(1000f, 1000f)
+                )
+            )
             .then(modifier),
         contentAlignment = Alignment.TopCenter
     ) {
@@ -34,7 +47,7 @@ fun AppDrawerContainer(
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 600.dp)
-                .padding(horizontal = 16.dp, vertical = 24.dp)
+                .padding(horizontal = 20.dp, vertical = 24.dp)
         ) {
             content()
         }

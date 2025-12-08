@@ -40,7 +40,7 @@ fun AppDrawerScreen(
                 paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
             )
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             
             // App list
             if (uiState.isLoading) {
@@ -48,8 +48,8 @@ fun AppDrawerScreen(
             } else {
                 StaggeredFlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    mainAxisSpacing = 12.dp,
-                    crossAxisSpacing = 12.dp
+                    mainAxisSpacing = 14.dp,
+                    crossAxisSpacing = 14.dp
                 ) {
                     uiState.filteredApps.forEach { appInfo ->
                         val appItemData = appInfo.toAppItemData()
@@ -66,23 +66,29 @@ fun AppDrawerScreen(
 
 /**
  * Converts AppInfo to AppItemData for use with AppItem composable.
- * Uses the actual app icon and generates colors from the app's color.
+ * Uses the actual app icon and generates modern, vibrant colors.
  */
 private fun AppInfo.toAppItemData(): AppItemData {
     val colorInt = color
     val color = Color(colorInt)
     
-    // Generate darker background color
+    // Create vibrant, light background color for modern look
+    // Make it lighter and more saturated for young audience
     val backgroundColor = Color(
-        red = (color.red * 0.3f).coerceIn(0f, 1f),
-        green = (color.green * 0.3f).coerceIn(0f, 1f),
-        blue = (color.blue * 0.3f).coerceIn(0f, 1f),
+        red = (color.red * 0.4f + 0.3f).coerceIn(0f, 1f),
+        green = (color.green * 0.4f + 0.3f).coerceIn(0f, 1f),
+        blue = (color.blue * 0.4f + 0.3f).coerceIn(0f, 1f),
         alpha = 1f
     )
     
-    // Use the app color for text and glow
-    val textColor = color
-    val glowColor = color.copy(alpha = 0.4f)
+    // Use vibrant, saturated color for text and glow
+    val textColor = Color(
+        red = (color.red * 0.7f + 0.1f).coerceIn(0f, 1f),
+        green = (color.green * 0.7f + 0.1f).coerceIn(0f, 1f),
+        blue = (color.blue * 0.7f + 0.1f).coerceIn(0f, 1f),
+        alpha = 0.9f
+    )
+    val glowColor = color.copy(alpha = 0.5f)
     
     return AppItemData(
         name = app.displayName,

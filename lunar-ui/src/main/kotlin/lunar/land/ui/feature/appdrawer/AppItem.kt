@@ -187,33 +187,29 @@ fun AppItem(
     // Use press state for touch interactions (works on both touch and pointer devices)
     val isInteracting = isPressed || isHovered
     
-    // Enhanced 3D transform animations with more pronounced effects
+    // Modern, subtle animations for smooth interactions
     val rotationX by animateFloatAsState(
         targetValue = when {
-            isHovered && !isPressed -> -4f  // More pronounced upward tilt on hover
-            isPressed -> -1f  // Slight tilt on press
-            else -> -1f  // Default slight upward tilt for 3D effect
+            isHovered && !isPressed -> -2f  // Subtle tilt for modern feel
+            isPressed -> 0f  // No tilt on press
+            else -> 0f  // Flat by default
         },
-        animationSpec = tween(200)
+        animationSpec = tween(250)
     )
     
     val rotationY by animateFloatAsState(
-        targetValue = when {
-            isHovered && !isPressed -> 1.5f  // Slight perspective rotation on hover
-            isPressed -> 0.5f  // Minimal perspective on press
-            else -> 0.5f  // Default slight perspective for depth
-        },
-        animationSpec = tween(200)
+        targetValue = 0f,  // No Y rotation for cleaner look
+        animationSpec = tween(250)
     )
     
-    // Enhanced translation for more pronounced 3D lift effect
+    // Smooth lift animation
     val translationY by animateFloatAsState(
         targetValue = when {
-            isHovered && !isPressed -> -8f  // More lift on hover
-            isPressed -> -2f  // Slight lift on press
-            else -> -1f  // Default slight lift for 3D depth
+            isHovered && !isPressed -> -6f  // Smooth lift on hover
+            isPressed -> -1f  // Minimal lift on press
+            else -> 0f  // No translation by default
         },
-        animationSpec = tween(200)
+        animationSpec = tween(250)
     )
     
     val translationZ by animateFloatAsState(
@@ -227,60 +223,55 @@ fun AppItem(
     
     val scale by animateFloatAsState(
         targetValue = when {
-            isHovered && !isPressed -> 1.03f  // Slight scale up on hover
-            isPressed -> 0.98f  // Slight scale down on press
+            isHovered && !isPressed -> 1.05f  // More pronounced scale for modern feel
+            isPressed -> 0.97f  // Slight scale down on press
             else -> 1f
         },
-        animationSpec = tween(200)
+        animationSpec = tween(250)
     )
     
-    // Enhanced gradient with multiple stops for better 3D depth effect
+    // Modern glassmorphism with light, vibrant colors
     val baseColor = appData.backgroundColor
-    val darkerColor = Color(
-        red = (baseColor.red * 0.7f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.7f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.7f).coerceIn(0f, 1f),
-        alpha = baseColor.alpha
+    // Create lighter, more vibrant gradient for modern look
+    val lightColor = Color(
+        red = (baseColor.red * 0.85f + 0.15f).coerceIn(0f, 1f),
+        green = (baseColor.green * 0.85f + 0.15f).coerceIn(0f, 1f),
+        blue = (baseColor.blue * 0.85f + 0.15f).coerceIn(0f, 1f),
+        alpha = 0.25f // Translucent for glassmorphism
     )
-    val darkestColor = Color(
-        red = (baseColor.red * 0.5f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.5f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.5f).coerceIn(0f, 1f),
-        alpha = baseColor.alpha
+    val midColor = Color(
+        red = (baseColor.red * 0.7f + 0.1f).coerceIn(0f, 1f),
+        green = (baseColor.green * 0.7f + 0.1f).coerceIn(0f, 1f),
+        blue = (baseColor.blue * 0.7f + 0.1f).coerceIn(0f, 1f),
+        alpha = 0.2f
+    )
+    val accentColor = Color(
+        red = (baseColor.red * 0.6f + 0.2f).coerceIn(0f, 1f),
+        green = (baseColor.green * 0.6f + 0.2f).coerceIn(0f, 1f),
+        blue = (baseColor.blue * 0.6f + 0.2f).coerceIn(0f, 1f),
+        alpha = 0.15f
     )
     
-    // Multi-stop gradient for 3D lighting effect
+    // Modern gradient with glassmorphism effect
     val gradientColors = listOf(
-        baseColor.copy(alpha = baseColor.alpha * 1.1f),  // Top highlight
-        baseColor,  // Main color
-        darkerColor,  // Mid shadow
-        darkestColor  // Bottom shadow
+        Color.White.copy(alpha = if (isInteracting) 0.4f else 0.3f), // Top highlight
+        lightColor,  // Main light color
+        midColor,    // Mid tone
+        accentColor  // Accent color
     )
     
-    // Enhanced shadow and glow with multiple layers for 3D depth
+    // Modern soft shadows for light theme
     val shadowElevation = when {
-        isHovered && !isPressed -> 16.dp
-        isPressed -> 6.dp
-        else -> 8.dp
+        isHovered && !isPressed -> 12.dp
+        isPressed -> 4.dp
+        else -> 6.dp
     }
     
     val glowIntensity = when {
-        isHovered && !isPressed -> 80.dp
-        isPressed -> 45.dp
-        else -> 55.dp
+        isHovered && !isPressed -> 24.dp
+        isPressed -> 12.dp
+        else -> 16.dp
     }
-    
-    val innerShadowElevation = when {
-        isHovered && !isPressed -> 4.dp
-        isPressed -> 2.dp
-        else -> 3.dp
-    }
-    
-    // Animated border alpha based on interaction state
-    val borderAlpha by animateFloatAsState(
-        targetValue = if (isInteracting) 1.0f else 0.7f,
-        animationSpec = tween(200)
-    )
     
     // Outer Box for glow effect
     Box(
@@ -296,9 +287,9 @@ fun AppItem(
             )
             .shadow(
                 elevation = glowIntensity,
-                shape = RoundedCornerShape(8.dp),
-                ambientColor = appData.glowColor.copy(alpha = 0.7f),
-                spotColor = appData.glowColor.copy(alpha = 0.9f)
+                shape = RoundedCornerShape(16.dp),
+                ambientColor = appData.glowColor.copy(alpha = 0.3f),
+                spotColor = appData.glowColor.copy(alpha = 0.4f)
             )
     ) {
         // Inner Box for content with 3D effects
@@ -326,29 +317,15 @@ fun AppItem(
                     val rotationFactor = kotlin.math.abs(rotationX) / 90f
                     this.alpha = 1f - rotationFactor * 0.15f
                 }
-                // Outer glow shadow layer
-                .shadow(
-                    elevation = glowIntensity,
-                    shape = RoundedCornerShape(8.dp),
-                    ambientColor = appData.glowColor.copy(alpha = 0.6f),
-                    spotColor = appData.glowColor.copy(alpha = 0.8f)
-                )
-                // Main depth shadow
+                // Modern soft shadow for glassmorphism
                 .shadow(
                     elevation = shadowElevation,
-                    shape = RoundedCornerShape(8.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.6f),
-                    spotColor = Color.Black.copy(alpha = 0.5f)
+                    shape = RoundedCornerShape(16.dp),
+                    ambientColor = Color.Black.copy(alpha = 0.08f),
+                    spotColor = Color.Black.copy(alpha = 0.12f)
                 )
-                // Inner shadow for depth
-                .shadow(
-                    elevation = innerShadowElevation,
-                    shape = RoundedCornerShape(8.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.3f),
-                    spotColor = Color.Black.copy(alpha = 0.2f)
-                )
-                .clip(RoundedCornerShape(8.dp))
-                // Enhanced multi-stop gradient for 3D lighting
+                .clip(RoundedCornerShape(16.dp))
+                // Modern glassmorphism background with gradient
                 .background(
                     brush = Brush.linearGradient(
                         start = Offset(0f, 0f),
@@ -356,17 +333,18 @@ fun AppItem(
                         colors = gradientColors
                     )
                 )
+                // Subtle border for modern look
                 .border(
-                    width = 1.5.dp,
-                    color = appData.glowColor.copy(alpha = borderAlpha),
-                    shape = RoundedCornerShape(8.dp)
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = if (isInteracting) 0.5f else 0.3f),
+                    shape = RoundedCornerShape(16.dp)
                 )
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = onClick
                 )
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 18.dp, vertical = 14.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -394,9 +372,9 @@ fun AppItem(
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = appData.name,
-                    color = appData.textColor,
+                    color = Color(0xFF1A1A1A), // Dark text for light theme
                     fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f)
                 )
             }
