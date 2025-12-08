@@ -50,73 +50,71 @@ fun SphereVisualizer(
         TaskStatus.STOPPED -> LunarTheme.AccentColor // Default accent for idle
     }
     
-    // Animation state: only animate when running, not on idle/stopped
-    val shouldAnimate = isTaskRunning || taskStatus == TaskStatus.RUNNING
+    // Animation state: only animate when task is actively running
+    // Keep sphere stable (no animations) when idle, success, or error
+    val shouldAnimate = isTaskRunning && taskStatus == TaskStatus.RUNNING
     
-    val infiniteTransition = rememberInfiniteTransition(label = "sphere_pulse")
+    // Infinite transition for animations - only active when task is running
+    val infiniteTransition = rememberInfiniteTransition(label = "sphere_animations")
+    
+    // Scale animation - only animate when task is running, stable when idle
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
         targetValue = if (shouldAnimate) 1.02f else 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(4000, easing = FastOutSlowInEasing),
+            animation = if (shouldAnimate) {
+                tween(4000, easing = FastOutSlowInEasing)
+            } else {
+                // When idle, use very long duration so it effectively stays static
+                tween(Int.MAX_VALUE, easing = LinearEasing)
+            },
             repeatMode = RepeatMode.Reverse
         ),
         label = "scale"
     )
     
-    // Rotating dots animation
+    // Type 1: Rotating dots animation (continuous rotation around sphere)
+    // Only animate when task is running, stable when idle
     val dotRotation by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = 360f,
+        targetValue = if (shouldAnimate) 360f else 0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(8000, easing = LinearEasing),
+            animation = if (shouldAnimate) {
+                tween(8000, easing = LinearEasing)
+            } else {
+                // When idle, use very long duration so it effectively stays static
+                tween(Int.MAX_VALUE, easing = LinearEasing)
+            },
             repeatMode = RepeatMode.Restart
         ),
         label = "dot_rotation"
     )
 
-    // Ripple animation state - trigger on click or when task starts running
-    var rippleTrigger by remember { mutableStateOf(0) }
-    var isAnimating by remember { mutableStateOf(false) }
-    
-    // Auto-start ripple when task starts running
-    LaunchedEffect(isTaskRunning, taskStatus) {
-        if (isTaskRunning && taskStatus == TaskStatus.RUNNING) {
-            rippleTrigger++
-            isAnimating = true
-        } else if (taskStatus == TaskStatus.SUCCESS || taskStatus == TaskStatus.ERROR) {
-            // Stop animation on success/error
-            isAnimating = false
-        }
-    }
-    
-    val rippleProgress by animateFloatAsState(
-        targetValue = if (isAnimating && shouldAnimate) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = 1200,
-            easing = FastOutSlowInEasing
+    // Type 2: Pulsing ripple animation (shrinking out in pulse effect)
+    // Continuous pulse while task is running, stable when idle
+    val rippleProgress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = if (shouldAnimate) 1f else 0f,
+        animationSpec = infiniteRepeatable(
+            animation = if (shouldAnimate) {
+                tween(
+                    durationMillis = 1200,
+                    easing = FastOutSlowInEasing
+                )
+            } else {
+                // When idle, use very long duration so it effectively stays static
+                tween(Int.MAX_VALUE, easing = LinearEasing)
+            },
+            repeatMode = RepeatMode.Restart
         ),
-        label = "ripple_progress"
+        label = "ripple_pulse"
     )
-    
-    // Reset animation state after completion (only if not running)
-    LaunchedEffect(rippleProgress, isAnimating, shouldAnimate) {
-        if (rippleProgress >= 1f && isAnimating && !shouldAnimate) {
-            delay(50) // Small delay to ensure animation fully completes
-            isAnimating = false
-        }
-    }
 
     Box(
         modifier = modifier
             .then(
                 if (onSphereClick != null && !isTaskRunning) {
                     Modifier.clickable {
-                        // Trigger ripple animation on click (only if not running)
-                        rippleTrigger++
-                        if (shouldAnimate) {
-                            isAnimating = true
-                        }
                         onSphereClick()
                     }
                 } else {

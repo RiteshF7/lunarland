@@ -1,6 +1,8 @@
 ﻿package lunar.land.ui.core.ui.effects
 
+import android.content.Context
 import android.content.pm.LauncherApps
+import android.os.Build
 import android.os.UserHandle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -17,7 +19,13 @@ fun PackageActionListener(
     val updatedOnAction by rememberUpdatedState(newValue = onAction)
 
     DisposableEffect(key1 = context, key2 = updatedOnAction) {
-        val launcherApps = context.getSystemService(LauncherApps::class.java)
+        @Suppress("NewApi") // LauncherApps requires API 21+, getSystemService(Class) requires API 23+, but we check at runtime
+        val launcherApps = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            context.getSystemService(LauncherApps::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? LauncherApps
+        } ?: return@DisposableEffect onDispose {}
         val callback = object : LauncherApps.Callback() {
             override fun onPackageRemoved(packageName: String?, user: UserHandle?) {
                 packageName ?: return

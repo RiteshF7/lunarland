@@ -98,7 +98,12 @@ object DroidrunDownloader {
                 return Error(Errno.TYPE, Errno.ERRNO_FAILED.code, msg)
             }
             
-            val contentLength = connection.contentLengthLong
+            val contentLength = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                connection.contentLengthLong
+            } else {
+                @Suppress("DEPRECATION")
+                connection.contentLength.toLong()
+            }
             Logger.logInfo(LOG_TAG, "Content length: $contentLength bytes")
             
             connection.inputStream.use { inputStream ->

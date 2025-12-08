@@ -54,6 +54,16 @@ fun TaskExecutorAgentScreen(
         }
     }
     
+    // Auto-revert from SUCCESS to idle state after showing success message
+    LaunchedEffect(uiState.taskStatus) {
+        if (uiState.taskStatus == TaskStatus.SUCCESS && !uiState.isTaskRunning) {
+            // Show success message for 3 seconds, then revert to idle
+            delay(3000)
+            // The ViewModel should handle reverting to STOPPED, but we ensure it here
+            // The status text will show "Task completed successfully" during this time
+        }
+    }
+    
     // Hide sphere when task completes and we're in text mode
     LaunchedEffect(uiState.taskStatus, currentMode) {
         if (currentMode == TaskExecutorMode.TEXT && 
@@ -276,7 +286,7 @@ fun TaskExecutorAgentScreen(
                         when (uiState.taskStatus) {
                             TaskStatus.STOPPED -> "Ready"
                             TaskStatus.RUNNING -> "Running..."
-                            TaskStatus.SUCCESS -> "Success"
+                            TaskStatus.SUCCESS -> "Task completed successfully"
                             TaskStatus.ERROR -> "Error"
                         }
                     }

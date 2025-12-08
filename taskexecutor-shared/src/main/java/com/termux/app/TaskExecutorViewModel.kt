@@ -630,6 +630,13 @@ class TaskExecutorViewModel(
                 updateTaskState(null, 0, false, TaskStatus.SUCCESS)
                 updateStatus("Task completed successfully")
                 shouldUpdate = true
+                // Auto-revert to idle state after 3 seconds
+                mainHandler.postDelayed({
+                    if (_uiState.value.taskStatus == TaskStatus.SUCCESS && !_uiState.value.isTaskRunning) {
+                        updateTaskState(null, 0, false, TaskStatus.STOPPED)
+                        updateStatus("Ready")
+                    }
+                }, 3000)
             }
             isFailed -> {
                 Logger.logInfo(LOG_TAG, "Task failed detected: $currentTaskCommand")
@@ -644,8 +651,15 @@ class TaskExecutorViewModel(
                     Logger.logInfo(LOG_TAG, "Command prompt returned, marking task as complete: $currentTaskCommand")
                     currentTaskCommand = null
                     updateTaskState(null, 0, false, TaskStatus.SUCCESS)
-                    updateStatus("Task completed")
+                    updateStatus("Task completed successfully")
                     shouldUpdate = true
+                    // Auto-revert to idle state after 3 seconds
+                    mainHandler.postDelayed({
+                        if (_uiState.value.taskStatus == TaskStatus.SUCCESS && !_uiState.value.isTaskRunning) {
+                            updateTaskState(null, 0, false, TaskStatus.STOPPED)
+                            updateStatus("Ready")
+                        }
+                    }, 3000)
                 }
             }
             else -> {
