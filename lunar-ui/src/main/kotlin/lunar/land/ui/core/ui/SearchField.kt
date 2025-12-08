@@ -13,7 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -38,34 +37,31 @@ fun SearchField(
     onQueryChange: (String) -> Unit,
     paddingValues: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
 ) {
-    val colorScheme = MaterialTheme.colorScheme
-    val isDarkMode = isSystemInDarkTheme()
     val cornerRadius = 24.dp
     
-    // Adjust alpha values for dark mode for better visibility
-    val surfaceAlpha = if (isDarkMode) 0.3f else 0.5f
-    val surfaceVariantAlpha1 = if (isDarkMode) 0.25f else 0.35f
-    val primaryContainerAlpha = if (isDarkMode) 0.15f else 0.2f
-    val surfaceVariantAlpha2 = if (isDarkMode) 0.2f else 0.25f
+    // Dark background optimized colors - light greys with subtle tints
+    val lightGrey = Color(0xFF2a2a2a)
+    val midGrey = Color(0xFF1f1f1f)
+    val darkGrey = Color(0xFF181818)
     
-    // Create theme-aware gradient background similar to app items (works for both light and dark)
+    // Create gradient background optimized for dark black background
     val gradientColors = listOf(
-        colorScheme.surface.copy(alpha = surfaceAlpha),
-        colorScheme.surfaceVariant.copy(alpha = surfaceVariantAlpha1),
-        colorScheme.primaryContainer.copy(alpha = primaryContainerAlpha),
-        colorScheme.surfaceVariant.copy(alpha = surfaceVariantAlpha2)
+        lightGrey.copy(alpha = 0.4f),
+        midGrey.copy(alpha = 0.35f),
+        darkGrey.copy(alpha = 0.3f),
+        midGrey.copy(alpha = 0.25f)
     )
     
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(paddingValues = paddingValues)
-            // Soft shadow matching app drawer style (adjusted for dark mode)
+            // Soft shadow for dark background
             .shadow(
                 elevation = 6.dp,
                 shape = RoundedCornerShape(cornerRadius),
-                ambientColor = colorScheme.scrim.copy(alpha = if (isDarkMode) 0.15f else 0.05f),
-                spotColor = colorScheme.scrim.copy(alpha = if (isDarkMode) 0.2f else 0.08f)
+                ambientColor = Color.Black.copy(alpha = 0.3f),
+                spotColor = Color.Black.copy(alpha = 0.4f)
             )
             .clip(RoundedCornerShape(cornerRadius))
             // Theme-aware gradient background
@@ -76,10 +72,10 @@ fun SearchField(
                     colors = gradientColors
                 )
             )
-            // Subtle border using theme outline color
+            // Subtle border for dark background - light grey
             .border(
                 width = 1.dp,
-                color = colorScheme.outlineVariant.copy(alpha = 0.25f),
+                color = Color(0xFF3a3a3a).copy(alpha = 0.4f),
                 shape = RoundedCornerShape(cornerRadius)
             )
     ) {
@@ -93,7 +89,7 @@ fun SearchField(
                 Text(
                     text = placeholder,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.onSurfaceVariant
+                    color = Color(0xFFaaaaaa) // Light grey for dark background
                 )
             },
             shape = RoundedCornerShape(cornerRadius),
@@ -109,17 +105,17 @@ fun SearchField(
                 focusedIndicatorColor = Color.Transparent,
                 disabledIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
-                focusedTextColor = colorScheme.onSurface,
-                unfocusedTextColor = colorScheme.onSurface,
-                focusedPlaceholderColor = colorScheme.onSurfaceVariant,
-                unfocusedPlaceholderColor = colorScheme.onSurfaceVariant
+                focusedTextColor = Color(0xFFe0e0e0), // Light text for dark background
+                unfocusedTextColor = Color(0xFFe0e0e0),
+                focusedPlaceholderColor = Color(0xFFaaaaaa),
+                unfocusedPlaceholderColor = Color(0xFFaaaaaa)
             ),
             textStyle = MaterialTheme.typography.bodyMedium,
             leadingIcon = {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_search),
                     contentDescription = stringResource(id = R.string.search),
-                    tint = colorScheme.onSurfaceVariant
+                    tint = Color(0xFFaaaaaa) // Light grey for dark background
                 )
             },
             trailingIcon = {
@@ -133,7 +129,7 @@ fun SearchField(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_close),
                             contentDescription = stringResource(id = R.string.clear),
-                            tint = colorScheme.onSurfaceVariant
+                            tint = Color(0xFFaaaaaa) // Light grey for dark background
                         )
                     }
                 }

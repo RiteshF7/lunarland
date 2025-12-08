@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 /**
@@ -25,7 +26,11 @@ fun AppDrawerContainer(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = MaterialTheme.colorScheme
+    // Dark black background with subtle grey gradients
+    val darkBlack = Color(0xFF0a0a0a)  // Very dark black
+    val darkGrey1 = Color(0xFF1a1a1a)  // Slightly lighter grey
+    val darkGrey2 = Color(0xFF151515)  // Medium dark grey
+    val darkGrey3 = Color(0xFF0f0f0f)  // Dark grey
     
     Box(
         modifier = Modifier
@@ -33,11 +38,10 @@ fun AppDrawerContainer(
             .background(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        colorScheme.surface,              // Theme surface center
-                        colorScheme.surfaceVariant.copy(alpha = 0.3f),  // Theme surface variant
-                        colorScheme.primaryContainer.copy(alpha = 0.15f), // Theme primary container
-                        colorScheme.secondaryContainer.copy(alpha = 0.1f), // Theme secondary container
-                        colorScheme.background           // Theme background
+                        darkGrey1,      // Slightly lighter center
+                        darkGrey2,      // Medium grey
+                        darkGrey3,      // Dark grey
+                        darkBlack       // Very dark black edges
                     ),
                     center = Offset(500f, 300f),
                     radius = 1200f

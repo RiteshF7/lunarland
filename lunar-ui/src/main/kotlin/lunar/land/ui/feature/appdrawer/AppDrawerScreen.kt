@@ -66,34 +66,37 @@ fun AppDrawerScreen(
 
 /**
  * Converts AppInfo to AppItemData for use with AppItem composable.
- * Uses the actual app icon and generates modern, vibrant, light colors with strong glow.
+ * Generates dark-themed colors optimized for black background.
  */
 private fun AppInfo.toAppItemData(): AppItemData {
     val colorInt = color
     val color = Color(colorInt)
     
-    // Create vibrant, very light background color for modern 3D look
-    // Much lighter and more saturated for a glowing, vibrant appearance
+    // Create dark grey background with subtle color tint for dark theme
+    // Blend app color with dark greys for pleasing appearance on black
+    val baseGrey = 0.15f  // Base dark grey
+    val colorTint = 0.1f  // Subtle color tint
+    
     val backgroundColor = Color(
-        red = (color.red * 0.25f + 0.55f).coerceIn(0f, 1f),
-        green = (color.green * 0.25f + 0.55f).coerceIn(0f, 1f),
-        blue = (color.blue * 0.25f + 0.55f).coerceIn(0f, 1f),
+        red = (color.red * colorTint + baseGrey).coerceIn(0f, 1f),
+        green = (color.green * colorTint + baseGrey).coerceIn(0f, 1f),
+        blue = (color.blue * colorTint + baseGrey).coerceIn(0f, 1f),
         alpha = 1f
     )
     
-    // Use vibrant, saturated color for text
+    // Light text color with subtle color tint for readability on dark background
     val textColor = Color(
-        red = (color.red * 0.8f + 0.15f).coerceIn(0f, 1f),
-        green = (color.green * 0.8f + 0.15f).coerceIn(0f, 1f),
-        blue = (color.blue * 0.8f + 0.15f).coerceIn(0f, 1f),
+        red = (color.red * 0.3f + 0.85f).coerceIn(0f, 1f),
+        green = (color.green * 0.3f + 0.85f).coerceIn(0f, 1f),
+        blue = (color.blue * 0.3f + 0.85f).coerceIn(0f, 1f),
         alpha = 0.95f
     )
     
-    // Stronger, more vibrant glow color for 3D effect
+    // Glow color with more saturation for visibility on dark background
     val glowColor = Color(
-        red = (color.red * 0.9f + 0.1f).coerceIn(0f, 1f),
-        green = (color.green * 0.9f + 0.1f).coerceIn(0f, 1f),
-        blue = (color.blue * 0.9f + 0.1f).coerceIn(0f, 1f),
+        red = (color.red * 0.6f + 0.3f).coerceIn(0f, 1f),
+        green = (color.green * 0.6f + 0.3f).coerceIn(0f, 1f),
+        blue = (color.blue * 0.6f + 0.3f).coerceIn(0f, 1f),
         alpha = 1f
     )
     
