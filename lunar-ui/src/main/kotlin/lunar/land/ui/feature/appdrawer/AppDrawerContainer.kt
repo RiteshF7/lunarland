@@ -29,15 +29,16 @@ fun AppDrawerContainer(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                brush = Brush.linearGradient(
+                brush = Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFFF5F7FA), // Soft light blue-gray
-                        Color(0xFFE8ECF1), // Lighter gray-blue
-                        Color(0xFFF0F4F8), // Very light blue
-                        Color(0xFFFFFFFF)  // Pure white
+                        Color(0xFFFFFFFF),  // Pure white center
+                        Color(0xFFF8FAFC),  // Very light gray-white
+                        Color(0xFFF1F5F9),  // Light blue-gray
+                        Color(0xFFE8F0F8),  // Soft blue-white
+                        Color(0xFFE0EBF5)   // Light blue
                     ),
-                    start = Offset(0f, 0f),
-                    end = Offset(1000f, 1000f)
+                    center = Offset(500f, 300f),
+                    radius = 1200f
                 )
             )
             .then(modifier),

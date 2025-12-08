@@ -180,100 +180,122 @@ fun AppItem(
     val isPressed by interactionSource.collectIsPressedAsState()
     val density = LocalDensity.current
     
-    // Enhanced 3D perspective - closer camera for more pronounced 3D effect
-    // Using 600dp instead of 1000dp for stronger perspective
-    val cameraDistance = with(density) { 600.dp.toPx() }
+    // Enhanced 3D perspective - much closer camera for dramatic 3D effect
+    // Using 400dp for very strong perspective and depth
+    val cameraDistance = with(density) { 400.dp.toPx() }
     
     // Use press state for touch interactions (works on both touch and pointer devices)
     val isInteracting = isPressed || isHovered
     
-    // Modern, subtle animations for smooth interactions
+    // Strong 3D animations for dramatic effect
     val rotationX by animateFloatAsState(
         targetValue = when {
-            isHovered && !isPressed -> -2f  // Subtle tilt for modern feel
-            isPressed -> 0f  // No tilt on press
+            isHovered && !isPressed -> -8f  // Strong tilt for 3D card effect
+            isPressed -> -2f  // Slight tilt on press
             else -> 0f  // Flat by default
         },
-        animationSpec = tween(250)
+        animationSpec = tween(300)
     )
     
     val rotationY by animateFloatAsState(
-        targetValue = 0f,  // No Y rotation for cleaner look
-        animationSpec = tween(250)
+        targetValue = when {
+            isHovered && !isPressed -> 2f  // Slight Y rotation for depth
+            isPressed -> 0f
+            else -> 0f
+        },
+        animationSpec = tween(300)
     )
     
-    // Smooth lift animation
+    // Strong lift animation for 3D pop-out effect
     val translationY by animateFloatAsState(
         targetValue = when {
-            isHovered && !isPressed -> -6f  // Smooth lift on hover
-            isPressed -> -1f  // Minimal lift on press
+            isHovered && !isPressed -> -12f  // Strong lift on hover
+            isPressed -> -3f  // Lift on press
             else -> 0f  // No translation by default
         },
-        animationSpec = tween(250)
+        animationSpec = tween(300)
     )
     
     val translationZ by animateFloatAsState(
         targetValue = when {
-            isHovered && !isPressed -> 8f  // Move forward in 3D space
-            isPressed -> 2f  // Slight forward movement
+            isHovered && !isPressed -> 20f  // Strong forward movement in 3D space
+            isPressed -> 5f  // Forward movement on press
             else -> 0f  // Default no Z translation
-        },
-        animationSpec = tween(200)
-    )
-    
-    val scale by animateFloatAsState(
-        targetValue = when {
-            isHovered && !isPressed -> 1.05f  // More pronounced scale for modern feel
-            isPressed -> 0.97f  // Slight scale down on press
-            else -> 1f
         },
         animationSpec = tween(250)
     )
     
-    // Modern glassmorphism with light, vibrant colors
+    val scale by animateFloatAsState(
+        targetValue = when {
+            isHovered && !isPressed -> 1.08f  // Strong scale for 3D pop
+            isPressed -> 0.95f  // Scale down on press
+            else -> 1f
+        },
+        animationSpec = tween(300)
+    )
+    
+    // Vibrant 3D gradient with strong highlights and depth
     val baseColor = appData.backgroundColor
-    // Create lighter, more vibrant gradient for modern look
+    val glowColor = appData.glowColor
+    
+    // Create vibrant, light gradient for 3D glowing effect
+    val topHighlight = Color.White.copy(alpha = if (isInteracting) 0.6f else 0.4f)
     val lightColor = Color(
-        red = (baseColor.red * 0.85f + 0.15f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.85f + 0.15f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.85f + 0.15f).coerceIn(0f, 1f),
-        alpha = 0.25f // Translucent for glassmorphism
+        red = (baseColor.red * 0.9f + 0.1f).coerceIn(0f, 1f),
+        green = (baseColor.green * 0.9f + 0.1f).coerceIn(0f, 1f),
+        blue = (baseColor.blue * 0.9f + 0.1f).coerceIn(0f, 1f),
+        alpha = if (isInteracting) 0.5f else 0.35f
     )
     val midColor = Color(
-        red = (baseColor.red * 0.7f + 0.1f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.7f + 0.1f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.7f + 0.1f).coerceIn(0f, 1f),
-        alpha = 0.2f
+        red = (baseColor.red * 0.8f + 0.15f).coerceIn(0f, 1f),
+        green = (baseColor.green * 0.8f + 0.15f).coerceIn(0f, 1f),
+        blue = (baseColor.blue * 0.8f + 0.15f).coerceIn(0f, 1f),
+        alpha = if (isInteracting) 0.4f else 0.3f
     )
     val accentColor = Color(
-        red = (baseColor.red * 0.6f + 0.2f).coerceIn(0f, 1f),
-        green = (baseColor.green * 0.6f + 0.2f).coerceIn(0f, 1f),
-        blue = (baseColor.blue * 0.6f + 0.2f).coerceIn(0f, 1f),
-        alpha = 0.15f
+        red = (baseColor.red * 0.7f + 0.25f).coerceIn(0f, 1f),
+        green = (baseColor.green * 0.7f + 0.25f).coerceIn(0f, 1f),
+        blue = (baseColor.blue * 0.7f + 0.25f).coerceIn(0f, 1f),
+        alpha = if (isInteracting) 0.3f else 0.25f
     )
     
-    // Modern gradient with glassmorphism effect
+    // Add glow color to gradient for vibrant 3D effect
+    val glowTint = glowColor.copy(alpha = if (isInteracting) 0.25f else 0.15f)
+    
+    // Strong 3D gradient with glow integration
     val gradientColors = listOf(
-        Color.White.copy(alpha = if (isInteracting) 0.4f else 0.3f), // Top highlight
-        lightColor,  // Main light color
-        midColor,    // Mid tone
-        accentColor  // Accent color
+        topHighlight,  // Bright top highlight
+        lightColor,    // Main light color
+        midColor,      // Mid tone
+        glowTint,      // Glow tint for vibrant effect
+        accentColor    // Accent color
     )
     
-    // Modern soft shadows for light theme
+    // Strong shadows for 3D depth effect
     val shadowElevation = when {
-        isHovered && !isPressed -> 12.dp
-        isPressed -> 4.dp
-        else -> 6.dp
+        isHovered && !isPressed -> 20.dp
+        isPressed -> 8.dp
+        else -> 10.dp
     }
     
+    // Strong glow intensity for glowing 3D effect
     val glowIntensity = when {
-        isHovered && !isPressed -> 24.dp
-        isPressed -> 12.dp
-        else -> 16.dp
+        isHovered && !isPressed -> 32.dp
+        isPressed -> 16.dp
+        else -> 20.dp
     }
     
-    // Outer Box for glow effect
+    // Animated glow alpha for pulsing effect
+    val glowAlpha by animateFloatAsState(
+        targetValue = when {
+            isHovered && !isPressed -> 0.7f
+            isPressed -> 0.5f
+            else -> 0.4f
+        },
+        animationSpec = tween(300)
+    )
+    
+    // Outer Box for strong glow effect with multiple layers
     Box(
         modifier = modifier
             .then(
@@ -285,11 +307,26 @@ fun AppItem(
                     Modifier.fillMaxWidth()
                 }
             )
+            // Outer glow layer - strongest
             .shadow(
                 elevation = glowIntensity,
-                shape = RoundedCornerShape(16.dp),
-                ambientColor = appData.glowColor.copy(alpha = 0.3f),
-                spotColor = appData.glowColor.copy(alpha = 0.4f)
+                shape = RoundedCornerShape(18.dp),
+                ambientColor = glowColor.copy(alpha = glowAlpha * 0.8f),
+                spotColor = glowColor.copy(alpha = glowAlpha)
+            )
+            // Middle glow layer for depth
+            .shadow(
+                elevation = glowIntensity * 0.6f,
+                shape = RoundedCornerShape(18.dp),
+                ambientColor = glowColor.copy(alpha = glowAlpha * 0.5f),
+                spotColor = glowColor.copy(alpha = glowAlpha * 0.6f)
+            )
+            // Inner glow layer
+            .shadow(
+                elevation = glowIntensity * 0.3f,
+                shape = RoundedCornerShape(18.dp),
+                ambientColor = glowColor.copy(alpha = glowAlpha * 0.3f),
+                spotColor = glowColor.copy(alpha = glowAlpha * 0.4f)
             )
     ) {
         // Inner Box for content with 3D effects
@@ -317,66 +354,82 @@ fun AppItem(
                     val rotationFactor = kotlin.math.abs(rotationX) / 90f
                     this.alpha = 1f - rotationFactor * 0.15f
                 }
-                // Modern soft shadow for glassmorphism
+                // Strong 3D shadow for depth
                 .shadow(
                     elevation = shadowElevation,
-                    shape = RoundedCornerShape(16.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.08f),
-                    spotColor = Color.Black.copy(alpha = 0.12f)
+                    shape = RoundedCornerShape(18.dp),
+                    ambientColor = Color.Black.copy(alpha = if (isInteracting) 0.15f else 0.1f),
+                    spotColor = Color.Black.copy(alpha = if (isInteracting) 0.2f else 0.15f)
                 )
-                .clip(RoundedCornerShape(16.dp))
-                // Modern glassmorphism background with gradient
+                .clip(RoundedCornerShape(18.dp))
+                // Vibrant 3D gradient background with glow
                 .background(
                     brush = Brush.linearGradient(
                         start = Offset(0f, 0f),
-                        end = Offset(0f, 1000f),
+                        end = Offset(0f, 1200f),
                         colors = gradientColors
                     )
                 )
-                // Subtle border for modern look
+                // Glowing border for 3D effect (outer white border)
                 .border(
-                    width = 1.dp,
-                    color = Color.White.copy(alpha = if (isInteracting) 0.5f else 0.3f),
-                    shape = RoundedCornerShape(16.dp)
+                    width = if (isInteracting) 2.dp else 1.5.dp,
+                    color = Color.White.copy(alpha = if (isInteracting) 0.7f else 0.5f),
+                    shape = RoundedCornerShape(18.dp)
                 )
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = onClick
                 )
-                .padding(horizontal = 18.dp, vertical = 14.dp)
         ) {
-            Row(
+            // Inner Box with glow border overlay
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight(),
-                horizontalArrangement = Arrangement.Start,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Use Drawable icon if available, otherwise fall back to ImageVector
-                val drawablePainter = rememberDrawablePainter(appData.iconDrawable)
-                if (drawablePainter != null) {
-                    Image(
-                        painter = drawablePainter,
-                        contentDescription = appData.name,
-                        modifier = Modifier.size(22.dp)
+                    .matchParentSize()
+                    .border(
+                        width = 0.5.dp,
+                        color = glowColor.copy(alpha = if (isInteracting) 0.4f else 0.25f),
+                        shape = RoundedCornerShape(18.dp)
                     )
-                } else if (appData.icon != null) {
-                    Icon(
-                        imageVector = appData.icon,
-                        contentDescription = appData.name,
-                        tint = appData.textColor,
-                        modifier = Modifier.size(22.dp)
+            )
+            // Content with padding
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 18.dp, vertical = 14.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    horizontalArrangement = Arrangement.Start,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Use Drawable icon if available, otherwise fall back to ImageVector
+                    val drawablePainter = rememberDrawablePainter(appData.iconDrawable)
+                    if (drawablePainter != null) {
+                        Image(
+                            painter = drawablePainter,
+                            contentDescription = appData.name,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    } else if (appData.icon != null) {
+                        Icon(
+                            imageVector = appData.icon,
+                            contentDescription = appData.name,
+                            tint = appData.textColor,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = appData.name,
+                        color = Color(0xFF2A2A2A), // Slightly lighter dark text for better contrast
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold, // Bolder for 3D look
+                        modifier = Modifier.weight(1f)
                     )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = appData.name,
-                    color = Color(0xFF1A1A1A), // Dark text for light theme
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(1f)
-                )
             }
         }
     }

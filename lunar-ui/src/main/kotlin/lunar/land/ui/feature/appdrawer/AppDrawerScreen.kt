@@ -66,29 +66,36 @@ fun AppDrawerScreen(
 
 /**
  * Converts AppInfo to AppItemData for use with AppItem composable.
- * Uses the actual app icon and generates modern, vibrant colors.
+ * Uses the actual app icon and generates modern, vibrant, light colors with strong glow.
  */
 private fun AppInfo.toAppItemData(): AppItemData {
     val colorInt = color
     val color = Color(colorInt)
     
-    // Create vibrant, light background color for modern look
-    // Make it lighter and more saturated for young audience
+    // Create vibrant, very light background color for modern 3D look
+    // Much lighter and more saturated for a glowing, vibrant appearance
     val backgroundColor = Color(
-        red = (color.red * 0.4f + 0.3f).coerceIn(0f, 1f),
-        green = (color.green * 0.4f + 0.3f).coerceIn(0f, 1f),
-        blue = (color.blue * 0.4f + 0.3f).coerceIn(0f, 1f),
+        red = (color.red * 0.25f + 0.55f).coerceIn(0f, 1f),
+        green = (color.green * 0.25f + 0.55f).coerceIn(0f, 1f),
+        blue = (color.blue * 0.25f + 0.55f).coerceIn(0f, 1f),
         alpha = 1f
     )
     
-    // Use vibrant, saturated color for text and glow
+    // Use vibrant, saturated color for text
     val textColor = Color(
-        red = (color.red * 0.7f + 0.1f).coerceIn(0f, 1f),
-        green = (color.green * 0.7f + 0.1f).coerceIn(0f, 1f),
-        blue = (color.blue * 0.7f + 0.1f).coerceIn(0f, 1f),
-        alpha = 0.9f
+        red = (color.red * 0.8f + 0.15f).coerceIn(0f, 1f),
+        green = (color.green * 0.8f + 0.15f).coerceIn(0f, 1f),
+        blue = (color.blue * 0.8f + 0.15f).coerceIn(0f, 1f),
+        alpha = 0.95f
     )
-    val glowColor = color.copy(alpha = 0.5f)
+    
+    // Stronger, more vibrant glow color for 3D effect
+    val glowColor = Color(
+        red = (color.red * 0.9f + 0.1f).coerceIn(0f, 1f),
+        green = (color.green * 0.9f + 0.1f).coerceIn(0f, 1f),
+        blue = (color.blue * 0.9f + 0.1f).coerceIn(0f, 1f),
+        alpha = 1f
+    )
     
     return AppItemData(
         name = app.displayName,
