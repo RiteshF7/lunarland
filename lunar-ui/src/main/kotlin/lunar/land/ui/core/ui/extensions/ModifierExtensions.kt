@@ -78,3 +78,55 @@ inline fun Modifier.onSwipeUp(
     )
 }
 
+inline fun Modifier.onSwipeRight(
+    enabled: Boolean = true,
+    crossinline action: () -> Unit
+) = composed {
+    val velocityThreshold = 600f
+    var xStart = 0f
+    var xDrag = 0f
+
+    this then Modifier.draggable(
+        enabled = enabled,
+        orientation = Orientation.Horizontal,
+        onDragStarted = {
+            xStart = it.x
+            xDrag = xStart
+        },
+        state = rememberDraggableState { delta ->
+            xDrag += delta
+        },
+        onDragStopped = { velocity ->
+            if (xStart < xDrag && velocity > velocityThreshold) {
+                action()
+            }
+        }
+    )
+}
+
+inline fun Modifier.onSwipeLeft(
+    enabled: Boolean = true,
+    crossinline action: () -> Unit
+) = composed {
+    val velocityThreshold = 600f
+    var xStart = 0f
+    var xDrag = 0f
+
+    this then Modifier.draggable(
+        enabled = enabled,
+        orientation = Orientation.Horizontal,
+        onDragStarted = {
+            xStart = it.x
+            xDrag = xStart
+        },
+        state = rememberDraggableState { delta ->
+            xDrag += delta
+        },
+        onDragStopped = { velocity ->
+            if (xStart > xDrag && velocity < -velocityThreshold) {
+                action()
+            }
+        }
+    )
+}
+

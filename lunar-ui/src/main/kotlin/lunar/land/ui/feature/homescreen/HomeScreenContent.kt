@@ -4,9 +4,11 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.graphics.Color as GraphicsColor
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.LayoutDirection
@@ -159,16 +162,22 @@ fun HomeScreenContent(
                     isAppDrawerOpen = true
                 }
         ) {
-            // App Drawer overlay
+            // App Drawer overlay with black background to hide home screen
             AnimatedVisibility(
                 visible = isAppDrawerOpen,
                 enter = fadeIn(),
                 exit = fadeOut(),
                 modifier = Modifier.fillMaxSize()
             ) {
+                // Handle back press to close app drawer instead of exiting app
+                BackHandler(enabled = isAppDrawerOpen) {
+                    isAppDrawerOpen = false
+                }
+                
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .background(Color.Black) // Fully opaque black background
                         .onSwipeDown {
                             isAppDrawerOpen = false
                         }
@@ -177,10 +186,15 @@ fun HomeScreenContent(
                 }
             }
             
-            // Home Screen Content
-            Column(
-                verticalArrangement = Arrangement.Bottom
+            // Home Screen Content - hide when app drawer is open
+            AnimatedVisibility(
+                visible = !isAppDrawerOpen,
+                enter = fadeIn(),
+                exit = fadeOut()
             ) {
+                Column(
+                    verticalArrangement = Arrangement.Bottom
+                ) {
                 VerticalSpacer(spacing = topPadding)
                 
                 LunarHomeWidget(
@@ -215,6 +229,7 @@ fun HomeScreenContent(
                     paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
                 )
                 VerticalSpacer(spacing = bottomPadding)
+                }
             }
         }
     }

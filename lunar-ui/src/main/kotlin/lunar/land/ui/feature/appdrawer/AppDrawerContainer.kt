@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 /**
- * Modern container for the app drawer with black background (alpha 0.78).
+ * Modern container for the app drawer with fully opaque black background.
  * 
  * @param modifier Modifier for styling and layout
  * @param content The app drawer content
@@ -23,8 +23,8 @@ fun AppDrawerContainer(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    // Black background with alpha 0.78
-    val blackBackground = Color.Black.copy(alpha = 0.98f)
+    // Fully opaque black background
+    val blackBackground = Color.Black
     
     Box(
         modifier = Modifier

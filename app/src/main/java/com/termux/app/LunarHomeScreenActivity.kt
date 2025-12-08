@@ -8,11 +8,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
-import com.termux.app.taskexecutor.ui.TaskExecutorScreen
 import lunar.land.ui.core.homescreen.HomeScreenPager
 import lunar.land.ui.core.model.Theme
 import lunar.land.ui.core.theme.LauncherTheme
 import lunar.land.ui.core.ui.providers.ProvideSystemUiController
+import lunar.land.ui.feature.taskexecagent.TaskExecutorAgentScreen
 
 class LunarHomeScreenActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,8 +26,8 @@ class LunarHomeScreenActivity : ComponentActivity() {
                     HomeScreenPager(
                         modifier = Modifier.fillMaxSize(),
                         taskExecutorContent = {
-                            TaskExecutorScreen(
-                                modifier = Modifier.fillMaxWidth()
+                            TaskExecutorAgentScreen(
+                                modifier = Modifier.fillMaxSize()
                             )
                         }
                     )
