@@ -351,13 +351,13 @@ fun AppItem(
                 Icon(
                     imageVector = appData.icon,
                     contentDescription = appData.name,
-                    tint = Color.White,
+                    tint = appData.textColor,
                     modifier = Modifier.size(22.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = appData.name,
-                    color = Color.White,
+                    color = appData.textColor,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f)
