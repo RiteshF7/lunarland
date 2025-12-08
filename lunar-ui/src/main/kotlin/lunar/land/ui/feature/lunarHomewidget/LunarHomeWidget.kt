@@ -30,17 +30,23 @@ fun LunarHomeWidget(
     contentColor: Color = Color.White,
     onClick: (() -> Unit)? = null
 ) {
+    // We calculate sizes dynamically (using density and relationships to the clock size) instead of hardcoding
+    // to ensure the widget scales proportionally across different device screen densities and user preference settings.
+    // For example, accessibility font scaling, custom density buckets, or changing the base clock radius for different form factors.
+    // This approach maintains design consistency and legibility no matter the device, and makes it easier to adjust sizing in one place.
     val density = LocalDensity.current
-    
-    // Calculate text size based on clock size (40% smaller than current)
+
+    // Size of the analog clock (based on a "radius" constant from core model)
     val clockSizePx = DEFAULT_CLOCK_24_ANALOG_RADIUS * 2
+
+    // Spacing and proportional sizing, responsive to density
     val spacingPx = with(density) { 4.dp.toPx() }
     val digitHeightPx = clockSizePx * 3 + spacingPx * 2
     val textSize = with(density) { (digitHeightPx * 0.18f).toSp() }
     val supportingTextSize = with(density) { (digitHeightPx * 0.15f).toSp() }
-    
-    // Calculate moon icon size
-    val moonSize = with(density) { (digitHeightPx * 0.9f).toDp() }
+
+    // The moon icon should always take up ~180% of the "digit" column height, responsive to density (2x previous)
+    val moonSize = with(density ) { (digitHeightPx * 1.8f).toDp() }
 
     Row(
         modifier = modifier
