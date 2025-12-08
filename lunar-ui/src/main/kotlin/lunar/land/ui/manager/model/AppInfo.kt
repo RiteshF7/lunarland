@@ -7,11 +7,12 @@ import lunar.land.ui.core.model.app.App
 
 /**
  * Complete app information including icon and color.
+ * Icon can be null when loaded from cache (icons are loaded asynchronously).
  */
 @Immutable
 data class AppInfo(
     val app: App,
-    val icon: Drawable,
+    val icon: Drawable?,
     val color: Int
 ) {
     companion object {
