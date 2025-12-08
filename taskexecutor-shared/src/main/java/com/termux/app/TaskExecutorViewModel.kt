@@ -220,58 +220,52 @@ class TaskExecutorViewModel(
                 val adbSetupCommand = """
                     export TMPDIR="${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"
                     mkdir -p "${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"
-                    export ANDROID_SERIAL="127.0.0.1:5558"
                     # Kill and restart ADB server
                     echo "Restarting ADB server..."
                     adb kill-server 2>&1 || true
                     sleep 0.5
                     adb start-server 2>&1 || true
                     sleep 1
-                    # Enable TCP/IP mode on port 5558
+                    # Enable TCP/IP mode on port 5558 (try to use any available device)
                     echo "Enabling ADB TCP/IP mode on port 5558..."
-                    adb tcpip 5558 2>&1 || {
-                        echo "⚠ Failed to enable TCP/IP mode, trying alternative method..."
-                        # Try with USB device first if available
-                        USB_DEVICE=$(adb devices | grep -v "List" | grep "device" | head -1 | awk '{print ${'$'}1}')
-                        if [ -n "${'$'}USB_DEVICE" ]; then
-                            adb -s ${'$'}USB_DEVICE tcpip 5558 2>&1 || true
-                        fi
-                    }
-                    sleep 1
-                    # Connect ADB to localhost with retries
-                    MAX_RETRIES=3
-                    RETRY_COUNT=0
-                    CONNECTED=false
-                    while [ ${'$'}RETRY_COUNT -lt ${'$'}MAX_RETRIES ] && [ "${'$'}CONNECTED" = "false" ]; do
-                        echo "Connecting ADB (attempt ${'$'}((RETRY_COUNT + 1))/${'$'}MAX_RETRIES)..."
-                        adb disconnect 127.0.0.1:5558 2>&1 || true
-                        sleep 0.5
-                        adb connect 127.0.0.1:5558 2>&1
-                        sleep 1.5
-                        if adb devices 2>&1 | grep -q "127.0.0.1:5558.*device"; then
-                            CONNECTED=true
-                            echo "✓ ADB connected to localhost:5558"
-                            break
-                        else
-                            RETRY_COUNT=${'$'}((RETRY_COUNT + 1))
-                            if [ ${'$'}RETRY_COUNT -lt ${'$'}MAX_RETRIES ]; then
-                                sleep 1
-                            fi
-                        fi
-                    done
-                    if [ "${'$'}CONNECTED" = "false" ]; then
-                        echo "⚠ ADB connection to localhost:5558 not ready (will retry on command execution)"
-                        echo "Current ADB devices:"
-                        adb devices 2>&1
+                    # First, check for any available devices (USB or TCP/IP)
+                    USB_DEVICE=$(adb devices | grep -v "List" | grep "device" | head -1 | awk '{print ${'$'}1}')
+                    if [ -n "${'$'}USB_DEVICE" ]; then
+                        echo "Found device: ${'$'}USB_DEVICE, enabling TCP/IP mode..."
+                        adb -s ${'$'}USB_DEVICE tcpip 5558 2>&1 || {
+                            # If that fails, try without specifying device
+                            adb tcpip 5558 2>&1 || true
+                        }
+                    else
+                        # No device found, try to enable TCP/IP anyway (might work if already connected)
+                        adb tcpip 5558 2>&1 || true
                     fi
+                    sleep 1
+                    # Try to connect ADB to localhost (but don't require it)
+                    echo "Attempting to connect ADB to localhost:5558..."
+                    adb disconnect 127.0.0.1:5558 2>&1 || true
+                    sleep 0.5
+                    adb connect 127.0.0.1:5558 2>&1 || true
+                    sleep 1.5
+                    # Check if connection succeeded
+                    if adb devices 2>&1 | grep -q "127.0.0.1:5558.*device"; then
+                        echo "✓ ADB connected to localhost:5558"
+                    else
+                        echo "⚠ ADB localhost connection not established (will use available devices)"
+                    fi
+                    echo "Current ADB devices:"
+                    adb devices 2>&1
+                    # Setup TMPDIR in .bashrc (but NOT ANDROID_SERIAL - we'll set it only when needed)
                     if ! grep -q "export TMPDIR" "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null; then
                         echo 'export TMPDIR="${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"' >> "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc"
                         mkdir -p "${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"
                     fi
-                    if ! grep -q "export ANDROID_SERIAL" "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null; then
-                        echo 'export ANDROID_SERIAL="127.0.0.1:5558"' >> "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc"
+                    # Remove ANDROID_SERIAL from .bashrc if it exists (to allow all devices to show)
+                    if grep -q "export ANDROID_SERIAL" "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null; then
+                        sed -i '/export ANDROID_SERIAL/d' "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc"
+                        echo "Removed global ANDROID_SERIAL to allow all devices to be visible"
                     fi
-                    echo "ADB environment configured"
+                    echo "ADB environment configured (all devices visible)"
                 """.trimIndent()
                 
                 mainHandler.post {
