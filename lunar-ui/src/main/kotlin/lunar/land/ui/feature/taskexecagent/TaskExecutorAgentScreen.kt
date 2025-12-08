@@ -49,10 +49,23 @@ fun TaskExecutorAgentScreen(
 ) {
     var isTextMode by remember { mutableStateOf(false) }
     var isTextInputFocused by remember { mutableStateOf(false) }
-    // Background colors matching the HTML design
-    val backgroundColor = Color(0xFF0a0f0a) // #0a0f0a
-    val gradientStartColor = Color(0xFF0e1a10) // #0e1a10
-    val accentColor = Color(0xFF4DFF88)
+    
+    // Use theme colors and make them darker
+    val colorScheme = MaterialTheme.colorScheme
+    
+    // Create darker background by blending theme background with black
+    val backgroundColor = Color(
+        red = (colorScheme.background.red * 0.3f + 0.05f).coerceIn(0f, 1f),
+        green = (colorScheme.background.green * 0.3f + 0.05f).coerceIn(0f, 1f),
+        blue = (colorScheme.background.blue * 0.3f + 0.05f).coerceIn(0f, 1f)
+    )
+    
+    // Create darker gradient start color
+    val gradientStartColor = Color(
+        red = (colorScheme.surface.red * 0.4f + 0.08f).coerceIn(0f, 1f),
+        green = (colorScheme.surface.green * 0.4f + 0.08f).coerceIn(0f, 1f),
+        blue = (colorScheme.surface.blue * 0.4f + 0.08f).coerceIn(0f, 1f)
+    )
     
     var size by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
     

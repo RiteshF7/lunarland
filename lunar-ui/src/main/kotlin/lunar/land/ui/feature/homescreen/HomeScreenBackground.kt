@@ -22,12 +22,15 @@ fun HomeScreenBackground(
 ) {
     var size by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
     
-    val gradientBrush = remember(size) {
+    val backgroundColor = HomeScreenTheme.backgroundColor()
+    val gradientStartColor = HomeScreenTheme.gradientStartColor()
+    
+    val gradientBrush = remember(size, backgroundColor, gradientStartColor) {
         if (size.width > 0 && size.height > 0) {
             Brush.radialGradient(
                 colors = listOf(
-                    HomeScreenTheme.gradientStartColor,
-                    HomeScreenTheme.backgroundColor
+                    gradientStartColor,
+                    backgroundColor
                 ),
                 center = Offset(size.width / 2, size.height / 2),
                 radius = kotlin.math.max(size.width, size.height) * 0.6f
@@ -35,8 +38,8 @@ fun HomeScreenBackground(
         } else {
             Brush.radialGradient(
                 colors = listOf(
-                    HomeScreenTheme.gradientStartColor,
-                    HomeScreenTheme.backgroundColor
+                    gradientStartColor,
+                    backgroundColor
                 ),
                 center = Offset.Zero,
                 radius = 2000f
@@ -47,7 +50,7 @@ fun HomeScreenBackground(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(HomeScreenTheme.backgroundColor)
+            .background(backgroundColor)
     ) {
         // Radial gradient overlay - centered
         Box(
