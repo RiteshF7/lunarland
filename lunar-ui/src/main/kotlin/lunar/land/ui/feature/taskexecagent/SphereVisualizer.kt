@@ -331,33 +331,33 @@ fun SphereVisualizer(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            if (isListening) {
+            if (isTaskRunning && onStopTask != null) {
+                // Stop button inside sphere when task is running
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(
+                            color = Color(0xFF, 0x33, 0x33).copy(alpha = 0.95f),
+                            shape = CircleShape
+                        )
+                        .clickable(
+                            onClick = onStopTask,
+                            enabled = true
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_close),
+                        contentDescription = "Stop Task",
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            } else if (isListening) {
                 LoadingIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
                 StatusText(text = "Listening...")
-            }
-        }
-        
-        // Stop button overlay when task is running
-        if (isTaskRunning && onStopTask != null) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp)
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(
-                        color = Color(0xFF, 0x33, 0x33).copy(alpha = 0.9f)
-                    )
-                    .clickable(onClick = onStopTask),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_close),
-                    contentDescription = "Stop Task",
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
             }
         }
     }

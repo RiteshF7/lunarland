@@ -530,18 +530,41 @@ class TaskExecutorViewModel(
     fun stopCurrentTask() {
         if (terminalSession != null && !sessionFinished && currentTaskCommand != null) {
             try {
-                // Send Ctrl+C to stop the current task
-                terminalSession!!.write("\u0003") // Ctrl+C character
-                Logger.logInfo(LOG_TAG, "Stopped task: $currentTaskCommand")
+                Logger.logInfo(LOG_TAG, "Stopping task: $currentTaskCommand")
                 
-                // Update state
+                // Send Ctrl+C multiple times to ensure the command is interrupted
+                // This is important for droidrun which may be in a subprocess
+                terminalSession!!.write("\u0003") // First Ctrl+C
+                Thread.sleep(100)
+                terminalSession!!.write("\u0003") // Second Ctrl+C (in case first didn't work)
+                Thread.sleep(100)
+                
+                // Also try sending Enter to confirm cancellation if needed
+                terminalSession!!.write("\n")
+                
+                Logger.logInfo(LOG_TAG, "Sent stop signals to terminal")
+                
+                // Update state immediately
                 currentTaskCommand = null
                 updateTaskState(null, 0, false, TaskStatus.STOPPED)
                 updateStatus("Task stopped")
+                updateNotification()
+                
+                // Clear output after a brief delay to show the stop message
+                Thread {
+                    Thread.sleep(500)
+                    mainHandler.post {
+                        if (_uiState.value.taskStatus == TaskStatus.STOPPED) {
+                            updateOutput("Task stopped by user\n")
+                        }
+                    }
+                }.start()
             } catch (e: Exception) {
                 Logger.logStackTraceWithMessage(LOG_TAG, "Error stopping task", e)
                 updateStatus("Error stopping task: ${e.message}")
             }
+        } else {
+            Logger.logWarn(LOG_TAG, "Cannot stop task: terminalSession=${terminalSession != null}, sessionFinished=$sessionFinished, currentTaskCommand=$currentTaskCommand")
         }
     }
     

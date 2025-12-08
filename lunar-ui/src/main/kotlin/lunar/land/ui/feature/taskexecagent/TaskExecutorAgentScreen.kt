@@ -198,7 +198,8 @@ fun TaskExecutorAgentScreen(
                     )
                     
                     // Voice input gesture handler (only in voice mode and when not running)
-                    if (currentMode == TaskExecutorMode.VOICE) {
+                    // Don't add gesture handler when task is running to allow stop button to work
+                    if (currentMode == TaskExecutorMode.VOICE && !uiState.isTaskRunning) {
                         Box(
                             modifier = Modifier
                                 .size(200.dp)
