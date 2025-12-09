@@ -567,6 +567,7 @@ class TaskExecutorViewModel(
             Logger.logInfo(LOG_TAG, "Dispatching command: $command")
             
             // Use state manager to transition to running state
+            // State manager will handle transition from SUCCESS/ERROR/IDLE to RUNNING
             val stateResult = stateManager.transitionToRunning(command)
             when (stateResult) {
                 is TaskExecutorStateManager.StateTransitionResult.Success -> {
@@ -600,16 +601,10 @@ class TaskExecutorViewModel(
             
             // Simplified command: only set ANDROID_SERIAL and run droidrun
             // ADB setup should already be done by prepareDroidrunEnvironment()
+            // Only connect if no device is connected (simple check)
             val droidrunCommand = """
                 export ANDROID_SERIAL="127.0.0.1:5558"
-                # Quick verification that ADB is connected
-                if ! adb devices 2>&1 | grep -q "127.0.0.1:5558.*device"; then
-                    echo "⚠ ADB not connected, attempting quick reconnect..."
-                    adb connect 127.0.0.1:5558 2>&1 || true
-                    sleep 1
-                fi
-                # Run droidrun
-                echo "Running droidrun: $command"
+                adb devices 2>&1 | grep -q "127.0.0.1:5558.*device" || adb connect 127.0.0.1:5558 2>&1 || true
                 droidrun run "$command"
             """.trimIndent()
             
@@ -742,50 +737,68 @@ class TaskExecutorViewModel(
         }
         
         val outputLower = output.lowercase()
-        Logger.logDebug(LOG_TAG, "updateTaskProgress: checking output for task: ${stateManager.getCurrentTask()}")
+        val elapsed = System.currentTimeMillis() - taskStartTime
         
+        Logger.logDebug(LOG_TAG, "updateTaskProgress: checking output for task: ${stateManager.getCurrentTask()}, elapsed: ${elapsed}ms")
+        
+        // Only use explicit completion patterns from droidrun - be very strict
         val completionPatterns = listOf(
-            "goal achieved", "goal succeeded", "task completed",
-            "successfully completed", "task marked as complete",
-            "complete(success=true", "complete(success = true",
-            "code execution successful"
+            "goal achieved", 
+            "goal succeeded", 
+            "task completed successfully",
+            "successfully completed",
+            "task marked as complete",
+            "complete(success=true",
+            "complete(success = true",
+            "code execution successful",
+            "task execution completed"
         )
         
         val failurePatterns = listOf(
-            "goal failed", "task failed",
-            "complete(success=false", "complete(success = false"
+            "goal failed", 
+            "task failed",
+            "complete(success=false", 
+            "complete(success = false",
+            "execution failed"
         )
         
-        val isCompleted = completionPatterns.any { outputLower.contains(it) }
-        val isFailed = failurePatterns.any { outputLower.contains(it) }
+        // Check for explicit completion/failure patterns in the output
+        val isCompleted = completionPatterns.any { pattern -> 
+            outputLower.contains(pattern) && elapsed > 2000 // Must have run for at least 2 seconds
+        }
+        val isFailed = failurePatterns.any { pattern -> 
+            outputLower.contains(pattern) && elapsed > 2000
+        }
         
-        val lastLines = output.lines().takeLast(3).joinToString("\n").lowercase()
-        val promptReturned = lastLines.matches(Regex(".*[\\$>]#\\s*$")) ||
-                (lastLines.contains("$") && !lastLines.contains("droidrun run"))
+        // Check if droidrun is still running - if we see droidrun activity, task is still running
+        val hasDroidrunActivity = outputLower.contains("droidrun") || 
+                                  outputLower.contains("running droidrun") ||
+                                  outputLower.contains("executing") ||
+                                  outputLower.contains("processing")
+        
+        // Get last few lines for prompt detection (only as fallback, very strict)
+        val lastLines = output.lines().takeLast(10).joinToString("\n")
+        val lastLinesLower = lastLines.lowercase()
         
         when {
+            // Explicit completion pattern found
             isCompleted -> {
-                Logger.logInfo(LOG_TAG, "Task completed detected: ${stateManager.getCurrentTask()}")
-                val result = stateManager.transitionToSuccess()
-                if (result is TaskExecutorStateManager.StateTransitionResult.Success) {
-                    currentTaskCommand = null
-                    updateTaskState(null, 0, false, result.status)
-                    _uiState.update { it.copy(agentStateMessage = result.message) }
-                    updateStatus(result.message)
-                    updateNotification()
-                    // Auto-revert to idle state after 3 seconds
-                    mainHandler.postDelayed({
-                        if (_uiState.value.taskStatus == TaskStatus.SUCCESS && !_uiState.value.isTaskRunning) {
-                            val idleResult = stateManager.transitionToIdle()
-                            if (idleResult is TaskExecutorStateManager.StateTransitionResult.Success) {
-                                updateTaskState(null, 0, false, idleResult.status)
-                                _uiState.update { it.copy(agentStateMessage = idleResult.message) }
-                                updateStatus(idleResult.message)
-                            }
-                        }
-                    }, 3000)
+                // Double-check: ensure no recent droidrun activity
+                if (!hasDroidrunActivity || elapsed > 10000) {
+                    Logger.logInfo(LOG_TAG, "Task completed detected via explicit pattern: ${stateManager.getCurrentTask()}")
+                    val result = stateManager.transitionToSuccess()
+                    if (result is TaskExecutorStateManager.StateTransitionResult.Success) {
+                        currentTaskCommand = null
+                        updateTaskState(null, 0, false, result.status)
+                        _uiState.update { it.copy(agentStateMessage = result.message) }
+                        updateStatus(result.message)
+                        updateNotification()
+                    }
+                } else {
+                    Logger.logDebug(LOG_TAG, "Completion pattern found but droidrun still active, keeping RUNNING state")
                 }
             }
+            // Explicit failure pattern found
             isFailed -> {
                 Logger.logInfo(LOG_TAG, "Task failed detected: ${stateManager.getCurrentTask()}")
                 val result = stateManager.transitionToError()
@@ -797,35 +810,12 @@ class TaskExecutorViewModel(
                     updateNotification()
                 }
             }
-            promptReturned && !outputLower.contains("droidrun run") -> {
-                val elapsed = System.currentTimeMillis() - taskStartTime
-                if (elapsed > 2000) {
-                    Logger.logInfo(LOG_TAG, "Command prompt returned, marking task as complete: ${stateManager.getCurrentTask()}")
-                    val result = stateManager.transitionToSuccess()
-                    if (result is TaskExecutorStateManager.StateTransitionResult.Success) {
-                        currentTaskCommand = null
-                        updateTaskState(null, 0, false, result.status)
-                        _uiState.update { it.copy(agentStateMessage = result.message) }
-                        updateStatus(result.message)
-                        updateNotification()
-                        // Auto-revert to idle state after 3 seconds
-                        mainHandler.postDelayed({
-                            if (_uiState.value.taskStatus == TaskStatus.SUCCESS && !_uiState.value.isTaskRunning) {
-                                val idleResult = stateManager.transitionToIdle()
-                                if (idleResult is TaskExecutorStateManager.StateTransitionResult.Success) {
-                                    updateTaskState(null, 0, false, idleResult.status)
-                                    _uiState.update { it.copy(agentStateMessage = idleResult.message) }
-                                    updateStatus(idleResult.message)
-                                }
-                            }
-                        }, 3000)
-                    }
-                }
-            }
-            // Task is still running - ensure state is RUNNING
+            // Task is still running - keep RUNNING state
             else -> {
+                // Always ensure state is RUNNING if we're here
                 val currentState = _uiState.value
-                if (!currentState.isTaskRunning || currentState.taskStatus != TaskStatus.RUNNING) {
+                if (currentState.taskStatus != TaskStatus.RUNNING || !currentState.isTaskRunning) {
+                    Logger.logDebug(LOG_TAG, "Ensuring state is RUNNING (task still active)")
                     val runningResult = stateManager.transitionToRunning(stateManager.getCurrentTask() ?: "")
                     if (runningResult is TaskExecutorStateManager.StateTransitionResult.Success) {
                         updateTaskState(

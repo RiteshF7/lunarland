@@ -44,36 +44,7 @@ fun TaskExecutorAgentScreen(
     val uiState by viewModel.uiState.collectAsState()
     var currentMode by remember { mutableStateOf(TaskExecutorMode.VOICE) }
     var isTextInputFocused by remember { mutableStateOf(false) }
-    var showSphereAfterExecute by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    
-    // Show sphere when task starts running (even in text mode)
-    LaunchedEffect(uiState.isTaskRunning) {
-        if (uiState.isTaskRunning) {
-            showSphereAfterExecute = true
-        }
-    }
-    
-    // Auto-revert from SUCCESS to idle state after showing success message
-    LaunchedEffect(uiState.taskStatus) {
-        if (uiState.taskStatus == TaskStatus.SUCCESS && !uiState.isTaskRunning) {
-            // Show success message for 3 seconds, then revert to idle
-            delay(3000)
-            // The ViewModel should handle reverting to STOPPED, but we ensure it here
-            // The status text will show "Task completed successfully" during this time
-        }
-    }
-    
-    // Hide sphere when task completes and we're in text mode
-    LaunchedEffect(uiState.taskStatus, currentMode) {
-        if (currentMode == TaskExecutorMode.TEXT && 
-            (uiState.taskStatus == TaskStatus.SUCCESS || uiState.taskStatus == TaskStatus.ERROR || uiState.taskStatus == TaskStatus.STOPPED) &&
-            !uiState.isTaskRunning) {
-            // Delay hiding to show completion state briefly
-            delay(2000)
-            showSphereAfterExecute = false
-        }
-    }
     
     // Voice input handler
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -159,25 +130,20 @@ fun TaskExecutorAgentScreen(
                 )
             }
 
-            // Main Content Area
-            Box(
+            // Main Content Area - Always show sphere
+            Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                // Show sphere if: in voice mode OR task is running OR just executed in text mode
-                val shouldShowSphere = currentMode == TaskExecutorMode.VOICE || 
-                                      uiState.isTaskRunning || 
-                                      showSphereAfterExecute
-                
-                if (currentMode == TaskExecutorMode.TEXT && !shouldShowSphere) {
-                    // Text mode: Show text input when not running
+                // Show text input above sphere in text mode (only when not running)
+                if (currentMode == TaskExecutorMode.TEXT && !uiState.isTaskRunning) {
                     TextInputPanel(
                         onExecute = { command ->
-                            if (command.isNotBlank() && uiState.taskStatus != TaskStatus.RUNNING) {
+                            if (command.isNotBlank() && !uiState.isTaskRunning) {
                                 viewModel.dispatchCommand(command)
-                                showSphereAfterExecute = true
                             }
                         },
                         onFocusChange = { focused ->
@@ -186,9 +152,15 @@ fun TaskExecutorAgentScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 8.dp)
+                            .padding(bottom = 24.dp)
                     )
-                } else {
-                    // Show sphere (voice mode or after executing in text mode)
+                }
+                
+                // Always show sphere
+                Box(
+                    modifier = Modifier.size(200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     SphereVisualizer(
                         modifier = Modifier.size(200.dp),
                         isListening = isListening,
@@ -209,7 +181,7 @@ fun TaskExecutorAgentScreen(
                     )
                     
                     // Voice input gesture handler (only in voice mode and when not running)
-                    // Don't add gesture handler when task is running to allow stop button to work
+                    // Require press and hold to prevent accidental touches
                     if (currentMode == TaskExecutorMode.VOICE && !uiState.isTaskRunning) {
                         Box(
                             modifier = Modifier
@@ -217,14 +189,26 @@ fun TaskExecutorAgentScreen(
                                 .pointerInput(uiState.taskStatus) {
                                     if (uiState.taskStatus != TaskStatus.RUNNING) {
                                         detectTapGestures(
-                                            onPress = { _ ->
+                                            onPress = { offset ->
                                                 scope.launch {
-                                                    // Start voice input when pressed
-                                                    voiceInputHandler.startListening()
-                                                    // Wait for release
-                                                    tryAwaitRelease()
-                                                    // Stop voice input when released
-                                                    voiceInputHandler.stopListening()
+                                                    val pressTime = System.currentTimeMillis()
+                                                    
+                                                    // Wait for minimum press duration (150ms) to prevent accidental touches
+                                                    kotlinx.coroutines.delay(150)
+                                                    
+                                                    // Check if still pressed after delay
+                                                    try {
+                                                        // If still pressed, start listening
+                                                        voiceInputHandler.startListening()
+                                                        
+                                                        // Wait for release
+                                                        tryAwaitRelease()
+                                                        
+                                                        // Stop listening when released
+                                                        voiceInputHandler.stopListening()
+                                                    } catch (e: Exception) {
+                                                        // Press was released too quickly, ignore
+                                                    }
                                                 }
                                             }
                                         )
@@ -232,29 +216,25 @@ fun TaskExecutorAgentScreen(
                                 }
                         )
                     }
-                    
-                    // Show transcription text if available
-                    if (transcriptionText.isNotEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 220.dp)
-                        ) {
-                            Text(
-                                text = transcriptionText,
-                                style = LunarTheme.Typography.BodyMedium,
-                                color = LunarTheme.TextPrimary,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(
-                                        color = LunarTheme.InactiveBackgroundColor.copy(alpha = 0.6f),
-                                        shape = RoundedCornerShape(LunarTheme.CornerRadius.Medium)
-                                    )
-                                    .padding(12.dp)
+                }
+                
+                // Show transcription text if available
+                if (transcriptionText.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = transcriptionText,
+                        style = LunarTheme.Typography.BodyMedium,
+                        color = LunarTheme.TextPrimary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp)
+                            .background(
+                                color = LunarTheme.InactiveBackgroundColor.copy(alpha = 0.6f),
+                                shape = RoundedCornerShape(LunarTheme.CornerRadius.Medium)
                             )
-                        }
-                    }
+                            .padding(12.dp)
+                    )
                 }
             }
 

@@ -180,16 +180,17 @@ fun HomeScreenContent(
                 }
         ) {
             // App Drawer overlay with black background to hide home screen
+            // Slides in from bottom on swipe up, slides out to bottom on swipe down
             AnimatedVisibility(
                 visible = isAppDrawerOpen,
                 enter = fadeIn(animationSpec = tween(200)) + 
                         slideInVertically(
-                            initialOffsetY = { it },
+                            initialOffsetY = { it }, // Slide from bottom (positive offset)
                             animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
                         ),
                 exit = fadeOut(animationSpec = tween(150)) + 
                        slideOutVertically(
-                           targetOffsetY = { it },
+                           targetOffsetY = { it }, // Slide out to bottom (positive offset)
                            animationSpec = tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)
                        ),
                 modifier = Modifier.fillMaxSize()

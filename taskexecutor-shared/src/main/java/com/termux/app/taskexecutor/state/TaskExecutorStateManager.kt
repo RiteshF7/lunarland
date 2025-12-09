@@ -27,11 +27,12 @@ class TaskExecutorStateManager {
     
     /**
      * Transition to running state when a task starts
+     * Can transition from IDLE, SUCCESS, or ERROR states
      */
     fun transitionToRunning(task: String): StateTransitionResult {
         return when (currentState) {
             AgentState.IDLE, AgentState.SUCCESS, AgentState.ERROR -> {
-                Logger.logInfo(LOG_TAG, "Transitioning to RUNNING state for task: $task")
+                Logger.logInfo(LOG_TAG, "Transitioning to RUNNING state for task: $task (from $currentState)")
                 currentState = AgentState.RUNNING
                 currentTask = task
                 taskStartTime = System.currentTimeMillis()
@@ -42,8 +43,18 @@ class TaskExecutorStateManager {
                 )
             }
             AgentState.RUNNING -> {
-                Logger.logWarn(LOG_TAG, "Cannot transition to RUNNING: already running task: $currentTask")
-                StateTransitionResult.Error("Task is already running: $currentTask")
+                // If same task, allow it (might be state sync issue)
+                if (currentTask == task) {
+                    Logger.logDebug(LOG_TAG, "Already running same task: $task")
+                    StateTransitionResult.Success(
+                        status = TaskStatus.RUNNING,
+                        message = "Running...",
+                        isRunning = true
+                    )
+                } else {
+                    Logger.logWarn(LOG_TAG, "Cannot transition to RUNNING: already running different task: $currentTask")
+                    StateTransitionResult.Error("Task is already running: $currentTask")
+                }
             }
         }
     }

@@ -18,6 +18,8 @@ class AppCache(private val context: Context) {
     
     private val cacheKeyPrefix = "cached_app_"
     private val cacheCountKey = "cache_count"
+    private val cacheAppCountKey = "cache_app_count" // Alias for cache_count, kept for clarity
+    private val cachePackageListKey = "cache_package_list"
     private val cacheTimestampKey = "cache_timestamp"
     private val cacheVersionKey = "cache_version"
     
@@ -96,27 +98,33 @@ class AppCache(private val context: Context) {
             editor.putString("$cacheKeyPrefix$index", CachedAppMetadata.serialize(meta))
         }
         
+        // Save package list as comma-separated string for quick comparison
+        val packageList = apps.map { it.app.packageName }.joinToString(",")
+        
         editor.putInt(cacheCountKey, metadata.size)
+            .putInt(cacheAppCountKey, metadata.size)
+            .putString(cachePackageListKey, packageList)
             .putLong(cacheTimestampKey, System.currentTimeMillis())
             .putInt(cacheVersionKey, currentCacheVersion)
             .apply()
     }
     
     /**
-     * Loads cached app metadata.
+     * Loads cached app metadata synchronously (for instant display).
      * Returns null if cache is invalid or doesn't exist.
+     * SharedPreferences operations are fast and can be called from main thread.
      */
-    suspend fun loadCachedApps(): List<CachedAppMetadata>? = withContext(Dispatchers.IO) {
-        try {
+    fun loadCachedAppsSync(): List<CachedAppMetadata>? {
+        return try {
             // Check cache version
             val cachedVersion = sharedPreferences.getInt(cacheVersionKey, 0)
             if (cachedVersion != currentCacheVersion) {
-                return@withContext null
+                return null
             }
             
             val count = sharedPreferences.getInt(cacheCountKey, 0)
             if (count == 0) {
-                return@withContext null
+                return null
             }
             
             val metadata = mutableListOf<CachedAppMetadata>()
@@ -138,6 +146,14 @@ class AppCache(private val context: Context) {
     }
     
     /**
+     * Loads cached app metadata (async version for background operations).
+     * Returns null if cache is invalid or doesn't exist.
+     */
+    suspend fun loadCachedApps(): List<CachedAppMetadata>? = withContext(Dispatchers.IO) {
+        loadCachedAppsSync()
+    }
+    
+    /**
      * Clears the cache.
      */
     suspend fun clearCache() = withContext(Dispatchers.IO) {
@@ -147,6 +163,8 @@ class AppCache(private val context: Context) {
             editor.remove("$cacheKeyPrefix$i")
         }
         editor.remove(cacheCountKey)
+            .remove(cacheAppCountKey)
+            .remove(cachePackageListKey)
             .remove(cacheTimestampKey)
             .remove(cacheVersionKey)
             .apply()
@@ -157,6 +175,27 @@ class AppCache(private val context: Context) {
      */
     fun getCacheTimestamp(): Long {
         return sharedPreferences.getLong(cacheTimestampKey, 0L)
+    }
+    
+    /**
+     * Gets the cached app count.
+     * Returns 0 if cache doesn't exist or is invalid.
+     */
+    fun getCachedAppCount(): Int {
+        return sharedPreferences.getInt(cacheAppCountKey, 0)
+    }
+    
+    /**
+     * Gets the cached package list as a Set of package names.
+     * Returns empty set if cache doesn't exist or is invalid.
+     */
+    fun getCachedPackageList(): Set<String> {
+        val packageListString = sharedPreferences.getString(cachePackageListKey, null)
+        return if (packageListString.isNullOrBlank()) {
+            emptySet()
+        } else {
+            packageListString.split(",").filter { it.isNotBlank() }.toSet()
+        }
     }
 }
 

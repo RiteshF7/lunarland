@@ -3,12 +3,15 @@ package lunar.land.ui.feature.appdrawer
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import lunar.land.ui.manager.AppManager
 import lunar.land.ui.manager.AppCache
 import lunar.land.ui.manager.model.AppInfo
@@ -34,13 +37,10 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
     private val appManager = AppManager(application)
     private val appCache = AppCache(application)
     
-    private val _uiState = MutableStateFlow(AppDrawerUiState())
-    val uiState: StateFlow<AppDrawerUiState> = _uiState.asStateFlow()
-
-    init {
-        // Load cache immediately for instant display (synchronous on IO thread)
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            val cachedMetadata = appCache.loadCachedApps()
+    private val _uiState = MutableStateFlow(
+        // Initialize with cached apps immediately for instant display
+        run {
+            val cachedMetadata = appCache.loadCachedAppsSync()
             if (cachedMetadata != null && cachedMetadata.isNotEmpty()) {
                 val cachedApps = cachedMetadata.map { metadata ->
                     AppInfo(
@@ -54,17 +54,23 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
                         color = metadata.color
                     )
                 }
-                _uiState.update { 
-                    it.copy(
-                        allApps = cachedApps,
-                        filteredApps = filterApps(cachedApps, it.searchQuery),
-                        isLoading = false
-                    )
-                }
+                AppDrawerUiState(
+                    allApps = cachedApps,
+                    filteredApps = filterApps(cachedApps, ""),
+                    isLoading = false
+                )
             } else {
-                // No cache, set loading state
-                _uiState.update { it.copy(isLoading = true) }
+                AppDrawerUiState(isLoading = true)
             }
+        }
+    )
+    val uiState: StateFlow<AppDrawerUiState> = _uiState.asStateFlow()
+
+    init {
+        // If we have cached apps, check for changes in background
+        if (_uiState.value.allApps.isNotEmpty()) {
+            // After UI is shown with cached apps, check for changes
+            checkForAppChanges()
         }
         // Then load fresh apps in background to update cache and load icons
         loadApps()
@@ -207,6 +213,91 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
         return apps.filter { appInfo ->
             appInfo.app.displayName.lowercase().contains(lowerQuery) ||
             appInfo.app.packageName.lowercase().contains(lowerQuery)
+        }
+    }
+    
+    /**
+     * Checks for app changes by comparing cached app count and package list with current system state.
+     * This runs after UI is shown with cached apps to detect newly installed or removed apps.
+     * Updates UI incrementally if changes are detected.
+     */
+    private fun checkForAppChanges() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Get cached app count
+                val cachedAppCount = appCache.getCachedAppCount()
+                val cachedPackageList = appCache.getCachedPackageList()
+                
+                // Quick check: get current app count first (lightweight operation)
+                val resolveInfos = withContext(Dispatchers.IO) {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+                        addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+                    }
+                    getApplication<android.app.Application>().packageManager.queryIntentActivities(intent, 0)
+                }
+                
+                val currentAppCount = resolveInfos.size
+                
+                // If count is different, there are changes - need to compare package lists
+                if (currentAppCount != cachedAppCount) {
+                    // Get current package list
+                    val currentPackageList = resolveInfos.mapNotNull { resolveInfo -> resolveInfo.activityInfo?.packageName }.toSet()
+                    
+                    // Find added and removed apps
+                    val addedPackageNames = currentPackageList.filter { it !in cachedPackageList }.toSet()
+                    val removedPackageNames = cachedPackageList.filter { it !in currentPackageList }.toSet()
+                    
+                    if (addedPackageNames.isNotEmpty() || removedPackageNames.isNotEmpty()) {
+                        // Changes detected - load full app list and update incrementally
+                        try {
+                            val freshApps = appManager.getAllApps().first()
+                            
+                            val currentApps = _uiState.value.allApps
+                            val currentPackageNames = currentApps.map { it.app.packageName }.toSet()
+                            val freshPackageNames = freshApps.map { it.app.packageName }.toSet()
+                            
+                            val added = freshPackageNames - currentPackageNames
+                            val removed = currentPackageNames - freshPackageNames
+                            
+                            if (added.isNotEmpty() || removed.isNotEmpty()) {
+                                _uiState.update { it.copy(isUpdating = true) }
+                                
+                                val updatedApps = mutableListOf<AppInfo>()
+                                
+                                // Keep existing apps (excluding removed ones)
+                                updatedApps.addAll(
+                                    currentApps.filter { it.app.packageName !in removed }
+                                )
+                                
+                                // Add new apps
+                                val newApps = freshApps.filter { it.app.packageName in added }
+                                updatedApps.addAll(newApps)
+                                
+                                // Update icons for existing apps that don't have them
+                                val appsWithIcons = updateAppIcons(updatedApps, freshApps)
+                                
+                                // Sort by display name
+                                val sortedApps = appsWithIcons.sortedBy { it.app.displayName.lowercase() }
+                                
+                                _uiState.update {
+                                    it.copy(
+                                        allApps = sortedApps,
+                                        filteredApps = filterApps(sortedApps, it.searchQuery),
+                                        isUpdating = false
+                                    )
+                                }
+                                
+                                // Save updated cache
+                                appCache.saveApps(sortedApps)
+                            }
+                        } catch (e: Exception) {
+                            // Silently handle errors - don't disrupt UI
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Silently handle errors - don't disrupt UI if change detection fails
+            }
         }
     }
 }

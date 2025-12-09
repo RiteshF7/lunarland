@@ -290,45 +290,45 @@ fun SphereVisualizer(
             )
         }
         
-        // Rotating dots around the sphere
-        Canvas(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            val center = Offset(size.width / 2f, size.height / 2f)
-            val baseRadius = size.minDimension / 2f * scale
-            val dotOrbitRadius = baseRadius * 1.05f // Dots orbit closer to the sphere
-            val dotCount = 12 // Number of rotating dots
-            val dotRadius = 2.5.dp.toPx()
-            
-            repeat(dotCount) { i ->
-                // Calculate angle for each dot with rotation
-                val baseAngle = (i * 360f / dotCount) * (kotlin.math.PI / 180f)
-                val rotationAngle = (dotRotation * kotlin.math.PI / 180f)
-                val angle = baseAngle + rotationAngle
-                
-                // Calculate dot position
-                val dotX = center.x + cos(angle).toFloat() * dotOrbitRadius
-                val dotY = center.y + sin(angle).toFloat() * dotOrbitRadius
-                
-                // Vary opacity based on position (fade effect)
-                val distanceFromTop = (dotY - (center.y - dotOrbitRadius)) / (dotOrbitRadius * 2f)
-                val opacity = 0.3f + (distanceFromTop * 0.7f).coerceIn(0f, 1f)
-                
-                // Draw dot with glow - only show dots when running
-                if (shouldAnimate) {
-                    drawCircle(
-                        color = sphereColor.copy(alpha = opacity * 0.4f),
-                        radius = dotRadius * 1.8f,
-                        center = Offset(dotX, dotY)
-                    )
-                    drawCircle(
-                        color = sphereColor.copy(alpha = opacity),
-                        radius = dotRadius,
-                        center = Offset(dotX, dotY)
-                    )
-                }
-            }
-        }
+        // Rotating dots around the sphere - hidden for now
+        // Canvas(
+        //     modifier = Modifier.fillMaxSize()
+        // ) {
+        //     val center = Offset(size.width / 2f, size.height / 2f)
+        //     val baseRadius = size.minDimension / 2f * scale
+        //     val dotOrbitRadius = baseRadius * 1.05f // Dots orbit closer to the sphere
+        //     val dotCount = 12 // Number of rotating dots
+        //     val dotRadius = 2.5.dp.toPx()
+        //     
+        //     repeat(dotCount) { i ->
+        //         // Calculate angle for each dot with rotation
+        //         val baseAngle = (i * 360f / dotCount) * (kotlin.math.PI / 180f)
+        //         val rotationAngle = (dotRotation * kotlin.math.PI / 180f)
+        //         val angle = baseAngle + rotationAngle
+        //         
+        //         // Calculate dot position
+        //         val dotX = center.x + cos(angle).toFloat() * dotOrbitRadius
+        //         val dotY = center.y + sin(angle).toFloat() * dotOrbitRadius
+        //         
+        //         // Vary opacity based on position (fade effect)
+        //         val distanceFromTop = (dotY - (center.y - dotOrbitRadius)) / (dotOrbitRadius * 2f)
+        //         val opacity = 0.3f + (distanceFromTop * 0.7f).coerceIn(0f, 1f)
+        //         
+        //         // Draw dot with glow - only show dots when running
+        //         if (shouldAnimate) {
+        //             drawCircle(
+        //                 color = sphereColor.copy(alpha = opacity * 0.4f),
+        //                 radius = dotRadius * 1.8f,
+        //                 center = Offset(dotX, dotY)
+        //             )
+        //             drawCircle(
+        //                 color = sphereColor.copy(alpha = opacity),
+        //                 radius = dotRadius,
+        //                 center = Offset(dotX, dotY)
+        //             )
+        //         }
+        //     }
+        // }
 
         // Inner content
         Column(
@@ -366,19 +366,12 @@ fun SphereVisualizer(
                     )
                 }
             } else if (isListening) {
-                LoadingIndicator()
+                // Show rotating dots animation when listening
+                RotatingDotsIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
                 StatusText(text = "Listening...")
-            } else if (taskStatus == TaskStatus.SUCCESS && stateMessage.isNotEmpty()) {
-                // Show success message
-                Text(
-                    text = stateMessage,
-                    style = LunarTheme.Typography.BodyMedium,
-                    color = LunarTheme.AccentColor,
-                    textAlign = TextAlign.Center
-                )
             } else if (taskStatus == TaskStatus.ERROR && stateMessage.isNotEmpty()) {
-                // Show error message with red color
+                // Show error message with red color (success message removed - shown at bottom instead)
                 Text(
                     text = stateMessage,
                     style = LunarTheme.Typography.BodyMedium,

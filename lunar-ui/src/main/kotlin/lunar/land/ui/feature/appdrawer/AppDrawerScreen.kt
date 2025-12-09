@@ -9,6 +9,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -42,27 +43,25 @@ fun AppDrawerScreen(
             }
         }
         
+        // Scroll to bottom (which is top in reverseLayout) when drawer opens with cached data
+        LaunchedEffect(uiState.allApps.isNotEmpty(), uiState.isLoading) {
+            if (uiState.allApps.isNotEmpty() && !uiState.isLoading) {
+                // In reverseLayout, scroll to item 0 to show the bottom content first
+                listState.animateScrollToItem(0)
+            }
+        }
+        
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxWidth(),
+            reverseLayout = true, // Bottom to top scroll direction
             contentPadding = PaddingValues(
                 top = 24.dp,
                 bottom = 24.dp
             ),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Search bar at the top - sticky header
-            item(key = "search") {
-                SearchField(
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = stringResource(id = R.string.search),
-                    query = uiState.searchQuery,
-                    onQueryChange = { viewModel.updateSearchQuery(it) },
-                    paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
-                )
-            }
-            
-            // App list - lazy loaded with staggered grid
+            // App list - lazy loaded with staggered grid (appears first due to reverseLayout)
             if (uiState.isLoading && appItemsData.isEmpty()) {
                 // Show loading indicator only on first load
                 item(key = "loading") {
@@ -91,6 +90,17 @@ fun AppDrawerScreen(
                         }
                     }
                 }
+            }
+            
+            // Search bar at the bottom (appears at top due to reverseLayout)
+            item(key = "search") {
+                SearchField(
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = stringResource(id = R.string.search),
+                    query = uiState.searchQuery,
+                    onQueryChange = { viewModel.updateSearchQuery(it) },
+                    paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
+                )
             }
         }
     }

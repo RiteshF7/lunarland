@@ -116,17 +116,17 @@ fun TextInputPanel(
             shape = RoundedCornerShape(12.dp)
         )
         
-        // Execute button
-        ExecuteButton(
-            onClick = {
-                if (text.isNotBlank()) {
-                    onExecute(text.trim())
-                    text = ""
-                }
-            },
-            isEnabled = text.isNotBlank(),
-            modifier = Modifier.fillMaxWidth()
-        )
+        // Execute button - hidden for now
+        // ExecuteButton(
+        //     onClick = {
+        //         if (text.isNotBlank()) {
+        //             onExecute(text.trim())
+        //             text = ""
+        //         }
+        //     },
+        //     isEnabled = text.isNotBlank(),
+        //     modifier = Modifier.fillMaxWidth()
+        // )
     }
 }
 

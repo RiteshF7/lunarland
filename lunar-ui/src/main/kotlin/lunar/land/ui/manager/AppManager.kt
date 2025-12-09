@@ -87,13 +87,8 @@ class AppManager(private val context: Context) {
                 ?: loadAppIconFromPackage(activityInfo.packageName)
                 ?: createFallbackIcon(app.displayName)
 
-            // Extract dominant color from icon, fallback to generated color
-            val fallbackColor = AppInfo.generateColor(app.packageName)
-            val color = if (icon != null) {
-                ColorExtractor.extractDominantColor(icon, fallbackColor)
-            } else {
-                fallbackColor
-            }
+            // Generate color based on package name
+            val color = AppInfo.generateColor(app.packageName)
 
             AppInfo(app = app, icon = icon, color = color)
         } catch (e: Exception) {
