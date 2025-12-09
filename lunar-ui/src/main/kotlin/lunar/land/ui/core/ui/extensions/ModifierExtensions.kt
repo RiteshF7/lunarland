@@ -5,7 +5,10 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 
@@ -56,9 +59,10 @@ inline fun Modifier.onSwipeUp(
     enabled: Boolean = true,
     crossinline action: () -> Unit
 ) = composed {
-    val velocityThreshold = 600f
-    var yStart = 0f
-    var yDrag = 0f
+    val swipeThreshold = 100f // Reduced threshold for faster response
+    var yStart by remember { mutableStateOf(0f) }
+    var yDrag by remember { mutableStateOf(0f) }
+    var hasTriggered by remember { mutableStateOf(false) }
 
     this then Modifier.draggable(
         enabled = enabled,
@@ -66,12 +70,19 @@ inline fun Modifier.onSwipeUp(
         onDragStarted = {
             yStart = it.y
             yDrag = yStart
+            hasTriggered = false
         },
         state = rememberDraggableState { delta ->
             yDrag += delta
+            // Trigger immediately when threshold is reached (not waiting for drag end)
+            if (!hasTriggered && yStart > yDrag && (yStart - yDrag) > swipeThreshold) {
+                hasTriggered = true
+                action()
+            }
         },
         onDragStopped = { velocity ->
-            if (yStart > yDrag && velocity < -velocityThreshold) {
+            // Also trigger on fast swipe even if threshold not fully reached
+            if (!hasTriggered && yStart > yDrag && velocity < -500f) {
                 action()
             }
         }

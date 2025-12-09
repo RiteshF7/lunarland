@@ -116,20 +116,24 @@ class AppCache(private val context: Context) {
      */
     fun loadCachedAppsSync(): List<CachedAppMetadata>? {
         return try {
+            // Batch read all preferences at once for better performance
+            val allPrefs = sharedPreferences.all
+            
             // Check cache version
-            val cachedVersion = sharedPreferences.getInt(cacheVersionKey, 0)
+            val cachedVersion = (allPrefs[cacheVersionKey] as? Int) ?: 0
             if (cachedVersion != currentCacheVersion) {
                 return null
             }
             
-            val count = sharedPreferences.getInt(cacheCountKey, 0)
+            val count = (allPrefs[cacheCountKey] as? Int) ?: 0
             if (count == 0) {
                 return null
             }
             
-            val metadata = mutableListOf<CachedAppMetadata>()
+            // Pre-allocate list with known size for better performance
+            val metadata = ArrayList<CachedAppMetadata>(count)
             for (i in 0 until count) {
-                val data = sharedPreferences.getString("$cacheKeyPrefix$i", null)
+                val data = allPrefs["$cacheKeyPrefix$i"] as? String
                 if (data != null) {
                     CachedAppMetadata.deserialize(data)?.let { metadata.add(it) }
                 }

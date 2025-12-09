@@ -58,6 +58,8 @@ import lunar.land.ui.core.ui.VerticalSpacer
 import lunar.land.ui.core.ui.extensions.onSwipeDown
 import lunar.land.ui.core.ui.extensions.onSwipeUp
 import lunar.land.ui.feature.appdrawer.AppDrawerScreen
+import lunar.land.ui.feature.appdrawer.AppDrawerViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import lunar.land.ui.feature.favorites.FavoritesListUiComponent
 import lunar.land.ui.feature.favorites.FavoritesListUiComponentState
 import lunar.land.ui.feature.lunarHomewidget.LunarHomeWidget
@@ -80,6 +82,10 @@ fun HomeScreenContent(
     val packageManager = context.packageManager
     var searchQuery by remember { mutableStateOf("") }
     var isAppDrawerOpen by remember { mutableStateOf(false) }
+    
+    // Pre-initialize ViewModel when home screen loads (not when drawer opens)
+    // This ensures cache is loaded instantly when drawer opens
+    val appDrawerViewModel: AppDrawerViewModel = viewModel()
     
     // Create simplified lunar home widget state
     val lunarHomeWidgetState = remember {
@@ -179,33 +185,21 @@ fun HomeScreenContent(
                     isAppDrawerOpen = true
                 }
         ) {
-            // App Drawer overlay with black background to hide home screen
-            // Slides in from bottom on swipe up, slides out to bottom on swipe down
-            AnimatedVisibility(
-                visible = isAppDrawerOpen,
-                enter = fadeIn(animationSpec = tween(100)) + 
-                        slideInVertically(
-                            initialOffsetY = { it }, // Slide from bottom (positive offset)
-                            animationSpec = tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-                        ),
-                exit = fadeOut(animationSpec = tween(100)) + 
-                       slideOutVertically(
-                           targetOffsetY = { it }, // Slide out to bottom (positive offset)
-                           animationSpec = tween(150, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-                       ),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                // Handle back press to close app drawer instead of exiting app
-                BackHandler(enabled = isAppDrawerOpen) {
-                    isAppDrawerOpen = false
-                }
-                
+            // App Drawer overlay - use Box with offset for instant display (no animation delay)
+            // Only compose when visible to avoid unnecessary work
+            if (isAppDrawerOpen) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(LunarTheme.BackgroundColor)
                 ) {
+                    // Handle back press to close app drawer instead of exiting app
+                    BackHandler(enabled = isAppDrawerOpen) {
+                        isAppDrawerOpen = false
+                    }
+                    
                     AppDrawerScreen(
+                        viewModel = appDrawerViewModel,
                         onSwipeDown = { isAppDrawerOpen = false }
                     )
                 }

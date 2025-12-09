@@ -39,9 +39,14 @@ fun AppDrawerScreen(
         val listState = rememberLazyListState()
         
         // Pre-compute app item data to avoid recomposition overhead
+        // Use lazy evaluation - only compute when needed
         val appItemsData = remember(uiState.filteredApps) {
-            uiState.filteredApps.map { appInfo ->
-                appInfo to appInfo.toAppItemData()
+            if (uiState.filteredApps.isEmpty()) {
+                emptyList()
+            } else {
+                uiState.filteredApps.map { appInfo ->
+                    appInfo to appInfo.toAppItemData()
+                }
             }
         }
         
@@ -52,10 +57,10 @@ fun AppDrawerScreen(
             }
         }
         
-        // Scroll to top (search bar) when drawer opens with cached data
-        LaunchedEffect(uiState.allApps.isNotEmpty(), uiState.isLoading) {
-            if (uiState.allApps.isNotEmpty() && !uiState.isLoading) {
-                // Scroll to search bar (item 0) to show top of list
+        // Scroll to top (search bar) immediately when drawer opens - no animation delay
+        LaunchedEffect(uiState.allApps.isNotEmpty()) {
+            if (uiState.allApps.isNotEmpty()) {
+                // Use scrollToItem (instant) instead of animateScrollToItem
                 listState.scrollToItem(0)
             }
         }
