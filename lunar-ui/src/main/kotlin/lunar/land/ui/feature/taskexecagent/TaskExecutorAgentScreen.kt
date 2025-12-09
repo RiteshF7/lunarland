@@ -194,6 +194,7 @@ fun TaskExecutorAgentScreen(
                         isListening = isListening,
                         taskStatus = uiState.taskStatus,
                         isTaskRunning = uiState.isTaskRunning,
+                        stateMessage = uiState.agentStateMessage,
                         onSphereClick = {
                             // Handle sphere click for voice input
                             if (uiState.taskStatus != TaskStatus.RUNNING) {
@@ -280,14 +281,14 @@ fun TaskExecutorAgentScreen(
                         .padding(horizontal = 8.dp)
                 )
                 
-                // Status text
+                // Status text - use agentStateMessage from state manager
                 StatusText(
-                    text = uiState.statusText.ifEmpty { 
+                    text = uiState.agentStateMessage.ifEmpty { 
                         when (uiState.taskStatus) {
                             TaskStatus.STOPPED -> "Ready"
                             TaskStatus.RUNNING -> "Running..."
                             TaskStatus.SUCCESS -> "Task completed successfully"
-                            TaskStatus.ERROR -> "Error"
+                            TaskStatus.ERROR -> "An error occurred"
                         }
                     }
                 )

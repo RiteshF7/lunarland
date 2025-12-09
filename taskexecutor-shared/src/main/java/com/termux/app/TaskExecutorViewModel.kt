@@ -13,6 +13,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.termux.app.taskexecutor.model.TaskExecutorUiState
 import com.termux.app.taskexecutor.model.TaskStatus
+import com.termux.app.taskexecutor.state.TaskExecutorStateManager
 import com.termux.shared.logger.Logger
 import com.termux.shared.shell.ShellUtils
 import com.termux.shared.shell.command.ExecutionCommand
@@ -49,6 +50,7 @@ class TaskExecutorViewModel(
     private val _uiState = MutableStateFlow(TaskExecutorUiState())
     val uiState: StateFlow<TaskExecutorUiState> = _uiState.asStateFlow()
     
+    private val stateManager = TaskExecutorStateManager()
     private val sessionIds = AtomicInteger()
     private val mainHandler = Handler(Looper.getMainLooper())
     
@@ -60,6 +62,9 @@ class TaskExecutorViewModel(
     var isServiceBound = false
     var currentTaskCommand: String? = null
     var taskStartTime: Long = 0
+    
+    // Track droidrun preparation state
+    private var isDroidrunPrepared = false
     
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -100,6 +105,14 @@ class TaskExecutorViewModel(
             }
             isServiceBound = false
         }
+        // Clean up session when unbinding service
+        tearDownSession()
+    }
+    
+    override fun onCleared() {
+        super.onCleared()
+        Logger.logInfo(LOG_TAG, "ViewModel cleared, disposing session")
+        tearDownSession()
     }
     
     private fun prepareSession() {
@@ -119,6 +132,22 @@ class TaskExecutorViewModel(
             return
         }
         
+        // Check if we can reuse existing session
+        if (isSessionValid()) {
+            Logger.logInfo(LOG_TAG, "Reusing existing valid session")
+            mainHandler.post {
+                setUiEnabled(true)
+                updateTaskState(null, 0, false, TaskStatus.STOPPED)
+                updateStatus("Ready")
+            }
+            // Ensure droidrun is prepared
+            if (!isDroidrunPrepared) {
+                prepareDroidrunEnvironment()
+            }
+            return
+        }
+        
+        // Tear down invalid session before creating new one
         tearDownSession()
         val client = TaskExecutorSessionClient { transcript ->
             mainHandler.post {
@@ -210,6 +239,22 @@ class TaskExecutorViewModel(
         
         setupAdbEnvironment()
         setupGoogleApiKey()
+        
+        // Prepare droidrun environment once per app lifecycle
+        if (!isDroidrunPrepared) {
+            prepareDroidrunEnvironment()
+        }
+    }
+    
+    /**
+     * Check if current session is valid and can be reused
+     */
+    private fun isSessionValid(): Boolean {
+        return currentSession != null &&
+               terminalSession != null &&
+               !sessionFinished &&
+               terminalSession!!.isRunning() &&
+               termuxService != null
     }
     
     private fun setupAdbEnvironment() {
@@ -402,6 +447,100 @@ class TaskExecutorViewModel(
         }.start()
     }
     
+    /**
+     * Prepare droidrun environment once per app lifecycle.
+     * Sets up ADB server, TCP/IP mode, and connection to localhost:5558.
+     */
+    private fun prepareDroidrunEnvironment() {
+        if (terminalSession == null || sessionFinished || isDroidrunPrepared) {
+            return
+        }
+        
+        Thread {
+            try {
+                Logger.logInfo(LOG_TAG, "Preparing droidrun environment (one-time setup)")
+                
+                val droidrunSetupCommand = """
+                    export ANDROID_SERIAL="127.0.0.1:5558"
+                    # Kill and restart ADB server
+                    echo "Preparing ADB environment for droidrun..."
+                    adb kill-server 2>&1 || true
+                    sleep 0.5
+                    adb start-server 2>&1 || true
+                    sleep 1
+                    # Enable TCP/IP mode on port 5558
+                    echo "Enabling ADB TCP/IP mode on port 5558..."
+                    adb tcpip 5558 2>&1 || {
+                        echo "⚠ Failed to enable TCP/IP mode, trying alternative method..."
+                        # Try with USB device first if available
+                        USB_DEVICE=$(adb devices | grep -v "List" | grep "device" | head -1 | awk '{print ${'$'}1}')
+                        if [ -n "${'$'}USB_DEVICE" ]; then
+                            adb -s ${'$'}USB_DEVICE tcpip 5558 2>&1 || true
+                        fi
+                    }
+                    sleep 1
+                    # Kill any existing connection to avoid conflicts
+                    adb disconnect 127.0.0.1:5558 2>&1 || true
+                    sleep 0.5
+                    # Connect ADB to localhost with multiple retries
+                    MAX_RETRIES=5
+                    RETRY_COUNT=0
+                    CONNECTED=false
+                    while [ ${'$'}RETRY_COUNT -lt ${'$'}MAX_RETRIES ] && [ "${'$'}CONNECTED" = "false" ]; do
+                        echo "Attempting ADB connection (attempt ${'$'}((RETRY_COUNT + 1))/${'$'}MAX_RETRIES)..."
+                        adb connect 127.0.0.1:5558 2>&1
+                        sleep 1.5
+                        if adb devices 2>&1 | grep -q "127.0.0.1:5558.*device"; then
+                            CONNECTED=true
+                            echo "✓ ADB connected to localhost:5558"
+                            break
+                        else
+                            RETRY_COUNT=${'$'}((RETRY_COUNT + 1))
+                            if [ ${'$'}RETRY_COUNT -lt ${'$'}MAX_RETRIES ]; then
+                                sleep 1
+                            fi
+                        fi
+                    done
+                    # Final verification
+                    if [ "${'$'}CONNECTED" = "false" ]; then
+                        echo "⚠ ADB connection failed after ${'$'}MAX_RETRIES attempts"
+                        echo "ADB devices status:"
+                        adb devices 2>&1
+                        echo "⚠ Attempting to continue anyway..."
+                        # Try one more time with longer wait
+                        adb connect 127.0.0.1:5558 2>&1
+                        sleep 2
+                        if adb devices 2>&1 | grep -q "127.0.0.1:5558.*device"; then
+                            echo "✓ ADB connected on final attempt"
+                            CONNECTED=true
+                        fi
+                    fi
+                    if [ "${'$'}CONNECTED" = "true" ]; then
+                        echo "✓ Droidrun environment prepared successfully"
+                    else
+                        echo "⚠ Droidrun environment preparation completed with warnings"
+                    fi
+                """.trimIndent()
+                
+                mainHandler.post {
+                    if (terminalSession != null && !sessionFinished) {
+                        terminalSession!!.write(droidrunSetupCommand)
+                        terminalSession!!.write("\n")
+                        Logger.logInfo(LOG_TAG, "Droidrun environment preparation started")
+                        // Mark as prepared after a delay to allow command to execute
+                        Thread {
+                            Thread.sleep(10000) // Wait for setup to complete
+                            isDroidrunPrepared = true
+                            Logger.logInfo(LOG_TAG, "Droidrun environment marked as prepared")
+                        }.start()
+                    }
+                }
+            } catch (e: Exception) {
+                Logger.logStackTraceWithMessage(LOG_TAG, "Error preparing droidrun environment", e)
+            }
+        }.start()
+    }
+    
     fun dispatchCommand(command: String) {
         Logger.logInfo(LOG_TAG, "dispatchCommand called with: '$command'")
         Logger.logInfo(LOG_TAG, "terminalSession=${terminalSession != null}, sessionFinished=$sessionFinished, taskStatus=${_uiState.value.taskStatus}")
@@ -426,86 +565,55 @@ class TaskExecutorViewModel(
         
         try {
             Logger.logInfo(LOG_TAG, "Dispatching command: $command")
-            currentTaskCommand = command
-            taskStartTime = System.currentTimeMillis()
-            updateTaskState(command, 0, true, TaskStatus.RUNNING)
-            updateStatus("Executing: $command")
-            updateNotification()
             
-            // Ensure ANDROID_SERIAL is set to localhost and ADB is connected before running droidrun
-            // This ensures droidrun connects to localhost instead of looking for a physical device
+            // Use state manager to transition to running state
+            val stateResult = stateManager.transitionToRunning(command)
+            when (stateResult) {
+                is TaskExecutorStateManager.StateTransitionResult.Success -> {
+                    currentTaskCommand = command
+                    taskStartTime = System.currentTimeMillis()
+                    updateTaskState(
+                        task = command,
+                        progress = 0,
+                        isRunning = stateResult.isRunning,
+                        status = stateResult.status
+                    )
+                    _uiState.update { it.copy(agentStateMessage = stateResult.message) }
+                    updateStatus(stateResult.message)
+                    updateNotification()
+                }
+                is TaskExecutorStateManager.StateTransitionResult.Error -> {
+                    Logger.logWarn(LOG_TAG, "State transition failed: ${stateResult.message}")
+                    updateStatus(stateResult.message)
+                    return
+                }
+            }
+            
+            // Quick verification that ADB is still connected (non-blocking check)
+            // If droidrun environment wasn't prepared, prepare it now (async, non-blocking)
+            if (!isDroidrunPrepared) {
+                Logger.logWarn(LOG_TAG, "Droidrun environment not prepared, preparing now...")
+                prepareDroidrunEnvironment()
+                // Note: prepareDroidrunEnvironment() runs asynchronously
+                // The command below will handle reconnection if needed
+            }
+            
+            // Simplified command: only set ANDROID_SERIAL and run droidrun
+            // ADB setup should already be done by prepareDroidrunEnvironment()
             val droidrunCommand = """
                 export ANDROID_SERIAL="127.0.0.1:5558"
-                # Kill and restart ADB server
-                echo "Restarting ADB server..."
-                adb kill-server 2>&1 || true
-                sleep 0.5
-                adb start-server 2>&1 || true
-                sleep 1
-                # Enable TCP/IP mode on port 5558
-                echo "Enabling ADB TCP/IP mode on port 5558..."
-                adb tcpip 5558 2>&1 || {
-                    echo "⚠ Failed to enable TCP/IP mode, trying alternative method..."
-                    # Try with USB device first if available
-                    USB_DEVICE=$(adb devices | grep -v "List" | grep "device" | head -1 | awk '{print ${'$'}1}')
-                    if [ -n "${'$'}USB_DEVICE" ]; then
-                        adb -s ${'$'}USB_DEVICE tcpip 5558 2>&1 || true
-                    fi
-                }
-                sleep 1
-                # Kill any existing connection to avoid conflicts
-                adb disconnect 127.0.0.1:5558 2>&1 || true
-                sleep 0.5
-                # Connect ADB to localhost with multiple retries
-                MAX_RETRIES=5
-                RETRY_COUNT=0
-                CONNECTED=false
-                while [ ${'$'}RETRY_COUNT -lt ${'$'}MAX_RETRIES ] && [ "${'$'}CONNECTED" = "false" ]; do
-                    echo "Attempting ADB connection (attempt ${'$'}((RETRY_COUNT + 1))/${'$'}MAX_RETRIES)..."
-                    adb connect 127.0.0.1:5558 2>&1
-                    sleep 1.5
-                    if adb devices 2>&1 | grep -q "127.0.0.1:5558.*device"; then
-                        CONNECTED=true
-                        echo "✓ ADB connected to localhost:5558"
-                        break
-                    else
-                        RETRY_COUNT=${'$'}((RETRY_COUNT + 1))
-                        if [ ${'$'}RETRY_COUNT -lt ${'$'}MAX_RETRIES ]; then
-                            sleep 1
-                        fi
-                    fi
-                done
-                # Final verification
-                if [ "${'$'}CONNECTED" = "false" ]; then
-                    echo "⚠ ADB connection failed after ${'$'}MAX_RETRIES attempts"
-                    echo "ADB devices status:"
-                    adb devices 2>&1
-                    echo "⚠ Attempting to continue anyway..."
-                    # Try one more time with longer wait
-                    adb connect 127.0.0.1:5558 2>&1
-                    sleep 2
-                    if adb devices 2>&1 | grep -q "127.0.0.1:5558.*device"; then
-                        echo "✓ ADB connected on final attempt"
-                        CONNECTED=true
-                    fi
+                # Quick verification that ADB is connected
+                if ! adb devices 2>&1 | grep -q "127.0.0.1:5558.*device"; then
+                    echo "⚠ ADB not connected, attempting quick reconnect..."
+                    adb connect 127.0.0.1:5558 2>&1 || true
+                    sleep 1
                 fi
-                # Run droidrun with ANDROID_SERIAL set
-                if [ "${'$'}CONNECTED" = "true" ]; then
-                    echo "Running droidrun with ADB connected..."
-                    droidrun run "$command"
-                else
-                    echo "⚠ Warning: ADB not connected, but attempting to run droidrun anyway..."
-                    echo "⚠ droidrun will use ANDROID_SERIAL=127.0.0.1:5558"
-                    droidrun run "$command" || {
-                        echo "❌ Error: droidrun failed - ADB device not connected"
-                        echo "Please ensure ADB is properly configured"
-                        exit 1
-                    }
-                fi
+                # Run droidrun
+                echo "Running droidrun: $command"
+                droidrun run "$command"
             """.trimIndent()
             
-            Logger.logInfo(LOG_TAG, "Writing command to terminal with ANDROID_SERIAL set to localhost")
-            Logger.logInfo(LOG_TAG, "Command: $droidrunCommand")
+            Logger.logInfo(LOG_TAG, "Writing simplified droidrun command to terminal")
             terminalSession!!.write(droidrunCommand)
             terminalSession!!.write("\n")
             Logger.logInfo(LOG_TAG, "Command written successfully to terminal session")
@@ -514,8 +622,14 @@ class TaskExecutorViewModel(
             Logger.logInfo(LOG_TAG, "Terminal session state: isRunning=${terminalSession!!.isRunning()}")
         } catch (e: Exception) {
             Logger.logStackTraceWithMessage(LOG_TAG, "Error in dispatchCommand", e)
-            updateStatus("Error: ${e.message}")
-            updateTaskState(null, 0, false, TaskStatus.ERROR)
+            val errorResult = stateManager.transitionToError()
+            if (errorResult is TaskExecutorStateManager.StateTransitionResult.Success) {
+                updateTaskState(null, 0, false, errorResult.status)
+                _uiState.update { it.copy(agentStateMessage = errorResult.message) }
+                updateStatus(errorResult.message)
+            } else {
+                updateStatus("Error: ${e.message}")
+            }
         }
     }
     
@@ -528,9 +642,10 @@ class TaskExecutorViewModel(
     }
     
     fun stopCurrentTask() {
-        if (terminalSession != null && !sessionFinished && currentTaskCommand != null) {
+        if (terminalSession != null && !sessionFinished && stateManager.isTaskRunning()) {
             try {
-                Logger.logInfo(LOG_TAG, "Stopping task: $currentTaskCommand")
+                val task = stateManager.getCurrentTask()
+                Logger.logInfo(LOG_TAG, "Stopping task: $task")
                 
                 // Send Ctrl+C multiple times to ensure the command is interrupted
                 // This is important for droidrun which may be in a subprocess
@@ -544,11 +659,15 @@ class TaskExecutorViewModel(
                 
                 Logger.logInfo(LOG_TAG, "Sent stop signals to terminal")
                 
-                // Update state immediately
-                currentTaskCommand = null
-                updateTaskState(null, 0, false, TaskStatus.STOPPED)
-                updateStatus("Task stopped")
-                updateNotification()
+                // Update state through state manager
+                val stopResult = stateManager.forceStop()
+                if (stopResult is TaskExecutorStateManager.StateTransitionResult.Success) {
+                    currentTaskCommand = null
+                    updateTaskState(null, 0, false, stopResult.status)
+                    _uiState.update { it.copy(agentStateMessage = stopResult.message) }
+                    updateStatus(stopResult.message)
+                    updateNotification()
+                }
                 
                 // Clear output after a brief delay to show the stop message
                 Thread {
@@ -564,11 +683,33 @@ class TaskExecutorViewModel(
                 updateStatus("Error stopping task: ${e.message}")
             }
         } else {
-            Logger.logWarn(LOG_TAG, "Cannot stop task: terminalSession=${terminalSession != null}, sessionFinished=$sessionFinished, currentTaskCommand=$currentTaskCommand")
+            Logger.logWarn(LOG_TAG, "Cannot stop task: terminalSession=${terminalSession != null}, sessionFinished=$sessionFinished, isTaskRunning=${stateManager.isTaskRunning()}")
         }
     }
     
     private fun tearDownSession() {
+        Logger.logInfo(LOG_TAG, "Tearing down session")
+        
+        // Remove session from service's session list if it exists
+        if (currentSession != null && termuxService != null) {
+            try {
+                val shellManagerField = termuxService!!.javaClass.getDeclaredField("mShellManager")
+                shellManagerField.isAccessible = true
+                val shellManager = shellManagerField.get(termuxService)
+                val sessionsField = shellManager.javaClass.getDeclaredField("mTermuxSessions")
+                sessionsField.isAccessible = true
+                @Suppress("UNCHECKED_CAST")
+                val sessions = sessionsField.get(shellManager) as MutableList<Any>
+                val sessionToRemove: Any? = currentSession
+                if (sessionToRemove != null && sessions.contains(sessionToRemove)) {
+                    sessions.remove(sessionToRemove)
+                    Logger.logInfo(LOG_TAG, "Removed session from service manager")
+                }
+            } catch (e: Exception) {
+                Logger.logError(LOG_TAG, "Failed to remove session from service manager: ${e.message}")
+            }
+        }
+        
         if (terminalSession != null) {
             try {
                 terminalSession!!.finishIfRunning()
@@ -577,11 +718,17 @@ class TaskExecutorViewModel(
             }
         }
         if (currentSession != null && !sessionFinished) {
-            currentSession!!.finish()
+            try {
+                currentSession!!.finish()
+            } catch (e: Exception) {
+                Logger.logStackTraceWithMessage(LOG_TAG, "Failed to finish session", e)
+            }
         }
         terminalSession = null
         currentSession = null
+        sessionClient = null
         sessionFinished = false
+        isDroidrunPrepared = false // Reset droidrun preparation state
         mainHandler.post {
             resetSessionState()
             clearOutput()
@@ -589,20 +736,13 @@ class TaskExecutorViewModel(
     }
     
     private fun updateTaskProgress(output: String) {
-        if (currentTaskCommand == null) {
-            // If no task is running but status is RUNNING, reset it
-            if (_uiState.value.taskStatus == TaskStatus.RUNNING) {
-                Logger.logWarn(LOG_TAG, "Task status is RUNNING but no currentTaskCommand, resetting to STOPPED")
-                updateTaskState(null, 0, false, TaskStatus.STOPPED)
-                updateStatus("Ready")
-            }
+        // Only process if we have a running task
+        if (!stateManager.isTaskRunning()) {
             return
         }
         
         val outputLower = output.lowercase()
-        var shouldUpdate = false
-        
-        Logger.logDebug(LOG_TAG, "updateTaskProgress: checking output for task: $currentTaskCommand")
+        Logger.logDebug(LOG_TAG, "updateTaskProgress: checking output for task: ${stateManager.getCurrentTask()}")
         
         val completionPatterns = listOf(
             "goal achieved", "goal succeeded", "task completed",
@@ -625,54 +765,80 @@ class TaskExecutorViewModel(
         
         when {
             isCompleted -> {
-                Logger.logInfo(LOG_TAG, "Task completed detected: $currentTaskCommand")
-                currentTaskCommand = null
-                updateTaskState(null, 0, false, TaskStatus.SUCCESS)
-                updateStatus("Task completed successfully")
-                shouldUpdate = true
-                // Auto-revert to idle state after 3 seconds
-                mainHandler.postDelayed({
-                    if (_uiState.value.taskStatus == TaskStatus.SUCCESS && !_uiState.value.isTaskRunning) {
-                        updateTaskState(null, 0, false, TaskStatus.STOPPED)
-                        updateStatus("Ready")
-                    }
-                }, 3000)
-            }
-            isFailed -> {
-                Logger.logInfo(LOG_TAG, "Task failed detected: $currentTaskCommand")
-                currentTaskCommand = null
-                updateTaskState(null, 0, false, TaskStatus.ERROR)
-                updateStatus("Task failed")
-                shouldUpdate = true
-            }
-            promptReturned && !outputLower.contains("droidrun run") -> {
-                val elapsed = System.currentTimeMillis() - taskStartTime
-                if (elapsed > 2000) {
-                    Logger.logInfo(LOG_TAG, "Command prompt returned, marking task as complete: $currentTaskCommand")
+                Logger.logInfo(LOG_TAG, "Task completed detected: ${stateManager.getCurrentTask()}")
+                val result = stateManager.transitionToSuccess()
+                if (result is TaskExecutorStateManager.StateTransitionResult.Success) {
                     currentTaskCommand = null
-                    updateTaskState(null, 0, false, TaskStatus.SUCCESS)
-                    updateStatus("Task completed successfully")
-                    shouldUpdate = true
+                    updateTaskState(null, 0, false, result.status)
+                    _uiState.update { it.copy(agentStateMessage = result.message) }
+                    updateStatus(result.message)
+                    updateNotification()
                     // Auto-revert to idle state after 3 seconds
                     mainHandler.postDelayed({
                         if (_uiState.value.taskStatus == TaskStatus.SUCCESS && !_uiState.value.isTaskRunning) {
-                            updateTaskState(null, 0, false, TaskStatus.STOPPED)
-                            updateStatus("Ready")
+                            val idleResult = stateManager.transitionToIdle()
+                            if (idleResult is TaskExecutorStateManager.StateTransitionResult.Success) {
+                                updateTaskState(null, 0, false, idleResult.status)
+                                _uiState.update { it.copy(agentStateMessage = idleResult.message) }
+                                updateStatus(idleResult.message)
+                            }
                         }
                     }, 3000)
                 }
             }
-            else -> {
-                val currentState = _uiState.value
-                if (!currentState.isTaskRunning || currentState.currentTask != currentTaskCommand) {
-                    updateTaskState(currentTaskCommand, 0, true, TaskStatus.RUNNING)
-                    shouldUpdate = true
+            isFailed -> {
+                Logger.logInfo(LOG_TAG, "Task failed detected: ${stateManager.getCurrentTask()}")
+                val result = stateManager.transitionToError()
+                if (result is TaskExecutorStateManager.StateTransitionResult.Success) {
+                    currentTaskCommand = null
+                    updateTaskState(null, 0, false, result.status)
+                    _uiState.update { it.copy(agentStateMessage = result.message) }
+                    updateStatus(result.message)
+                    updateNotification()
                 }
             }
-        }
-        
-        if (shouldUpdate) {
-            updateNotification()
+            promptReturned && !outputLower.contains("droidrun run") -> {
+                val elapsed = System.currentTimeMillis() - taskStartTime
+                if (elapsed > 2000) {
+                    Logger.logInfo(LOG_TAG, "Command prompt returned, marking task as complete: ${stateManager.getCurrentTask()}")
+                    val result = stateManager.transitionToSuccess()
+                    if (result is TaskExecutorStateManager.StateTransitionResult.Success) {
+                        currentTaskCommand = null
+                        updateTaskState(null, 0, false, result.status)
+                        _uiState.update { it.copy(agentStateMessage = result.message) }
+                        updateStatus(result.message)
+                        updateNotification()
+                        // Auto-revert to idle state after 3 seconds
+                        mainHandler.postDelayed({
+                            if (_uiState.value.taskStatus == TaskStatus.SUCCESS && !_uiState.value.isTaskRunning) {
+                                val idleResult = stateManager.transitionToIdle()
+                                if (idleResult is TaskExecutorStateManager.StateTransitionResult.Success) {
+                                    updateTaskState(null, 0, false, idleResult.status)
+                                    _uiState.update { it.copy(agentStateMessage = idleResult.message) }
+                                    updateStatus(idleResult.message)
+                                }
+                            }
+                        }, 3000)
+                    }
+                }
+            }
+            // Task is still running - ensure state is RUNNING
+            else -> {
+                val currentState = _uiState.value
+                if (!currentState.isTaskRunning || currentState.taskStatus != TaskStatus.RUNNING) {
+                    val runningResult = stateManager.transitionToRunning(stateManager.getCurrentTask() ?: "")
+                    if (runningResult is TaskExecutorStateManager.StateTransitionResult.Success) {
+                        updateTaskState(
+                            task = stateManager.getCurrentTask(),
+                            progress = 0,
+                            isRunning = runningResult.isRunning,
+                            status = runningResult.status
+                        )
+                        _uiState.update { it.copy(agentStateMessage = runningResult.message) }
+                        updateNotification()
+                    }
+                }
+            }
         }
     }
     
@@ -724,18 +890,28 @@ class TaskExecutorViewModel(
     }
     
     fun resetSessionState() {
+        // Reset state manager
+        val idleResult = stateManager.transitionToIdle()
+        val message = if (idleResult is TaskExecutorStateManager.StateTransitionResult.Success) {
+            idleResult.message
+        } else {
+            "Ready"
+        }
+        
         _uiState.update {
             it.copy(
                 sessionFinished = false,
                 exitCode = null,
                 outputText = "",
-                statusText = "Ready",
+                statusText = message,
                 currentTask = null,
                 taskProgress = 0,
                 isTaskRunning = false,
-                taskStatus = TaskStatus.STOPPED
+                taskStatus = TaskStatus.STOPPED,
+                agentStateMessage = message
             )
         }
+        currentTaskCommand = null
     }
     
     fun updateTaskState(task: String?, progress: Int, isRunning: Boolean, status: TaskStatus = TaskStatus.STOPPED) {

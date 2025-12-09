@@ -3,11 +3,13 @@ package lunar.land.ui.feature.taskexecagent
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,6 +20,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlin.math.cos
 import kotlin.math.pow
@@ -39,12 +42,16 @@ fun SphereVisualizer(
     isListening: Boolean = false,
     taskStatus: TaskStatus = TaskStatus.STOPPED,
     isTaskRunning: Boolean = false,
+    stateMessage: String = "",
     onSphereClick: (() -> Unit)? = null,
     onStopTask: (() -> Unit)? = null
 ) {
+    // Light red color for error state (matching theme style)
+    val lightRedColor = Color(0xFFFF6B6B)
+    
     // Determine sphere color based on task status
     val sphereColor = when (taskStatus) {
-        TaskStatus.ERROR -> Color(0xFF, 0x33, 0x33) // Red for error
+        TaskStatus.ERROR -> lightRedColor // Light red for error
         TaskStatus.SUCCESS -> LunarTheme.AccentColor // Default accent for success
         TaskStatus.RUNNING -> LunarTheme.AccentColor // Default accent for running
         TaskStatus.STOPPED -> LunarTheme.AccentColor // Default accent for idle
@@ -331,12 +338,18 @@ fun SphereVisualizer(
         ) {
             if (isTaskRunning && onStopTask != null) {
                 // Stop button inside sphere when task is running
+                // Use light red color with thin border matching theme
                 Box(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
+                        .border(
+                            width = LunarTheme.BorderWidth,
+                            color = lightRedColor.copy(alpha = 0.6f),
+                            shape = CircleShape
+                        )
                         .background(
-                            color = Color(0xFF, 0x33, 0x33).copy(alpha = 0.95f),
+                            color = lightRedColor.copy(alpha = 0.2f),
                             shape = CircleShape
                         )
                         .clickable(
@@ -348,7 +361,7 @@ fun SphereVisualizer(
                     Icon(
                         painter = painterResource(id = R.drawable.ic_close),
                         contentDescription = "Stop Task",
-                        tint = Color.White,
+                        tint = lightRedColor,
                         modifier = Modifier.size(32.dp)
                     )
                 }
@@ -356,6 +369,22 @@ fun SphereVisualizer(
                 LoadingIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
                 StatusText(text = "Listening...")
+            } else if (taskStatus == TaskStatus.SUCCESS && stateMessage.isNotEmpty()) {
+                // Show success message
+                Text(
+                    text = stateMessage,
+                    style = LunarTheme.Typography.BodyMedium,
+                    color = LunarTheme.AccentColor,
+                    textAlign = TextAlign.Center
+                )
+            } else if (taskStatus == TaskStatus.ERROR && stateMessage.isNotEmpty()) {
+                // Show error message with red color
+                Text(
+                    text = stateMessage,
+                    style = LunarTheme.Typography.BodyMedium,
+                    color = lightRedColor,
+                    textAlign = TextAlign.Center
+                )
             }
         }
     }
