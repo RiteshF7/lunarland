@@ -4,11 +4,17 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -28,13 +34,35 @@ import lunar.land.ui.manager.model.AppInfo
  */
 @Composable
 fun AppDrawerScreen(
-    viewModel: AppDrawerViewModel
+    viewModel: AppDrawerViewModel,
+    onSwipeDownToClose: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     
     AppDrawerContainer {
         val listState = rememberLazyListState()
+        
+        // Check if we're at the top of the list
+        val isAtTop = remember {
+            derivedStateOf {
+                listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+            }
+        }
+        
+        // Nested scroll connection to detect swipe down at top
+        val nestedScrollConnection = remember(onSwipeDownToClose) {
+            object : NestedScrollConnection {
+                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                    // If at top and trying to scroll down (positive y), consume it and close drawer
+                    if (isAtTop.value && available.y > 0 && source == NestedScrollSource.UserInput) {
+                        onSwipeDownToClose?.invoke()
+                        return available // Consume the scroll
+                    }
+                    return Offset.Zero
+                }
+            }
+        }
         
         // Pre-compute app item data to avoid recomposition overhead
         // Use lazy evaluation - only compute when needed
@@ -58,7 +86,15 @@ fun AppDrawerScreen(
         
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (onSwipeDownToClose != null) {
+                        Modifier.nestedScroll(nestedScrollConnection)
+                    } else {
+                        Modifier
+                    }
+                ),
             contentPadding = PaddingValues(
                 top = 24.dp,
                 bottom = 24.dp

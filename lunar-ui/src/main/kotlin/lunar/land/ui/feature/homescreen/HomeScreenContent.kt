@@ -211,18 +211,10 @@ fun HomeScreenContent(
                         isAppDrawerOpen = false
                     }
                     
-                    // Swipe down anywhere to close drawer
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .onSwipeDown {
-                                isAppDrawerOpen = false
-                            }
-                    ) {
-                        AppDrawerScreen(
-                            viewModel = appDrawerViewModel
-                        )
-                    }
+                    AppDrawerScreen(
+                        viewModel = appDrawerViewModel,
+                        onSwipeDownToClose = { isAppDrawerOpen = false }
+                    )
                 }
             }
             
