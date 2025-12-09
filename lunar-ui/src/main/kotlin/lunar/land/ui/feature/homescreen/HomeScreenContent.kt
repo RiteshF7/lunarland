@@ -183,15 +183,15 @@ fun HomeScreenContent(
             // Slides in from bottom on swipe up, slides out to bottom on swipe down
             AnimatedVisibility(
                 visible = isAppDrawerOpen,
-                enter = fadeIn(animationSpec = tween(200)) + 
+                enter = fadeIn(animationSpec = tween(100)) + 
                         slideInVertically(
                             initialOffsetY = { it }, // Slide from bottom (positive offset)
-                            animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                            animationSpec = tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)
                         ),
-                exit = fadeOut(animationSpec = tween(150)) + 
+                exit = fadeOut(animationSpec = tween(100)) + 
                        slideOutVertically(
                            targetOffsetY = { it }, // Slide out to bottom (positive offset)
-                           animationSpec = tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                           animationSpec = tween(150, easing = androidx.compose.animation.core.FastOutSlowInEasing)
                        ),
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -204,11 +204,10 @@ fun HomeScreenContent(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(LunarTheme.BackgroundColor)
-                        .onSwipeDown {
-                            isAppDrawerOpen = false
-                        }
                 ) {
-                    AppDrawerScreen()
+                    AppDrawerScreen(
+                        onSwipeDown = { isAppDrawerOpen = false }
+                    )
                 }
             }
             

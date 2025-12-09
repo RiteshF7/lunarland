@@ -7,9 +7,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -19,6 +19,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import lunar.land.ui.R
 import lunar.land.ui.core.ui.SearchField
 import lunar.land.ui.core.ui.extensions.launchApp
+import lunar.land.ui.core.ui.extensions.onSwipeDown
 import lunar.land.ui.feature.favorites.ui.StaggeredFlowRow
 import lunar.land.ui.manager.model.AppInfo
 
@@ -28,7 +29,8 @@ import lunar.land.ui.manager.model.AppInfo
  */
 @Composable
 fun AppDrawerScreen(
-    viewModel: AppDrawerViewModel = viewModel()
+    viewModel: AppDrawerViewModel = viewModel(),
+    onSwipeDown: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -43,25 +45,52 @@ fun AppDrawerScreen(
             }
         }
         
-        // Scroll to bottom (which is top in reverseLayout) when drawer opens with cached data
+        // Check if we're at the top of the list
+        val isAtTop = remember {
+            derivedStateOf {
+                listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+            }
+        }
+        
+        // Scroll to top (search bar) when drawer opens with cached data
         LaunchedEffect(uiState.allApps.isNotEmpty(), uiState.isLoading) {
             if (uiState.allApps.isNotEmpty() && !uiState.isLoading) {
-                // In reverseLayout, scroll to item 0 to show the bottom content first
-                listState.animateScrollToItem(0)
+                // Scroll to search bar (item 0) to show top of list
+                listState.scrollToItem(0)
             }
         }
         
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxWidth(),
-            reverseLayout = true, // Bottom to top scroll direction
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (onSwipeDown != null && isAtTop.value) {
+                        Modifier.onSwipeDown(enabled = true) {
+                            onSwipeDown()
+                        }
+                    } else {
+                        Modifier
+                    }
+                ),
             contentPadding = PaddingValues(
                 top = 24.dp,
                 bottom = 24.dp
             ),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // App list - lazy loaded with staggered grid (appears first due to reverseLayout)
+            // Search bar at the top
+            item(key = "search") {
+                SearchField(
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = stringResource(id = R.string.search),
+                    query = uiState.searchQuery,
+                    onQueryChange = { viewModel.updateSearchQuery(it) },
+                    paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
+                )
+            }
+            
+            // App list - lazy loaded with staggered grid
             if (uiState.isLoading && appItemsData.isEmpty()) {
                 // Show loading indicator only on first load
                 item(key = "loading") {
@@ -90,17 +119,6 @@ fun AppDrawerScreen(
                         }
                     }
                 }
-            }
-            
-            // Search bar at the bottom (appears at top due to reverseLayout)
-            item(key = "search") {
-                SearchField(
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = stringResource(id = R.string.search),
-                    query = uiState.searchQuery,
-                    onQueryChange = { viewModel.updateSearchQuery(it) },
-                    paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
-                )
             }
         }
     }
