@@ -407,13 +407,17 @@ class TaskExecutorViewModel(
             try {
                 val apiKeyFromProps = googleApiKey
                 
+                Logger.logInfo(LOG_TAG, "setupGoogleApiKey called, apiKey length: ${apiKeyFromProps.length}, isBlank: ${apiKeyFromProps.isBlank()}")
+                
                 if (apiKeyFromProps.isBlank()) {
                     mainHandler.post {
-                        updateStatus("GOOGLE_API_KEY not found in local.properties")
-                        Logger.logError(LOG_TAG, "GOOGLE_API_KEY not found in local.properties")
+                        updateStatus("GOOGLE_API_KEY not found in BuildConfig")
+                        Logger.logError(LOG_TAG, "GOOGLE_API_KEY not found in BuildConfig (passed from Activity)")
                     }
                     return@Thread
                 }
+                
+                Logger.logInfo(LOG_TAG, "Setting up GOOGLE_API_KEY in environment (length: ${apiKeyFromProps.length})")
                 
                 val profilePath = "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc"
                 val apiKeyVar = "GOOGLE_API_KEY"
@@ -599,13 +603,18 @@ class TaskExecutorViewModel(
                 // The command below will handle reconnection if needed
             }
             
-            // Simplified command: only set ANDROID_SERIAL and run droidrun
+            // Simplified command: set ANDROID_SERIAL, ensure API key is set, and run droidrun
             // ADB setup should already be done by prepareDroidrunEnvironment()
             // Only connect if no device is connected (simple check)
+            val apiKeyExport = if (googleApiKey.isNotBlank()) {
+                "export GOOGLE_API_KEY=\"$googleApiKey\" && "
+            } else {
+                ""
+            }
             val droidrunCommand = """
                 export ANDROID_SERIAL="127.0.0.1:5558"
                 adb devices 2>&1 | grep -q "127.0.0.1:5558.*device" || adb connect 127.0.0.1:5558 2>&1 || true
-                droidrun run "$command"
+                ${apiKeyExport}droidrun run "$command"
             """.trimIndent()
             
             Logger.logInfo(LOG_TAG, "Writing simplified droidrun command to terminal")
