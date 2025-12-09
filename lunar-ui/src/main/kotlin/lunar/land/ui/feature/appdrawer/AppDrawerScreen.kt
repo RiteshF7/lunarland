@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -29,8 +28,7 @@ import lunar.land.ui.manager.model.AppInfo
  */
 @Composable
 fun AppDrawerScreen(
-    viewModel: AppDrawerViewModel = viewModel(),
-    onSwipeDown: (() -> Unit)? = null
+    viewModel: AppDrawerViewModel
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -50,13 +48,6 @@ fun AppDrawerScreen(
             }
         }
         
-        // Check if we're at the top of the list
-        val isAtTop = remember {
-            derivedStateOf {
-                listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
-            }
-        }
-        
         // Scroll to top (search bar) immediately when drawer opens - no animation delay
         LaunchedEffect(uiState.allApps.isNotEmpty()) {
             if (uiState.allApps.isNotEmpty()) {
@@ -67,17 +58,7 @@ fun AppDrawerScreen(
         
         LazyColumn(
             state = listState,
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(
-                    if (onSwipeDown != null && isAtTop.value) {
-                        Modifier.onSwipeDown(enabled = true) {
-                            onSwipeDown()
-                        }
-                    } else {
-                        Modifier
-                    }
-                ),
+            modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(
                 top = 24.dp,
                 bottom = 24.dp

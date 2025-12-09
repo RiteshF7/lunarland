@@ -59,6 +59,7 @@ import lunar.land.ui.core.ui.extensions.onSwipeDown
 import lunar.land.ui.core.ui.extensions.onSwipeUp
 import lunar.land.ui.feature.appdrawer.AppDrawerScreen
 import lunar.land.ui.feature.appdrawer.AppDrawerViewModel
+import lunar.land.ui.manager.AppStateManager
 import androidx.lifecycle.viewmodel.compose.viewModel
 import lunar.land.ui.feature.favorites.FavoritesListUiComponent
 import lunar.land.ui.feature.favorites.FavoritesListUiComponentState
@@ -83,9 +84,21 @@ fun HomeScreenContent(
     var searchQuery by remember { mutableStateOf("") }
     var isAppDrawerOpen by remember { mutableStateOf(false) }
     
-    // Pre-initialize ViewModel when home screen loads (not when drawer opens)
-    // This ensures cache is loaded instantly when drawer opens
-    val appDrawerViewModel: AppDrawerViewModel = viewModel()
+    // Initialize AppStateManager at application level - loads and caches apps
+    val appStateManager: AppStateManager = viewModel()
+    
+    // AppDrawerViewModel is isolated - just takes data from AppStateManager
+    val appDrawerViewModel: AppDrawerViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return AppDrawerViewModel(
+                    context.applicationContext as android.app.Application,
+                    appStateManager
+                ) as T
+            }
+        }
+    )
     
     // Create simplified lunar home widget state
     val lunarHomeWidgetState = remember {
@@ -198,10 +211,18 @@ fun HomeScreenContent(
                         isAppDrawerOpen = false
                     }
                     
-                    AppDrawerScreen(
-                        viewModel = appDrawerViewModel,
-                        onSwipeDown = { isAppDrawerOpen = false }
-                    )
+                    // Swipe down anywhere to close drawer
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .onSwipeDown {
+                                isAppDrawerOpen = false
+                            }
+                    ) {
+                        AppDrawerScreen(
+                            viewModel = appDrawerViewModel
+                        )
+                    }
                 }
             }
             
