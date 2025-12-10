@@ -56,10 +56,8 @@ class AppDrawerViewModel(
             }
         }
         
-        // Check for changes after initial load
+        // Check for changes after initial load (no delay needed)
         viewModelScope.launch {
-            // Wait a bit for UI to be shown
-            kotlinx.coroutines.delay(500)
             appStateManager.checkForAppChanges()
         }
     }
@@ -79,12 +77,14 @@ class AppDrawerViewModel(
 
     /**
      * Filters apps based on the search query.
+     * Optimized for performance.
      */
     private fun filterApps(apps: List<AppInfo>, query: String): List<AppInfo> {
         if (query.isBlank()) {
             return apps
         }
         
+        // Pre-compute lowercase query once
         val lowerQuery = query.lowercase()
         return apps.filter { appInfo ->
             appInfo.app.displayName.lowercase().contains(lowerQuery) ||

@@ -64,24 +64,9 @@ fun AppDrawerScreen(
             }
         }
         
-        // Pre-compute app item data to avoid recomposition overhead
-        // Use lazy evaluation - only compute when needed
-        val appItemsData = remember(uiState.filteredApps) {
-            if (uiState.filteredApps.isEmpty()) {
-                emptyList()
-            } else {
-                uiState.filteredApps.map { appInfo ->
-                    appInfo to appInfo.toAppItemData()
-                }
-            }
-        }
-        
-        // Scroll to top (search bar) immediately when drawer opens - no animation delay
-        LaunchedEffect(uiState.allApps.isNotEmpty()) {
-            if (uiState.allApps.isNotEmpty()) {
-                // Use scrollToItem (instant) instead of animateScrollToItem
-                listState.scrollToItem(0)
-            }
+        // Scroll to top (search bar) immediately when drawer opens - only once
+        LaunchedEffect(Unit) {
+            listState.scrollToItem(0)
         }
         
         LazyColumn(
@@ -113,7 +98,7 @@ fun AppDrawerScreen(
             }
             
             // App list - lazy loaded with staggered grid
-            if (uiState.isLoading && appItemsData.isEmpty()) {
+            if (uiState.isLoading && uiState.filteredApps.isEmpty()) {
                 // Show loading indicator only on first load
                 item(key = "loading") {
                     Box(
@@ -127,15 +112,16 @@ fun AppDrawerScreen(
                 }
             } else {
                 // Use StaggeredFlowRow in a single item for better layout
+                // Compute app item data lazily during rendering to avoid blocking UI
                 item(key = "apps_grid") {
                     StaggeredFlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         mainAxisSpacing = 14.dp,
                         crossAxisSpacing = 14.dp
                     ) {
-                        appItemsData.forEach { (appInfo, appItemData) ->
+                        uiState.filteredApps.forEach { appInfo ->
                             AppItem(
-                                appData = appItemData,
+                                appData = appInfo.toAppItemData(),
                                 onClick = { context.launchApp(app = appInfo.app) }
                             )
                         }
@@ -149,43 +135,47 @@ fun AppDrawerScreen(
 /**
  * Converts AppInfo to AppItemData for use with AppItem composable.
  * Generates dark-themed colors optimized for black background.
+ * Optimized to minimize Color object creation overhead.
  */
 private fun AppInfo.toAppItemData(): AppItemData {
-    val colorInt = color
-    val color = Color(colorInt)
+    // Extract RGB components directly from color int to avoid Color object creation
+    val r = android.graphics.Color.red(color) / 255f
+    val g = android.graphics.Color.green(color) / 255f
+    val b = android.graphics.Color.blue(color) / 255f
     
-    // Create vibrant background that matches app's color theme
-    // Use more of the app's actual color for better visual harmony
-    val baseDark = 0.12f  // Base dark value for depth
-    val colorContribution = 0.35f  // Strong color contribution for theme matching
+    // Pre-compute constants
+    val baseDark = 0.12f
+    val colorContribution = 0.35f
+    val textBase = 0.85f
+    val textTint = 0.3f
+    val glowBase = 0.3f
+    val glowTint = 0.6f
     
-    // Blend app color more prominently to match content
+    // Compute colors directly without intermediate Color objects
     val backgroundColor = Color(
-        red = (color.red * colorContribution + baseDark).coerceIn(0f, 1f),
-        green = (color.green * colorContribution + baseDark).coerceIn(0f, 1f),
-        blue = (color.blue * colorContribution + baseDark).coerceIn(0f, 1f),
+        red = (r * colorContribution + baseDark).coerceIn(0f, 1f),
+        green = (g * colorContribution + baseDark).coerceIn(0f, 1f),
+        blue = (b * colorContribution + baseDark).coerceIn(0f, 1f),
         alpha = 1f
     )
     
-    // Light text color with subtle color tint for readability on dark background
     val textColor = Color(
-        red = (color.red * 0.3f + 0.85f).coerceIn(0f, 1f),
-        green = (color.green * 0.3f + 0.85f).coerceIn(0f, 1f),
-        blue = (color.blue * 0.3f + 0.85f).coerceIn(0f, 1f),
+        red = (r * textTint + textBase).coerceIn(0f, 1f),
+        green = (g * textTint + textBase).coerceIn(0f, 1f),
+        blue = (b * textTint + textBase).coerceIn(0f, 1f),
         alpha = 0.95f
     )
     
-    // Glow color with more saturation for visibility on dark background
     val glowColor = Color(
-        red = (color.red * 0.6f + 0.3f).coerceIn(0f, 1f),
-        green = (color.green * 0.6f + 0.3f).coerceIn(0f, 1f),
-        blue = (color.blue * 0.6f + 0.3f).coerceIn(0f, 1f),
+        red = (r * glowTint + glowBase).coerceIn(0f, 1f),
+        green = (g * glowTint + glowBase).coerceIn(0f, 1f),
+        blue = (b * glowTint + glowBase).coerceIn(0f, 1f),
         alpha = 1f
     )
     
     return AppItemData(
         name = app.displayName,
-        iconDrawable = icon, // Use the actual app icon
+        iconDrawable = icon,
         backgroundColor = backgroundColor,
         textColor = textColor,
         glowColor = glowColor,
