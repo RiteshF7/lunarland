@@ -54,6 +54,9 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
     
+    // Neumorphic UI library
+    implementation("me.nikhilchaudhari:composeNeumorphism:1.0.0-alpha02")
+    
     // Task executor shared module
     implementation(project(":taskexecutor-shared"))
 }

@@ -11,6 +11,7 @@ import android.os.Looper
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.termux.app.taskexecutor.model.DroidRunConfig
 import com.termux.app.taskexecutor.model.TaskExecutorUiState
 import com.termux.app.taskexecutor.model.TaskStatus
 import com.termux.app.taskexecutor.state.TaskExecutorStateManager
@@ -66,9 +67,36 @@ class TaskExecutorViewModel(
     // Track droidrun preparation state
     private var isDroidrunPrepared = false
     
-    // Maximum number of steps for droidrun task execution
-    // This can be adjusted in the future as needed
-    var maxDroidrunSteps: Int = 150
+    /**
+     * DroidRun configuration with all CLI flags and options.
+     * Easily configurable - modify this object to change droidrun behavior.
+     * 
+     * Example usage:
+     * - viewModel.droidRunConfig = DroidRunConfig.DEFAULT.copy(steps = 200, reasoning = true)
+     * - viewModel.droidRunConfig = DroidRunConfig.HIGH_PERFORMANCE
+     * - viewModel.droidRunConfig = DroidRunConfig.DIRECT_MODE
+     * - viewModel.droidRunConfig = DroidRunConfig.DEBUG
+     */
+    var droidRunConfig: DroidRunConfig = DroidRunConfig.DEFAULT
+        set(value) {
+            field = value
+            Logger.logInfo(LOG_TAG, "DroidRun config updated: steps=${value.steps}, reasoning=${value.reasoning}, vision=${value.vision}, debug=${value.debug}")
+        }
+    
+    // Legacy properties for backward compatibility (delegate to droidRunConfig)
+    @Deprecated("Use droidRunConfig.steps instead", ReplaceWith("droidRunConfig.steps"))
+    var maxDroidrunSteps: Int
+        get() = droidRunConfig.steps
+        set(value) {
+            droidRunConfig = droidRunConfig.copy(steps = value)
+        }
+    
+    @Deprecated("Use droidRunConfig.reasoning instead", ReplaceWith("droidRunConfig.reasoning"))
+    var enableReasoning: Boolean
+        get() = droidRunConfig.reasoning
+        set(value) {
+            droidRunConfig = droidRunConfig.copy(reasoning = value)
+        }
     
     // Track previous output length to detect if output is still changing
     private var previousOutputLength: Int = 0
@@ -621,11 +649,19 @@ class TaskExecutorViewModel(
             } else {
                 ""
             }
+            
+            // Build droidrun command with all configured flags
+            val droidrunFlags = droidRunConfig.buildFlagsString()
+            val deviceSerial = droidRunConfig.device ?: "127.0.0.1:5558"
+            
             val droidrunCommand = """
-                export ANDROID_SERIAL="127.0.0.1:5558"
-                adb devices 2>&1 | grep -q "127.0.0.1:5558.*device" || adb connect 127.0.0.1:5558 2>&1 || true
-                ${apiKeyExport}droidrun run --steps ${maxDroidrunSteps} "$command"
+                export ANDROID_SERIAL="$deviceSerial"
+                adb devices 2>&1 | grep -q "$deviceSerial.*device" || adb connect $deviceSerial 2>&1 || true
+                ${apiKeyExport}droidrun run $droidrunFlags "$command"
             """.trimIndent()
+            
+            Logger.logInfo(LOG_TAG, "DroidRun command flags: $droidrunFlags")
+            Logger.logInfo(LOG_TAG, "DroidRun config: steps=${droidRunConfig.steps}, reasoning=${droidRunConfig.reasoning}, vision=${droidRunConfig.vision}, debug=${droidRunConfig.debug}")
             
             Logger.logInfo(LOG_TAG, "Writing simplified droidrun command to terminal")
             terminalSession!!.write(droidrunCommand)

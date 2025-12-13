@@ -120,7 +120,7 @@ fun AppDrawerScreen(
                         crossAxisSpacing = 14.dp
                     ) {
                         uiState.filteredApps.forEach { appInfo ->
-                            AppItem(
+                            NeumorphicAppItem(
                                 appData = appInfo.toAppItemData(),
                                 onClick = { context.launchApp(app = appInfo.app) }
                             )
