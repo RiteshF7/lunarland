@@ -31,18 +31,31 @@ import lunar.land.ui.core.theme.LunarTheme
 
 /**
  * Converts a Drawable to a Painter for use in Compose
+ * Optimized with proper caching and memory management.
+ * Uses stable key based on drawable identity for efficient caching.
  */
 @Composable
 private fun rememberDrawablePainter(drawable: Drawable?): Painter? {
-    return remember(drawable) {
+    // Use drawable's identity as key for stable caching
+    // This prevents unnecessary bitmap recreations
+    val drawableKey = remember(drawable) {
+        drawable?.hashCode() ?: 0
+    }
+    
+    return remember(drawableKey) {
         drawable?.let {
+            // Use optimal bitmap size - limit to reasonable dimensions for icons
+            val maxSize = 256 // Limit icon size for memory efficiency
+            val width = it.intrinsicWidth.coerceIn(1, maxSize)
+            val height = it.intrinsicHeight.coerceIn(1, maxSize)
+            
             val bitmap = Bitmap.createBitmap(
-                it.intrinsicWidth.coerceAtLeast(1),
-                it.intrinsicHeight.coerceAtLeast(1),
+                width,
+                height,
                 Bitmap.Config.ARGB_8888
             )
             val canvas = Canvas(bitmap)
-            it.setBounds(0, 0, canvas.width, canvas.height)
+            it.setBounds(0, 0, width, height)
             it.draw(canvas)
             BitmapPainter(bitmap.asImageBitmap())
         }
@@ -50,8 +63,64 @@ private fun rememberDrawablePainter(drawable: Drawable?): Painter? {
 }
 
 /**
+ * Isolated composable for app icon rendering.
+ * This creates a composition boundary to prevent unnecessary recompositions.
+ */
+@Composable
+private fun AppIcon(
+    iconDrawable: Drawable?,
+    icon: androidx.compose.ui.graphics.vector.ImageVector?,
+    appName: String
+) {
+    // Use Drawable icon if available, otherwise fall back to ImageVector or placeholder
+    val drawablePainter = rememberDrawablePainter(iconDrawable)
+    
+    when {
+        drawablePainter != null -> {
+            Image(
+                painter = drawablePainter,
+                contentDescription = appName,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        icon != null -> {
+            Icon(
+                imageVector = icon,
+                contentDescription = appName,
+                tint = LunarTheme.TextPrimary,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        else -> {
+            // Placeholder icon when icon is not yet loaded
+            // Memoize first letter to avoid recalculation
+            val firstLetter = remember(appName) {
+                appName.take(1).uppercase()
+            }
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .background(
+                        color = LunarTheme.InactiveBackgroundColor,
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = firstLetter,
+                    style = LunarTheme.Typography.BodySmall,
+                    color = LunarTheme.TextSecondary,
+                    fontSize = 10.sp
+                )
+            }
+        }
+    }
+}
+
+/**
  * App item component using app theme colors.
  * Features clean design matching the app's dark theme with green accents.
+ * Optimized with composition boundaries and stable references.
  * 
  * @param appData The data for the app item
  * @param onClick Callback when the item is clicked
@@ -63,12 +132,17 @@ fun NeumorphicAppItem(
     onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    // Stable callback reference prevents unnecessary recompositions
+    val stableOnClick by androidx.compose.runtime.rememberUpdatedState(onClick)
+    
+    // Interaction source - stable reference per item
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
     val isPressed by interactionSource.collectIsPressedAsState()
     
     // Use press state for touch interactions
-    val isInteracting = isPressed || isHovered
+    // Memoize to avoid recalculation
+    val isInteracting = remember(isPressed, isHovered) { isPressed || isHovered }
     
     Box(
         modifier = modifier
@@ -98,7 +172,7 @@ fun NeumorphicAppItem(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick
+                onClick = { stableOnClick() }
             )
     ) {
         // Content with padding
@@ -109,40 +183,13 @@ fun NeumorphicAppItem(
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Use Drawable icon if available, otherwise fall back to ImageVector or placeholder
-            val drawablePainter = rememberDrawablePainter(appData.iconDrawable)
-            if (drawablePainter != null) {
-                Image(
-                    painter = drawablePainter,
-                    contentDescription = appData.name,
-                    modifier = Modifier.size(24.dp)
-                )
-            } else if (appData.icon != null) {
-                Icon(
-                    imageVector = appData.icon,
-                    contentDescription = appData.name,
-                    tint = LunarTheme.TextPrimary,
-                    modifier = Modifier.size(24.dp)
-                )
-            } else {
-                // Placeholder icon when icon is not yet loaded
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .background(
-                            color = LunarTheme.InactiveBackgroundColor,
-                            shape = androidx.compose.foundation.shape.CircleShape
-                        ),
-                    contentAlignment = androidx.compose.ui.Alignment.Center
-                ) {
-                    Text(
-                        text = appData.name.take(1).uppercase(),
-                        style = LunarTheme.Typography.BodySmall,
-                        color = LunarTheme.TextSecondary,
-                        fontSize = 10.sp
-                    )
-                }
-            }
+            // Isolate icon rendering in its own composition boundary
+            // This prevents recomposition of the entire item when only icon changes
+            AppIcon(
+                iconDrawable = appData.iconDrawable,
+                icon = appData.icon,
+                appName = appData.name
+            )
             Spacer(modifier = Modifier.width(LunarTheme.Spacing.Medium))
             Text(
                 text = appData.name,

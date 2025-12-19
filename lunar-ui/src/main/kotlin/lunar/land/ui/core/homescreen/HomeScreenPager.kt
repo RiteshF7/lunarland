@@ -4,6 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,31 +54,39 @@ fun HomeScreenPager(
                 .weight(1f)
                 .fillMaxSize()
         ) { page ->
-            when (page) {
-                0 -> {
-                    // Task Executor Screen (left/agent screen)
-                    // Swipe right from HomeScreen to access
-                    taskExecutorContent()
-                }
-                1 -> {
-                    // Home Screen (middle/home screen) - default
-                    HomeScreen(
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-                2 -> {
-                    // App Drawer Screen (right/app drawer)
-                    // Swipe left from HomeScreen to access
-                    AppDrawerScreen(
-                        viewModel = appDrawerViewModel,
-                        onSwipeDownToClose = null // No swipe down to close in pager mode
-                    )
+            // Use key to prevent unnecessary recomposition during swipes
+            androidx.compose.runtime.key(page) {
+                when (page) {
+                    0 -> {
+                        // Task Executor Screen (left/agent screen)
+                        // Swipe right from HomeScreen to access
+                        taskExecutorContent()
+                    }
+                    1 -> {
+                        // Home Screen (middle/home screen) - default
+                        HomeScreen(
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    2 -> {
+                        // App Drawer Screen (right/app drawer)
+                        // Swipe left from HomeScreen to access
+                        AppDrawerScreen(
+                            viewModel = appDrawerViewModel,
+                            onSwipeDownToClose = null // No swipe down to close in pager mode
+                        )
+                    }
                 }
             }
         }
         
         // Custom page indicators at the bottom
+        // Use derivedStateOf to minimize recomposition during swipes
         if (showIndicators) {
+            val currentPage by remember {
+                derivedStateOf { pagerState.currentPage }
+            }
+            
             Row(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
@@ -83,7 +94,7 @@ fun HomeScreenPager(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 repeat(3) { index ->
-                    val isSelected = pagerState.currentPage == index
+                    val isSelected = currentPage == index
                     val color = if (isSelected) {
                         LunarTheme.TextPrimary
                     } else {

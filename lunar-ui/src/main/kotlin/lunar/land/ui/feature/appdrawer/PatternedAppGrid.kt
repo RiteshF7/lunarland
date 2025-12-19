@@ -1,7 +1,11 @@
 package lunar.land.ui.feature.appdrawer
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -28,9 +32,16 @@ private val ROW_PATTERN = listOf(2, 3, 2, 1)
 fun List<AppInfo>.divideIntoPatternedRows(): List<List<AppInfo>> {
     if (isEmpty()) return emptyList()
     
+    // Pre-compute name lengths to avoid repeated property access
+    // Use Pair for efficient sorting without creating intermediate objects
+    val appsWithLength = map { it to it.app.displayName.length }
+    
     // Sort apps by name length (shortest first)
     // This ensures shorter names go to rows with more icons
-    val sortedApps = sortedBy { it.app.displayName.length }
+    // Use stable sort for consistent ordering
+    val sortedApps = appsWithLength
+        .sortedBy { it.second }
+        .map { it.first }
     
     val rows = mutableListOf<List<AppInfo>>()
     val remainingApps = sortedApps.toMutableList()
@@ -51,24 +62,27 @@ fun List<AppInfo>.divideIntoPatternedRows(): List<List<AppInfo>> {
         // Select apps for this row that fit within the length constraint
         val rowApps = mutableListOf<AppInfo>()
         var currentTotalLength = 0
+        var appIndex = 0
         
-        val iterator = remainingApps.iterator()
-        while (iterator.hasNext() && rowApps.size < iconsInRow) {
-            val app = iterator.next()
+        while (appIndex < remainingApps.size && rowApps.size < iconsInRow) {
+            val app = remainingApps[appIndex]
             val appNameLength = app.app.displayName.length
             
             // Check if adding this app would exceed the limit
             if (currentTotalLength + appNameLength <= maxTotalLength) {
                 rowApps.add(app)
                 currentTotalLength += appNameLength
-                iterator.remove()
+                remainingApps.removeAt(appIndex)
+                // Don't increment appIndex since we removed an item
             } else {
                 // If we can't fit this app:
                 // - For 1-icon rows: take it anyway (no limit)
                 // - For other rows: skip it and continue to next row
                 if (iconsInRow == 1) {
                     rowApps.add(app)
-                    iterator.remove()
+                    remainingApps.removeAt(appIndex)
+                } else {
+                    appIndex++ // Skip this app
                 }
                 break
             }
@@ -91,7 +105,7 @@ fun List<AppInfo>.divideIntoPatternedRows(): List<List<AppInfo>> {
         }
         
         if (rowApps.isNotEmpty()) {
-            rows.add(rowApps.toList())
+            rows.add(rowApps) // Use rowApps directly, no need to copy
         }
         
         patternIndex++
@@ -109,37 +123,57 @@ fun List<AppInfo>.divideIntoPatternedRows(): List<List<AppInfo>> {
  * Pattern repeats...
  * 
  * Apps with shorter names are automatically placed in rows with more icons.
+ * Returns the divided rows for use in LazyColumn.items() for optimal performance.
+ */
+fun List<AppInfo>.getPatternedRows(): List<List<AppInfo>> {
+    return divideIntoPatternedRows()
+}
+
+/**
+ * Composable for a single row of apps in the patterned grid.
+ * Optimized with stable callback references and composition boundaries.
  */
 @Composable
-fun PatternedAppGrid(
-    apps: List<AppInfo>,
+internal fun PatternedAppRow(
+    rowApps: List<AppInfo>,
     onAppClick: (AppInfo) -> Unit,
-    modifier: Modifier = Modifier,
-    horizontalSpacing: androidx.compose.ui.unit.Dp = 14.dp,
-    verticalSpacing: androidx.compose.ui.unit.Dp = 14.dp
+    horizontalSpacing: androidx.compose.ui.unit.Dp = 14.dp
 ) {
-    val rows = remember(apps) { apps.divideIntoPatternedRows() }
+    // Stable callback reference prevents unnecessary recompositions
+    // This is critical for performance in lazy lists
+    val stableOnAppClick = androidx.compose.runtime.rememberUpdatedState(onAppClick)
     
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(verticalSpacing)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(horizontalSpacing)
     ) {
-        rows.forEach { rowApps ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(horizontalSpacing)
-            ) {
-                // Calculate width for each item based on number of items in row
-                val itemCount = rowApps.size
-                val itemWeight = 1f / itemCount
-                
-                rowApps.forEach { appInfo ->
-                    NeumorphicAppItem(
-                        appData = appInfo.toAppItemData(),
-                        onClick = { onAppClick(appInfo) },
-                        modifier = Modifier.weight(itemWeight)
-                    )
+        // Calculate width for each item based on number of items in row
+        // Memoize to avoid recalculation
+        val itemCount = remember(rowApps.size) { rowApps.size }
+        val itemWeight = remember(itemCount) { 1f / itemCount }
+        
+        rowApps.forEach { appInfo ->
+            // Use stable unique key (package name) for efficient item tracking
+            // This allows Compose to intelligently reuse compositions
+            key(appInfo.app.packageName) {
+                // Memoize app item data - only recompute when app data changes
+                // Using stable keys: packageName, icon reference, and color
+                val appItemData = remember(
+                    appInfo.app.packageName,
+                    appInfo.icon,
+                    appInfo.color,
+                    appInfo.app.displayName
+                ) {
+                    appInfo.toAppItemData()
                 }
+                
+                // Isolate heavy composable in its own composition scope
+                // This prevents recomposition cascades
+                NeumorphicAppItem(
+                    appData = appItemData,
+                    onClick = { stableOnAppClick.value(appInfo) },
+                    modifier = Modifier.weight(itemWeight)
+                )
             }
         }
     }
