@@ -25,7 +25,7 @@ import lunar.land.ui.R
 import lunar.land.ui.core.ui.SearchField
 import lunar.land.ui.core.ui.extensions.launchApp
 import lunar.land.ui.core.ui.extensions.onSwipeDown
-import lunar.land.ui.feature.favorites.ui.StaggeredFlowRow
+import lunar.land.ui.feature.appdrawer.PatternedAppGrid
 import lunar.land.ui.manager.model.AppInfo
 
 /**
@@ -111,21 +111,18 @@ fun AppDrawerScreen(
                     }
                 }
             } else {
-                // Use StaggeredFlowRow in a single item for better layout
-                // Compute app item data lazily during rendering to avoid blocking UI
+                // Use PatternedAppGrid with 2-3-2-1 pattern
+                // Apps with shorter names are automatically placed in rows with more icons
                 item(key = "apps_grid") {
-                    StaggeredFlowRow(
+                    PatternedAppGrid(
+                        apps = uiState.filteredApps,
+                        onAppClick = { appInfo ->
+                            context.launchApp(app = appInfo.app)
+                        },
                         modifier = Modifier.fillMaxWidth(),
-                        mainAxisSpacing = 14.dp,
-                        crossAxisSpacing = 14.dp
-                    ) {
-                        uiState.filteredApps.forEach { appInfo ->
-                            NeumorphicAppItem(
-                                appData = appInfo.toAppItemData(),
-                                onClick = { context.launchApp(app = appInfo.app) }
-                            )
-                        }
-                    }
+                        horizontalSpacing = 14.dp,
+                        verticalSpacing = 14.dp
+                    )
                 }
             }
         }
@@ -137,7 +134,7 @@ fun AppDrawerScreen(
  * Generates dark-themed colors optimized for black background.
  * Optimized to minimize Color object creation overhead.
  */
-private fun AppInfo.toAppItemData(): AppItemData {
+internal fun AppInfo.toAppItemData(): AppItemData {
     // Extract RGB components directly from color int to avoid Color object creation
     val r = android.graphics.Color.red(color) / 255f
     val g = android.graphics.Color.green(color) / 255f
