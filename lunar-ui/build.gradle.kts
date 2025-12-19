@@ -57,6 +57,10 @@ dependencies {
     // Neumorphic UI library
     implementation("me.nikhilchaudhari:composeNeumorphism:1.0.0-alpha02")
     
+    // Accompanist Pager (Note: Deprecated in favor of androidx.compose.foundation.pager, but using as requested)
+    implementation("com.google.accompanist:accompanist-pager:0.32.0")
+    implementation("com.google.accompanist:accompanist-pager-indicators:0.32.0")
+    
     // Task executor shared module
     implementation(project(":taskexecutor-shared"))
 }

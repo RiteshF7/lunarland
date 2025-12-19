@@ -59,7 +59,7 @@ import lunar.land.ui.core.theme.LunarTheme
 - Resource: `R.font.manrope_variable`
 - Weight: Normal (variable font supports multiple weights)
 
-### Text Styles
+### Text Stylesdepe
 
 All text styles use the Manrope font family and are defined in `LunarTheme.Typography`:
 

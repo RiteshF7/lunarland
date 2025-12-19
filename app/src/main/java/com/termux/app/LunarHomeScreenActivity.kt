@@ -16,6 +16,8 @@ import lunar.land.ui.core.model.Theme
 import lunar.land.ui.core.theme.LauncherTheme
 import lunar.land.ui.core.ui.providers.ProvideSystemUiController
 import lunar.land.ui.feature.taskexecagent.TaskExecutorAgentScreen
+import lunar.land.ui.manager.AppStateManager
+import lunar.land.ui.feature.appdrawer.AppDrawerViewModel
 
 /**
  * Main launcher activity for the Lunar Home Screen.
@@ -26,6 +28,7 @@ import lunar.land.ui.feature.taskexecagent.TaskExecutorAgentScreen
  * - Shows home screen with app drawer
  * - Handles app launching
  * - Single task mode ensures only one instance and brings to front on HOME press
+ * - Three-panel layout: Agent (left), Home (middle), App Drawer (right)
  */
 class LunarHomeScreenActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,6 +48,23 @@ class LunarHomeScreenActivity : ComponentActivity() {
                             googleApiKey
                         )
                     )
+                    
+                    // Initialize AppStateManager for app drawer
+                    val appStateManager: AppStateManager = viewModel()
+                    
+                    // Initialize AppDrawerViewModel
+                    val appDrawerViewModel: AppDrawerViewModel = viewModel(
+                        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+                            @Suppress("UNCHECKED_CAST")
+                            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                                return AppDrawerViewModel(
+                                    this@LunarHomeScreenActivity.application,
+                                    appStateManager
+                                ) as T
+                            }
+                        }
+                    )
+                    
                     HomeScreenPager(
                         modifier = Modifier.fillMaxSize(),
                         taskExecutorContent = {
@@ -52,7 +72,8 @@ class LunarHomeScreenActivity : ComponentActivity() {
                                 modifier = Modifier.fillMaxSize(),
                                 viewModel = taskExecutorViewModel
                             )
-                        }
+                        },
+                        appDrawerViewModel = appDrawerViewModel
                     )
                 }
             }

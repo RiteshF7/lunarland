@@ -97,36 +97,6 @@ data class DroidRunConfig(
         return flags.joinToString(" ")
     }
     
-    /**
-     * Creates a copy of this config with updated values.
-     * Useful for creating modified configurations.
-     */
-    fun copy(
-        provider: String = this.provider,
-        model: String = this.model,
-        device: String? = this.device,
-        steps: Int = this.steps,
-        reasoning: Boolean = this.reasoning,
-        vision: Boolean = this.vision,
-        tcp: Boolean = this.tcp,
-        debug: Boolean = this.debug,
-        saveTrajectory: String = this.saveTrajectory,
-        configPath: String? = this.configPath
-    ): DroidRunConfig {
-        return DroidRunConfig(
-            provider = provider,
-            model = model,
-            device = device,
-            steps = steps,
-            reasoning = reasoning,
-            vision = vision,
-            tcp = tcp,
-            debug = debug,
-            saveTrajectory = saveTrajectory,
-            configPath = configPath
-        )
-    }
-    
     companion object {
         /**
          * Default configuration with sensible defaults for most use cases.

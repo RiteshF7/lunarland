@@ -4,13 +4,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.graphics.Color as GraphicsColor
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -55,12 +48,6 @@ import lunar.land.ui.core.model.lunarphase.UpcomingLunarPhase
 import lunar.land.ui.core.ui.AISphere
 import lunar.land.ui.core.ui.SearchField
 import lunar.land.ui.core.ui.VerticalSpacer
-import lunar.land.ui.core.ui.extensions.onSwipeDown
-import lunar.land.ui.core.ui.extensions.onSwipeUp
-import lunar.land.ui.feature.appdrawer.AppDrawerScreen
-import lunar.land.ui.feature.appdrawer.AppDrawerViewModel
-import lunar.land.ui.manager.AppStateManager
-import androidx.lifecycle.viewmodel.compose.viewModel
 import lunar.land.ui.feature.favorites.FavoritesListUiComponent
 import lunar.land.ui.feature.favorites.FavoritesListUiComponentState
 import lunar.land.ui.feature.lunarHomewidget.LunarHomeWidget
@@ -82,23 +69,6 @@ fun HomeScreenContent(
     val context = LocalContext.current
     val packageManager = context.packageManager
     var searchQuery by remember { mutableStateOf("") }
-    var isAppDrawerOpen by remember { mutableStateOf(false) }
-    
-    // Initialize AppStateManager at application level - loads and caches apps
-    val appStateManager: AppStateManager = viewModel()
-    
-    // AppDrawerViewModel is isolated - just takes data from AppStateManager
-    val appDrawerViewModel: AppDrawerViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return AppDrawerViewModel(
-                    context.applicationContext as android.app.Application,
-                    appStateManager
-                ) as T
-            }
-        }
-    )
     
     // Create simplified lunar home widget state
     val lunarHomeWidgetState = remember {
@@ -194,71 +164,42 @@ fun HomeScreenContent(
             modifier = modifier
                 .fillMaxSize()
                 .background(LunarTheme.BackgroundColor)
-                .onSwipeUp {
-                    isAppDrawerOpen = true
-                }
         ) {
-            // App Drawer overlay - use Box with offset for instant display (no animation delay)
-            // Only compose when visible to avoid unnecessary work
-            if (isAppDrawerOpen) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(LunarTheme.BackgroundColor)
-                ) {
-                    // Handle back press to close app drawer instead of exiting app
-                    BackHandler(enabled = isAppDrawerOpen) {
-                        isAppDrawerOpen = false
-                    }
+            // Home Screen Content
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Top section with space and lunar widget
+                Column {
+                    VerticalSpacer(spacing = topPadding + 40.dp) // Extra space on top
                     
-                    AppDrawerScreen(
-                        viewModel = appDrawerViewModel,
-                        onSwipeDownToClose = { isAppDrawerOpen = false }
+                    LunarHomeWidget(
+                        state = lunarHomeWidgetState,
+                        horizontalPadding = horizontalPadding,
+                        onClick = onLunarCalendarClick ?: onClockClick
                     )
                 }
-            }
-            
-            // Home Screen Content - hide when app drawer is open
-            AnimatedVisibility(
-                visible = !isAppDrawerOpen,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Top section with space and lunar widget
-                    Column {
-                        VerticalSpacer(spacing = topPadding + 40.dp) // Extra space on top
-                        
-                        LunarHomeWidget(
-                            state = lunarHomeWidgetState,
-                            horizontalPadding = horizontalPadding,
-                            onClick = onLunarCalendarClick ?: onClockClick
-                        )
-                    }
-                    
-                    // Bottom section with favorites and search
-                    Column {
-                        FavoritesListUiComponent(
-                            state = favoritesListState,
-                            contentPadding = bottomPadding,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 8.dp)
-                        )
-                        SearchField(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = bottomPadding),
-                            placeholder = stringResource(id = R.string.search),
-                            query = searchQuery,
-                            onQueryChange = { searchQuery = it },
-                            paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
-                        )
-                        VerticalSpacer(spacing = bottomPadding)
-                    }
+                
+                // Bottom section with favorites and search
+                Column {
+                    FavoritesListUiComponent(
+                        state = favoritesListState,
+                        contentPadding = bottomPadding,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
+                    )
+                    SearchField(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = bottomPadding),
+                        placeholder = stringResource(id = R.string.search),
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
+                    )
+                    VerticalSpacer(spacing = bottomPadding)
                 }
             }
         }
