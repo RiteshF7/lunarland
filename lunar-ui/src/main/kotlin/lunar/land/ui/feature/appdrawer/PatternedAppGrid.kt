@@ -19,9 +19,11 @@ private val ROW_PATTERN = listOf(2, 3, 2, 1)
  * 
  * Algorithm:
  * 1. Sort apps by name length (shortest first)
- * 2. Distribute apps to rows following the pattern
- * 3. For rows with more icons (3 icons), prioritize shorter names
- * 4. For rows with fewer icons (1-2 icons), longer names are acceptable
+ * 2. Distribute apps to rows following the pattern with name length constraints:
+ *    - 3-icon rows: total name length < 18 characters
+ *    - 2-icon rows: total name length < 25 characters
+ *    - 1-icon rows: no limit
+ * 3. Smart distribution to avoid UI overflow
  */
 fun List<AppInfo>.divideIntoPatternedRows(): List<List<AppInfo>> {
     if (isEmpty()) return emptyList()
@@ -31,24 +33,67 @@ fun List<AppInfo>.divideIntoPatternedRows(): List<List<AppInfo>> {
     val sortedApps = sortedBy { it.app.displayName.length }
     
     val rows = mutableListOf<List<AppInfo>>()
-    var appIndex = 0
+    val remainingApps = sortedApps.toMutableList()
     var patternIndex = 0
     
-    while (appIndex < sortedApps.size) {
+    while (remainingApps.isNotEmpty()) {
         // Get the number of icons for this row from the pattern
         val iconsInRow = ROW_PATTERN[patternIndex % ROW_PATTERN.size]
         
-        // Take apps for this row
-        val rowApps = sortedApps.subList(
-            appIndex,
-            (appIndex + iconsInRow).coerceAtMost(sortedApps.size)
-        )
+        // Get name length limit based on row type
+        val maxTotalLength = when (iconsInRow) {
+            3 -> 18  // 3-icon row: max 18 chars total
+            2 -> 25  // 2-icon row: max 25 chars total
+            1 -> Int.MAX_VALUE  // 1-icon row: no limit
+            else -> Int.MAX_VALUE
+        }
+        
+        // Select apps for this row that fit within the length constraint
+        val rowApps = mutableListOf<AppInfo>()
+        var currentTotalLength = 0
+        
+        val iterator = remainingApps.iterator()
+        while (iterator.hasNext() && rowApps.size < iconsInRow) {
+            val app = iterator.next()
+            val appNameLength = app.app.displayName.length
+            
+            // Check if adding this app would exceed the limit
+            if (currentTotalLength + appNameLength <= maxTotalLength) {
+                rowApps.add(app)
+                currentTotalLength += appNameLength
+                iterator.remove()
+            } else {
+                // If we can't fit this app:
+                // - For 1-icon rows: take it anyway (no limit)
+                // - For other rows: skip it and continue to next row
+                if (iconsInRow == 1) {
+                    rowApps.add(app)
+                    iterator.remove()
+                }
+                break
+            }
+        }
+        
+        // If we still need more apps and have remaining apps, fill the row
+        // But only if we haven't exceeded the limit
+        while (rowApps.size < iconsInRow && remainingApps.isNotEmpty()) {
+            val app = remainingApps[0]
+            val appNameLength = app.app.displayName.length
+            
+            // Only add if it fits within the limit (or if it's a 1-icon row)
+            if (iconsInRow == 1 || currentTotalLength + appNameLength <= maxTotalLength) {
+                rowApps.add(remainingApps.removeAt(0))
+                currentTotalLength += appNameLength
+            } else {
+                // Can't fit more apps in this row, move to next row
+                break
+            }
+        }
         
         if (rowApps.isNotEmpty()) {
             rows.add(rowApps.toList())
         }
         
-        appIndex += iconsInRow
         patternIndex++
     }
     

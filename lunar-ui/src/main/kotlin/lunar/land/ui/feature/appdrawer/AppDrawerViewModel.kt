@@ -3,6 +3,7 @@ package lunar.land.ui.feature.appdrawer
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,6 +38,7 @@ class AppDrawerViewModel(
         AppDrawerUiState(
             allApps = appStateManager.appsState.value,
             filteredApps = filterApps(appStateManager.appsState.value, ""),
+            // Only show loading if cache is empty (first launch)
             isLoading = appStateManager.appsState.value.isEmpty()
         )
     )
@@ -50,14 +52,17 @@ class AppDrawerViewModel(
                     it.copy(
                         allApps = apps,
                         filteredApps = filterApps(apps, it.searchQuery),
+                        // Never show loading if we have apps (even without icons)
                         isLoading = false
                     )
                 }
             }
         }
         
-        // Check for changes after initial load (no delay needed)
-        viewModelScope.launch {
+        // Check for changes in background (non-blocking)
+        viewModelScope.launch(Dispatchers.IO) {
+            // Small delay to let UI render first
+            kotlinx.coroutines.delay(500)
             appStateManager.checkForAppChanges()
         }
     }

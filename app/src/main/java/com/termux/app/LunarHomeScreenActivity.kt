@@ -49,8 +49,11 @@ class LunarHomeScreenActivity : ComponentActivity() {
                         )
                     )
                     
-                    // Initialize AppStateManager for app drawer
-                    val appStateManager: AppStateManager = viewModel()
+                    // Initialize AppStateManager early - this starts caching immediately
+                    // Using a consistent key ensures the same instance is reused
+                    val appStateManager: AppStateManager = viewModel(
+                        key = "app_state_manager"
+                    )
                     
                     // Initialize AppDrawerViewModel
                     val appDrawerViewModel: AppDrawerViewModel = viewModel(

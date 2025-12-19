@@ -47,24 +47,100 @@ class AppStateManager(application: Application) : AndroidViewModel(application) 
     val appsState: StateFlow<List<AppInfo>> = _appsState.asStateFlow()
     
     init {
-        // Load apps in background and update cache
+        // Preload icons for cached apps immediately in background
+        // Start this first to show icons as soon as possible
+        preloadIconsForCachedApps()
+        
+        // Load fresh apps in background and update cache
+        // This will replace cached apps with fresh ones (including icons)
         loadAndCacheApps()
+    }
+    
+    /**
+     * Preloads icons for cached apps in batches to improve performance.
+     * This runs in the background and updates icons incrementally.
+     */
+    private fun preloadIconsForCachedApps() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Wait a bit to ensure state is initialized
+                kotlinx.coroutines.delay(100)
+                
+                var currentApps = _appsState.value
+                if (currentApps.isEmpty()) return@launch
+                
+                val packageManager = getApplication<android.app.Application>().packageManager
+                val appsWithoutIcons = currentApps.filter { it.icon == null }
+                if (appsWithoutIcons.isEmpty()) return@launch
+                
+                // Load icons in parallel batches to improve performance
+                val batchSize = 15 // Larger batch for better throughput
+                appsWithoutIcons.chunked(batchSize).forEach { batch ->
+                    // Load icons in parallel for this batch
+                    val iconsMap = batch.associate { appInfo ->
+                        appInfo.app.packageName to try {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+                                addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+                                setPackage(appInfo.app.packageName)
+                            }
+                            val resolveInfos = packageManager.queryIntentActivities(intent, 0)
+                            resolveInfos.firstOrNull()?.activityInfo?.loadIcon(packageManager)
+                                ?: try {
+                                    // Fallback to application icon
+                                    val applicationInfo = packageManager.getApplicationInfo(appInfo.app.packageName, 0)
+                                    packageManager.getApplicationIcon(applicationInfo)
+                                } catch (e: Exception) {
+                                    null
+                                }
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    
+                    // Get current state and update with loaded icons
+                    currentApps = _appsState.value
+                    val updatedApps = currentApps.map { appInfo ->
+                        if (appInfo.icon == null) {
+                            iconsMap[appInfo.app.packageName]?.let { icon ->
+                                appInfo.copy(icon = icon)
+                            } ?: appInfo
+                        } else {
+                            appInfo
+                        }
+                    }
+                    
+                    // Update state incrementally
+                    _appsState.value = updatedApps
+                    currentApps = updatedApps
+                    
+                    // Small delay between batches to keep UI responsive
+                    kotlinx.coroutines.delay(30)
+                }
+            } catch (e: Exception) {
+                // Silently handle errors
+            }
+        }
     }
     
     /**
      * Loads apps from system and updates cache.
      * This runs in the background and doesn't block UI.
+     * Fresh apps will have icons loaded, so this will replace cached apps with icon-loaded versions.
      */
     private fun loadAndCacheApps() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                // Small delay to let cached apps show first
+                kotlinx.coroutines.delay(200)
+                
                 appManager.getAllApps()
                     .catch {
                         // Silently handle errors
                         return@catch
                     }
                     .collect { freshApps ->
-                        // Update state with fresh apps
+                        // Update state with fresh apps (with icons)
+                        // This will replace cached apps and show icons
                         _appsState.value = freshApps
                         
                         // Update cache

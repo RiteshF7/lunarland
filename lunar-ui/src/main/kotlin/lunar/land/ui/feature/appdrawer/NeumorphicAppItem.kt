@@ -8,6 +8,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
@@ -107,7 +109,7 @@ fun NeumorphicAppItem(
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Use Drawable icon if available, otherwise fall back to ImageVector
+            // Use Drawable icon if available, otherwise fall back to ImageVector or placeholder
             val drawablePainter = rememberDrawablePainter(appData.iconDrawable)
             if (drawablePainter != null) {
                 Image(
@@ -122,6 +124,24 @@ fun NeumorphicAppItem(
                     tint = LunarTheme.TextPrimary,
                     modifier = Modifier.size(24.dp)
                 )
+            } else {
+                // Placeholder icon when icon is not yet loaded
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(
+                            color = LunarTheme.InactiveBackgroundColor,
+                            shape = androidx.compose.foundation.shape.CircleShape
+                        ),
+                    contentAlignment = androidx.compose.ui.Alignment.Center
+                ) {
+                    Text(
+                        text = appData.name.take(1).uppercase(),
+                        style = LunarTheme.Typography.BodySmall,
+                        color = LunarTheme.TextSecondary,
+                        fontSize = 10.sp
+                    )
+                }
             }
             Spacer(modifier = Modifier.width(LunarTheme.Spacing.Medium))
             Text(
