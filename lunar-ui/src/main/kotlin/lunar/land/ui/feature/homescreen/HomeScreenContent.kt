@@ -45,9 +45,18 @@ import lunar.land.ui.core.model.lunarphase.LunarPhaseDetails
 import lunar.land.ui.core.model.lunarphase.NextPhaseDetails
 import lunar.land.ui.core.model.lunarphase.RiseAndSetDetails
 import lunar.land.ui.core.model.lunarphase.UpcomingLunarPhase
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.res.painterResource
 import lunar.land.ui.core.ui.AISphere
 import lunar.land.ui.core.ui.SearchField
 import lunar.land.ui.core.ui.VerticalSpacer
+import lunar.land.ui.core.ui.extensions.isOverlayPermissionGranted
+import lunar.land.ui.core.ui.extensions.requestOverlayPermission
+import lunar.land.ui.core.ui.extensions.startFloatingVolumeService
 import lunar.land.ui.feature.favorites.FavoritesListUiComponent
 import lunar.land.ui.feature.favorites.FavoritesListUiComponentState
 import lunar.land.ui.feature.lunarHomewidget.LunarHomeWidget
@@ -189,15 +198,37 @@ fun HomeScreenContent(
                             .fillMaxWidth()
                             .padding(bottom = 8.dp)
                     )
-                    SearchField(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = bottomPadding),
-                        placeholder = stringResource(id = R.string.search),
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
-                    )
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SearchField(
+                            modifier = Modifier.weight(1f),
+                            placeholder = stringResource(id = R.string.search),
+                            query = searchQuery,
+                            onQueryChange = { searchQuery = it },
+                            paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        // Floating Volume Toggle Button
+                        IconButton(
+                            onClick = {
+                                if (context.isOverlayPermissionGranted()) {
+                                    context.startFloatingVolumeService()
+                                } else {
+                                    context.requestOverlayPermission()
+                                }
+                            }
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_volume),
+                                contentDescription = "Floating Volume",
+                                tint = LunarTheme.TextPrimary
+                            )
+                        }
+                    }
                     VerticalSpacer(spacing = bottomPadding)
                 }
             }
