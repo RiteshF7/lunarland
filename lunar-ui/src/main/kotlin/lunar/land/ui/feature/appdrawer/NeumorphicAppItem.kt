@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -144,6 +145,24 @@ fun NeumorphicAppItem(
     // Memoize to avoid recalculation
     val isInteracting = remember(isPressed, isHovered) { isPressed || isHovered }
     
+    // Punch-out button style: inset effect when pressed
+    // Darker background when pressed creates the "pressed in" appearance
+    val backgroundColor = if (isInteracting) {
+        // When pressed: darker color for punch-out/inset effect
+        LunarTheme.InactiveBackgroundColor.copy(alpha = 0.6f)
+    } else {
+        // Normal state: standard background
+        LunarTheme.InactiveBackgroundColor
+    }
+    
+    val borderColor = if (isInteracting) {
+        // When pressed: darker border for inset effect
+        LunarTheme.BorderColor.copy(alpha = 0.5f)
+    } else {
+        // Normal state: standard border
+        LunarTheme.BorderColor
+    }
+    
     Box(
         modifier = modifier
             .then(
@@ -157,16 +176,26 @@ fun NeumorphicAppItem(
             )
             .clip(RoundedCornerShape(LunarTheme.CornerRadius.Small))
             .background(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        if (isInteracting) LunarTheme.AccentColor.copy(alpha = LunarTheme.Alpha.Medium) else LunarTheme.InactiveBackgroundColor,
-                        if (isInteracting) LunarTheme.AccentColor.copy(alpha = LunarTheme.Alpha.Low) else LunarTheme.InactiveBackgroundColor
+                color = backgroundColor,
+                shape = RoundedCornerShape(LunarTheme.CornerRadius.Small)
+            )
+            .then(
+                if (!isInteracting) {
+                    // Add subtle shadow when not pressed for raised effect
+                    Modifier.shadow(
+                        elevation = 2.dp,
+                        shape = RoundedCornerShape(LunarTheme.CornerRadius.Small),
+                        ambientColor = Color.Black.copy(alpha = 0.1f),
+                        spotColor = Color.Black.copy(alpha = 0.1f)
                     )
-                )
+                } else {
+                    // Remove shadow when pressed for inset effect
+                    Modifier
+                }
             )
             .border(
                 width = LunarTheme.BorderWidth,
-                color = if (isInteracting) LunarTheme.AccentColor.copy(alpha = LunarTheme.Alpha.High) else LunarTheme.BorderColor,
+                color = borderColor,
                 shape = RoundedCornerShape(LunarTheme.CornerRadius.Small)
             )
             .clickable(

@@ -44,7 +44,7 @@ fun SearchField(
         modifier = modifier
             .fillMaxWidth()
             .padding(paddingValues = paddingValues)
-            .clip(RoundedCornerShape(LunarTheme.CornerRadius.Large))
+            .clip(RoundedCornerShape(12.dp)) // Rounded corners
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
@@ -56,7 +56,7 @@ fun SearchField(
             .border(
                 width = LunarTheme.BorderWidth,
                 color = LunarTheme.BorderColor,
-                shape = RoundedCornerShape(LunarTheme.CornerRadius.Large)
+                shape = RoundedCornerShape(12.dp) // Rounded corners
             )
     ) {
         TextField(
@@ -68,10 +68,15 @@ fun SearchField(
             placeholder = {
                 Text(
                     text = placeholder,
-                    style = LunarTheme.Typography.Placeholder
+                    style = androidx.compose.ui.text.TextStyle(
+                        fontFamily = LunarTheme.ManropeFontFamily,
+                        fontSize = 16.sp, // Increased text size
+                        fontWeight = FontWeight.Medium,
+                        color = LunarTheme.TextTertiary
+                    )
                 )
             },
-            shape = RoundedCornerShape(LunarTheme.CornerRadius.Medium),
+            shape = RoundedCornerShape(12.dp), // Rounded corners
             singleLine = true,
             keyboardOptions = KeyboardOptions(
                 autoCorrect = false,
@@ -88,7 +93,12 @@ fun SearchField(
                 focusedTextColor = LunarTheme.TextPrimary,
                 unfocusedTextColor = LunarTheme.TextPrimary.copy(alpha = 0.9f)
             ),
-            textStyle = LunarTheme.Typography.Input,
+            textStyle = androidx.compose.ui.text.TextStyle(
+                fontFamily = LunarTheme.ManropeFontFamily,
+                fontSize = 16.sp, // Increased text size
+                fontWeight = FontWeight.Medium,
+                color = LunarTheme.TextPrimary
+            ),
             leadingIcon = {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_search),

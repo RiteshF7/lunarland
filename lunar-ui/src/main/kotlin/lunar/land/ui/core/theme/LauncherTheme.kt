@@ -4,6 +4,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.Color
 import lunar.land.ui.core.model.Theme
 import lunar.land.ui.core.ui.controller.setSystemBarsColor
 import lunar.land.ui.core.ui.providers.LocalSystemUiController
@@ -26,7 +27,10 @@ fun LauncherTheme(
     }
 
     LaunchedEffect(key1 = systemUiController, key2 = colorScheme) {
-        systemUiController.setSystemBarsColor(color = colorScheme.surface)
+        // Set status bar color
+        systemUiController.setStatusBarColor(color = colorScheme.surface)
+        // Set navigation bar to transparent to remove grey background below page indicators
+        systemUiController.setNavigationBarColor(color = Color.Transparent, darkIcons = false)
     }
 
     MaterialTheme(

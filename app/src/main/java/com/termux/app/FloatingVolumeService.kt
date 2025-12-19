@@ -8,6 +8,8 @@ import android.graphics.PixelFormat
 import android.media.AudioManager
 import android.os.Build
 import android.util.Log
+import android.util.TypedValue
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.WindowManager
 import androidx.core.app.NotificationCompat
@@ -22,20 +24,36 @@ class FloatingVolumeService : Service() {
         FloatingVolumeView(this)
     }
 
-    private var layoutParams = WindowManager.LayoutParams(
-        WindowManager.LayoutParams.WRAP_CONTENT,
-        WindowManager.LayoutParams.WRAP_CONTENT,
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        },
-        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-        PixelFormat.TRANSLUCENT
-    ).apply {
-        x = 100
-        y = 100
+    private val layoutParams: WindowManager.LayoutParams by lazy {
+        val displayMetrics = resources.displayMetrics
+        val screenHeight = displayMetrics.heightPixels
+        val screenWidth = displayMetrics.widthPixels
+        
+        // Set explicit dimensions for invisible touch area
+        // Wide enough for horizontal swipes, tall enough for touch detection
+        val touchAreaWidth = (screenWidth * 0.8).toInt() // 80% of screen width
+        val touchAreaHeight = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP, 60f, displayMetrics
+        ).toInt()
+        
+        WindowManager.LayoutParams(
+            touchAreaWidth,
+            touchAreaHeight,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_PHONE
+            },
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+            WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            // Position at bottom center with some padding from bottom (5% of screen height)
+            y = (screenHeight * 0.05).toInt()
+        }
     }
 
     companion object {
@@ -69,31 +87,8 @@ class FloatingVolumeService : Service() {
     }
 
     private fun configureTouchListener() {
-        var initialX = 0
-        var initialY = 0
-        var initialTouchX = 0f
-        var initialTouchY = 0f
-
-        floatingVolumeView.handleView.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    initialX = layoutParams.x
-                    initialY = layoutParams.y
-                    initialTouchX = event.rawX
-                    initialTouchY = event.rawY
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = event.rawX - initialTouchX
-                    val dy = event.rawY - initialTouchY
-                    layoutParams.x = (initialX + dx).toInt()
-                    layoutParams.y = (initialY + dy).toInt()
-                    windowManager.updateViewLayout(floatingVolumeView, layoutParams)
-                    true
-                }
-                else -> false
-            }
-        }
+        // Touch handling is now done in FloatingVolumeView itself
+        // No need for separate drag handler since view is fixed at bottom
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

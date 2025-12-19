@@ -99,72 +99,77 @@ fun AppDrawerScreen(
             }
         }
         
-        // Scroll to top (search bar) immediately when drawer opens - only once
+        // Scroll to top (app list) immediately when drawer opens - only once
         LaunchedEffect(Unit) {
             listState.scrollToItem(0)
         }
         
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(
-                    if (onSwipeDownToClose != null) {
-                        Modifier.nestedScroll(nestedScrollConnection)
-                    } else {
-                        Modifier
-                    }
-                ),
-            contentPadding = PaddingValues(
-                top = 24.dp,
-                bottom = 24.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+        // Use Column to keep search bar fixed at bottom
+        Column(
+            modifier = Modifier.fillMaxSize()
         ) {
-            // Search bar at the top
-            item(key = "search") {
-                SearchField(
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = stringResource(id = R.string.search),
-                    query = uiState.searchQuery,
-                    onQueryChange = { viewModel.updateSearchQuery(it) },
-                    paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
-                )
+            // Scrollable app list - takes up available space
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .then(
+                        if (onSwipeDownToClose != null) {
+                            Modifier.nestedScroll(nestedScrollConnection)
+                        } else {
+                            Modifier
+                        }
+                    ),
+                contentPadding = PaddingValues(
+                    top = 24.dp,
+                    bottom = 24.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // App list - lazy loaded with patterned grid
+                // Use LazyColumn.items() directly for optimal performance
+                if (uiState.isLoading && uiState.filteredApps.isEmpty()) {
+                    // Show loading indicator only on first load
+                    item(key = "loading") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = androidx.compose.ui.Alignment.Center
+                        ) {
+                            // Loading indicator can be added here
+                        }
+                    }
+                } else {
+                    // Use items() for true lazy loading - only visible rows are composed
+                    // Use stable keys based on first app's package name in each row
+                    // This ensures proper item tracking even when list updates
+                    itemsIndexed(
+                        items = rows,
+                        key = { index, rowApps ->
+                            // Use first app's package name as key for stability
+                            // If row is empty, fall back to index
+                            rowApps.firstOrNull()?.app?.packageName ?: "row_$index"
+                        }
+                    ) { _, rowApps ->
+                        PatternedAppRow(
+                            rowApps = rowApps,
+                            onAppClick = stableLaunchApp,
+                            horizontalSpacing = 14.dp
+                        )
+                    }
+                }
             }
             
-            // App list - lazy loaded with patterned grid
-            // Use LazyColumn.items() directly for optimal performance
-            if (uiState.isLoading && uiState.filteredApps.isEmpty()) {
-                // Show loading indicator only on first load
-                item(key = "loading") {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = androidx.compose.ui.Alignment.Center
-                    ) {
-                        // Loading indicator can be added here
-                    }
-                }
-            } else {
-                // Use items() for true lazy loading - only visible rows are composed
-                // Use stable keys based on first app's package name in each row
-                // This ensures proper item tracking even when list updates
-                itemsIndexed(
-                    items = rows,
-                    key = { index, rowApps ->
-                        // Use first app's package name as key for stability
-                        // If row is empty, fall back to index
-                        rowApps.firstOrNull()?.app?.packageName ?: "row_$index"
-                    }
-                ) { _, rowApps ->
-                    PatternedAppRow(
-                        rowApps = rowApps,
-                        onAppClick = stableLaunchApp,
-                        horizontalSpacing = 14.dp
-                    )
-                }
-            }
+            // Search bar fixed at the bottom - always visible
+            SearchField(
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = stringResource(id = R.string.search),
+                query = uiState.searchQuery,
+                onQueryChange = { viewModel.updateSearchQuery(it) },
+                paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
+            )
         }
     }
 }

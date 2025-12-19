@@ -17,7 +17,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.collections.immutable.ImmutableList
 import lunar.land.ui.core.model.app.AppWithColor
+import lunar.land.ui.core.ui.extensions.isOverlayPermissionGranted
 import lunar.land.ui.core.ui.extensions.launchApp
+import lunar.land.ui.core.ui.extensions.requestOverlayPermission
+import lunar.land.ui.core.ui.extensions.startFloatingVolumeService
 import lunar.land.ui.feature.appdrawer.AppItem
 import lunar.land.ui.feature.appdrawer.AppItemData
 import lunar.land.ui.feature.favorites.ui.StaggeredFlowRow
@@ -80,6 +83,14 @@ private fun FavoritesListUiComponent(
                                 // Launch DriverActivity directly
                                 val intent = Intent(context, Class.forName("com.termux.app.DriverActivity"))
                                 context.startActivity(intent)
+                            } else if (favoriteAppWithColor.app.displayName == "Floating Volume" && 
+                                favoriteAppWithColor.app.packageName == context.packageName) {
+                                // Toggle Floating Volume Service
+                                if (context.isOverlayPermissionGranted()) {
+                                    context.startFloatingVolumeService()
+                                } else {
+                                    context.requestOverlayPermission()
+                                }
                             } else {
                                 // Launch other apps normally
                                 context.launchApp(app = favoriteAppWithColor.app)
@@ -111,6 +122,23 @@ private fun AppWithColor.toAppItemData(context: android.content.Context): AppIte
                     PackageManager.GET_META_DATA
                 )
                 driverActivityInfo.loadIcon(packageManager)
+            } catch (e: Exception) {
+                // Fallback to application icon
+                val appInfo = packageManager.getApplicationInfo(app.packageName, 0)
+                packageManager.getApplicationIcon(appInfo)
+            }
+        } else if (app.displayName == "Floating Volume" && app.packageName == context.packageName) {
+            // Use volume icon drawable for Floating Volume
+            try {
+                val resources = context.resources
+                val drawableId = resources.getIdentifier("ic_volume", "drawable", context.packageName)
+                if (drawableId != 0) {
+                    resources.getDrawable(drawableId, null)
+                } else {
+                    // Fallback to application icon
+                    val appInfo = packageManager.getApplicationInfo(app.packageName, 0)
+                    packageManager.getApplicationIcon(appInfo)
+                }
             } catch (e: Exception) {
                 // Fallback to application icon
                 val appInfo = packageManager.getApplicationInfo(app.packageName, 0)

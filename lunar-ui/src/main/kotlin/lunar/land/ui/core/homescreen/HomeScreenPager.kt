@@ -80,7 +80,7 @@ fun HomeScreenPager(
             }
         }
         
-        // Custom page indicators at the bottom
+        // Custom page indicators at the bottom - minimal, no background
         // Use derivedStateOf to minimize recomposition during swipes
         if (showIndicators) {
             val currentPage by remember {
@@ -90,7 +90,7 @@ fun HomeScreenPager(
             Row(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
-                    .padding(16.dp),
+                    .padding(bottom = 8.dp), // Minimal bottom padding only
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 repeat(3) { index ->
@@ -104,7 +104,7 @@ fun HomeScreenPager(
                         modifier = Modifier
                             .size(5.dp) // Smaller dots
                             .clip(CircleShape)
-                            .background(color) // No background, just the dot color
+                            .background(color) // Just the dot color, no container background
                     )
                 }
             }

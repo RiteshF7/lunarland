@@ -157,8 +157,21 @@ fun HomeScreenContent(
         val driverColor = GraphicsColor.rgb(100, 150, 255) // Blue color for driver
         val driverAppWithColor = AppWithColor(app = driverApp, color = driverColor)
         
+        // Add Floating Volume as a favorite app item
+        val floatingVolumeApp = App(
+            name = "Floating Volume",
+            displayName = "Floating Volume",
+            packageName = context.packageName,
+            isSystem = false
+        )
+        val floatingVolumeColor = GraphicsColor.rgb(77, 255, 136) // Green color matching accent
+        val floatingVolumeAppWithColor = AppWithColor(app = floatingVolumeApp, color = floatingVolumeColor)
+        
         FavoritesListUiComponentState(
-            favoritesList = persistentListOf<AppWithColor>().addAll(favoriteApps).add(driverAppWithColor),
+            favoritesList = persistentListOf<AppWithColor>()
+                .addAll(favoriteApps)
+                .add(driverAppWithColor)
+                .add(floatingVolumeAppWithColor),
             eventSink = { /* TODO: Handle events */ }
         )
     }
@@ -178,9 +191,21 @@ fun HomeScreenContent(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Top section with space and lunar widget
+                // Top section with search bar and lunar widget
                 Column {
-                    VerticalSpacer(spacing = topPadding + 40.dp) // Extra space on top
+                    // Search bar at the top
+                    SearchField(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = horizontalPadding, vertical = topPadding + 16.dp),
+                        placeholder = stringResource(id = R.string.search),
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        paddingValues = PaddingValues(horizontal = 0.dp, vertical = 4.dp) // Further reduced height
+                    )
+                    
+                    // Minimal spacing between search bar and lunar widget
+                    VerticalSpacer(spacing = 4.dp)
                     
                     LunarHomeWidget(
                         state = lunarHomeWidgetState,
@@ -189,7 +214,7 @@ fun HomeScreenContent(
                     )
                 }
                 
-                // Bottom section with favorites and search
+                // Bottom section with favorites
                 Column {
                     FavoritesListUiComponent(
                         state = favoritesListState,
@@ -198,37 +223,6 @@ fun HomeScreenContent(
                             .fillMaxWidth()
                             .padding(bottom = 8.dp)
                     )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = bottomPadding),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SearchField(
-                            modifier = Modifier.weight(1f),
-                            placeholder = stringResource(id = R.string.search),
-                            query = searchQuery,
-                            onQueryChange = { searchQuery = it },
-                            paddingValues = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        // Floating Volume Toggle Button
-                        IconButton(
-                            onClick = {
-                                if (context.isOverlayPermissionGranted()) {
-                                    context.startFloatingVolumeService()
-                                } else {
-                                    context.requestOverlayPermission()
-                                }
-                            }
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_volume),
-                                contentDescription = "Floating Volume",
-                                tint = LunarTheme.TextPrimary
-                            )
-                        }
-                    }
                     VerticalSpacer(spacing = bottomPadding)
                 }
             }
