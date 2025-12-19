@@ -91,7 +91,7 @@ fun HomeScreenPager(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
                     .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 repeat(3) { index ->
                     val isSelected = currentPage == index
@@ -102,9 +102,9 @@ fun HomeScreenPager(
                     }
                     Box(
                         modifier = Modifier
-                            .size(8.dp)
+                            .size(5.dp) // Smaller dots
                             .clip(CircleShape)
-                            .background(color)
+                            .background(color) // No background, just the dot color
                     )
                 }
             }

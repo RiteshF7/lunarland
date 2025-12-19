@@ -163,7 +163,6 @@ fun HomeScreenContent(
         Box(
             modifier = modifier
                 .fillMaxSize()
-                .background(LunarTheme.BackgroundColor)
         ) {
             // Home Screen Content
             Column(
