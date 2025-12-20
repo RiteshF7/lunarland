@@ -24,7 +24,9 @@ class FloatingVolumeService : Service() {
         FloatingVolumeView(this)
     }
 
-    private val layoutParams: WindowManager.LayoutParams by lazy {
+    private lateinit var layoutParams: WindowManager.LayoutParams
+    
+    private fun createLayoutParams(): WindowManager.LayoutParams {
         val displayMetrics = resources.displayMetrics
         val screenWidth = displayMetrics.widthPixels
         
@@ -33,9 +35,9 @@ class FloatingVolumeService : Service() {
             TypedValue.COMPLEX_UNIT_DIP, 60f, displayMetrics
         ).toInt()
         
-        WindowManager.LayoutParams(
+        return WindowManager.LayoutParams(
             screenWidth, // Full width (MATCH_PARENT equivalent)
-            viewHeight,  // 22dp height
+            viewHeight,  // 60dp height
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {
@@ -44,7 +46,8 @@ class FloatingVolumeService : Service() {
             },
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-            WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR,
+            WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT // Translucent for transparent background
         ).apply {
             gravity = Gravity.CENTER // Center both horizontally and vertically
@@ -67,6 +70,7 @@ class FloatingVolumeService : Service() {
         super.onCreate()
         createNotificationChannel()
         configureTouchListener()
+        layoutParams = createLayoutParams()
     }
 
     private fun createNotificationChannel() {
@@ -86,6 +90,28 @@ class FloatingVolumeService : Service() {
     private fun configureTouchListener() {
         // Touch handling is now done in FloatingVolumeView itself
         // No need for separate drag handler since view is fixed at bottom
+    }
+    
+    private fun updateTouchableState(touchable: Boolean) {
+        try {
+            val flags = if (touchable) {
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+            } else {
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            }
+            
+            layoutParams.flags = flags
+            windowManager.updateViewLayout(floatingVolumeView, layoutParams)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating touchable state", e)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -107,6 +133,12 @@ class FloatingVolumeService : Service() {
         }
         
         try {
+            // Set callback for updating touchable state
+            floatingVolumeView.onUpdateTouchableState = { touchable ->
+                updateTouchableState(touchable)
+            }
+            
+            // View starts not touchable (FLAG_NOT_TOUCHABLE already set in layoutParams)
             windowManager.addView(floatingVolumeView, layoutParams)
             Log.d(TAG, "Floating volume view added")
         } catch (e: Exception) {

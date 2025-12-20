@@ -41,6 +41,8 @@ class FloatingVolumeView(context: Context) : LinearLayout(context) {
     private var hideSliderRunnable: Runnable? = null
     private val sliderHideDelay = 1000L // Hide slider after 1 second of no swipe
     
+    var onUpdateTouchableState: ((touchable: Boolean) -> Unit)? = null
+    
     private var volumeChangeReceiver: android.content.BroadcastReceiver? = null
 
     init {
@@ -70,6 +72,9 @@ class FloatingVolumeView(context: Context) : LinearLayout(context) {
         setBackgroundColor(Color.TRANSPARENT)
         // Make entire view invisible by default (transparent)
         alpha = 0f
+        // Make view not clickable/focusable by default to allow touches to pass through
+        isClickable = false
+        isFocusable = false
         setWillNotDraw(false) // We'll override onDraw if needed
         
         // Listen to system volume changes
@@ -92,10 +97,15 @@ class FloatingVolumeView(context: Context) : LinearLayout(context) {
             android.content.IntentFilter("android.media.VOLUME_CHANGED_ACTION")
         )
         
-        // Set touch listener for swipe gestures and click
-        setOnTouchListener { _, event ->
-            handleTouchEvent(event)
+        // Don't set onTouchListener - we'll override onTouchEvent instead
+    }
+    
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        // If view is not touchable (invisible), don't handle touches
+        if (alpha < 0.1f && !isClickable) {
+            return false
         }
+        return handleTouchEvent(event)
     }
     
     private fun handleTouchEvent(event: MotionEvent): Boolean {
@@ -105,66 +115,81 @@ class FloatingVolumeView(context: Context) : LinearLayout(context) {
                 initialTouchY = event.y
                 isSwipeGesture = false
                 lastClickTime = System.currentTimeMillis()
+                // Return true to receive MOVE events so we can detect swipes
+                // But we'll return false quickly in MOVE if it's not a swipe
                 true
             }
             MotionEvent.ACTION_MOVE -> {
                 val dx = event.x - initialTouchX
                 val dy = event.y - initialTouchY
+                val distance = kotlin.math.sqrt(dx * dx + dy * dy).toFloat()
                 
-                // Check if it's a horizontal swipe
-                if (abs(dx) > swipeThreshold && abs(dx) > abs(dy)) {
-                    isSwipeGesture = true
-                    
-                    // Show volume slider (make it fully visible)
-                    showVolumeSlider()
-                    
-                    // Determine swipe direction and adjust volume
-                    // Swipe right (positive dx) = volume up
-                    // Swipe left (negative dx) = volume down
-                    val swipeSteps = (abs(dx) / swipeThreshold).toInt()
-                    
-                    val volumeChange = if (dx > 0) {
-                        // Swipe right - volume up
-                        swipeSteps
-                    } else {
-                        // Swipe left - volume down
-                        -swipeSteps
-                    }
-                    
-                    if (volumeChange != 0) {
-                        val newVolume = (currentVolume + volumeChange).coerceIn(0, maxVolume)
-                        updateVolume(newVolume, updateSystem = true)
+                // Only start handling if we detect clear horizontal movement
+                if (distance > swipeThreshold * 0.3f) {
+                    // Check if it's a horizontal swipe (horizontal movement is significantly more than vertical)
+                    if (abs(dx) > abs(dy) * 1.5f) {
+                        // This is a horizontal swipe - start intercepting
+                        if (!isSwipeGesture) {
+                            isSwipeGesture = true
+                            // Show volume slider (make it fully visible)
+                            showVolumeSlider()
+                        }
                         
-                        // Reset initial position to prevent accumulation
-                        initialTouchX = event.x
+                        // Determine swipe direction and adjust volume
+                        // Swipe right (positive dx) = volume up
+                        // Swipe left (negative dx) = volume down
+                        val swipeSteps = (abs(dx) / swipeThreshold).toInt()
+                        
+                        val volumeChange = if (dx > 0) {
+                            // Swipe right - volume up
+                            swipeSteps
+                        } else {
+                            // Swipe left - volume down
+                            -swipeSteps
+                        }
+                        
+                        if (volumeChange != 0) {
+                            val newVolume = (currentVolume + volumeChange).coerceIn(0, maxVolume)
+                            updateVolume(newVolume, updateSystem = true)
+                            
+                            // Reset initial position to prevent accumulation
+                            initialTouchX = event.x
+                        }
+                        
+                        // Intercept this event since we're handling the swipe
+                        true
+                    } else {
+                        // Vertical or diagonal gesture - don't intercept, let it pass through
+                        false
                     }
+                } else {
+                    // Very small movement - might be a tap, don't intercept
+                    false
                 }
-                true
             }
             MotionEvent.ACTION_UP -> {
-                val clickDuration = System.currentTimeMillis() - lastClickTime
                 val dx = event.x - initialTouchX
                 val dy = event.y - initialTouchY
                 
-                // Check if it was a quick swipe (not just a click)
-                if (abs(dx) > swipeThreshold && abs(dx) > abs(dy)) {
-                    // Final swipe adjustment
-                    isSwipeGesture = true
+                if (isSwipeGesture && abs(dx) > abs(dy) * 1.5f) {
+                    // We were handling a swipe, finalize it
                     val volumeChange = if (dx > 0) 1 else -1
                     val newVolume = (currentVolume + volumeChange).coerceIn(0, maxVolume)
                     updateVolume(newVolume, updateSystem = true)
                     // Hide slider after delay
                     scheduleHideVolumeSlider()
-                } else if (!isSwipeGesture && clickDuration < clickDelay) {
-                    // Single click - lock screen
-                    lockScreen()
-                    // Hide slider after delay
-                    scheduleHideVolumeSlider()
+                    // Intercept since we handled the swipe
+                    true
                 } else {
-                    // Hide slider after delay
+                    // Was a tap or vertical gesture - don't intercept, let it pass through
+                    false
+                }
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                if (isSwipeGesture) {
                     scheduleHideVolumeSlider()
                 }
-                true
+                false
             }
             else -> false
         }
@@ -191,6 +216,9 @@ class FloatingVolumeView(context: Context) : LinearLayout(context) {
         // Cancel any pending hide operation
         hideSliderRunnable?.let { handler.removeCallbacks(it) }
         
+        // Make view touchable
+        onUpdateTouchableState?.invoke(true)
+        
         // Animate entire view to full opacity (make it visible)
         animate()
             .alpha(1.0f)
@@ -215,6 +243,11 @@ class FloatingVolumeView(context: Context) : LinearLayout(context) {
             .alpha(0f)
             .setDuration(300)
             .start()
+        
+        // Make view not touchable after animation completes
+        handler.postDelayed({
+            onUpdateTouchableState?.invoke(false)
+        }, 300)
     }
     
     private fun lockScreen() {
