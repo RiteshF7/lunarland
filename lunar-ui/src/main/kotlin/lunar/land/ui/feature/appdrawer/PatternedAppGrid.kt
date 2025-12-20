@@ -169,7 +169,7 @@ internal fun PatternedAppRow(
                 
                 // Isolate heavy composable in its own composition scope
                 // This prevents recomposition cascades
-                NeumorphicAppItem(
+                AppItem(
                     appData = appItemData,
                     onClick = { stableOnAppClick.value(appInfo) },
                     modifier = Modifier.weight(itemWeight)

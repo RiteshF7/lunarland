@@ -44,7 +44,7 @@ fun SearchField(
         modifier = modifier
             .fillMaxWidth()
             .padding(paddingValues = paddingValues)
-            .clip(RoundedCornerShape(12.dp)) // Rounded corners
+            .clip(RoundedCornerShape(LunarTheme.CornerRadius.Small))
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
@@ -56,7 +56,7 @@ fun SearchField(
             .border(
                 width = LunarTheme.BorderWidth,
                 color = LunarTheme.BorderColor,
-                shape = RoundedCornerShape(12.dp) // Rounded corners
+                shape = RoundedCornerShape(LunarTheme.CornerRadius.Small)
             )
     ) {
         TextField(
@@ -76,7 +76,7 @@ fun SearchField(
                     )
                 )
             },
-            shape = RoundedCornerShape(12.dp), // Rounded corners
+            shape = RoundedCornerShape(LunarTheme.CornerRadius.Small),
             singleLine = true,
             keyboardOptions = KeyboardOptions(
                 autoCorrect = false,
