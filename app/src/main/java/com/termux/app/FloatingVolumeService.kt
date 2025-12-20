@@ -26,19 +26,16 @@ class FloatingVolumeService : Service() {
 
     private val layoutParams: WindowManager.LayoutParams by lazy {
         val displayMetrics = resources.displayMetrics
-        val screenHeight = displayMetrics.heightPixels
         val screenWidth = displayMetrics.widthPixels
         
-        // Set explicit dimensions for invisible touch area
-        // Wide enough for horizontal swipes, tall enough for touch detection
-        val touchAreaWidth = (screenWidth * 0.8).toInt() // 80% of screen width
-        val touchAreaHeight = TypedValue.applyDimension(
+        // Full width, 60dp height (to match VolumeSlider), centered on screen
+        val viewHeight = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP, 60f, displayMetrics
         ).toInt()
         
         WindowManager.LayoutParams(
-            touchAreaWidth,
-            touchAreaHeight,
+            screenWidth, // Full width (MATCH_PARENT equivalent)
+            viewHeight,  // 22dp height
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {
@@ -48,11 +45,11 @@ class FloatingVolumeService : Service() {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
             WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR,
-            PixelFormat.TRANSLUCENT
+            PixelFormat.TRANSLUCENT // Translucent for transparent background
         ).apply {
-            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            // Position at bottom center with some padding from bottom (5% of screen height)
-            y = (screenHeight * 0.05).toInt()
+            gravity = Gravity.CENTER // Center both horizontally and vertically
+            x = 0 // Centered horizontally (gravity handles this)
+            y = 0 // Centered vertically (gravity handles this)
         }
     }
 

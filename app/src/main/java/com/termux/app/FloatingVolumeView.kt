@@ -7,7 +7,8 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.media.AudioManager
 import android.os.Build
-import android.os.SystemClock
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.MotionEvent
 import android.widget.LinearLayout
@@ -26,6 +27,8 @@ class FloatingVolumeView(context: Context) : LinearLayout(context) {
     private var currentVolume: Int = 0
     private var maxVolume: Int = 0
     
+    private lateinit var volumeSlider: VolumeSlider
+    
     // Swipe gesture detection
     private var initialTouchX = 0f
     private var initialTouchY = 0f
@@ -33,6 +36,10 @@ class FloatingVolumeView(context: Context) : LinearLayout(context) {
     private val swipeThreshold = 50f // Minimum distance for swipe
     private var lastClickTime = 0L
     private val clickDelay = 200L // Max time between down and up for click
+    
+    private val handler = Handler(Looper.getMainLooper())
+    private var hideSliderRunnable: Runnable? = null
+    private val sliderHideDelay = 1000L // Hide slider after 1 second of no swipe
     
     private var volumeChangeReceiver: android.content.BroadcastReceiver? = null
 
@@ -44,10 +51,26 @@ class FloatingVolumeView(context: Context) : LinearLayout(context) {
         maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
         currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
         
-        // Make view completely invisible but still handle touches
-        // View will be sized by WindowManager.LayoutParams in FloatingVolumeService
+        // Create and add volume slider
+        volumeSlider = VolumeSlider(context).apply {
+            min = 0
+            max = this@FloatingVolumeView.maxVolume
+            currentVolume = this@FloatingVolumeView.currentVolume
+            onVolumeChanged = { volume ->
+                this@FloatingVolumeView.updateVolume(volume, updateSystem = true)
+            }
+            layoutParams = LayoutParams(
+                LayoutParams.MATCH_PARENT,
+                LayoutParams.MATCH_PARENT
+            )
+        }
+        addView(volumeSlider)
+        
+        // Set transparent background
         setBackgroundColor(Color.TRANSPARENT)
-        setWillNotDraw(false) // We'll override onDraw to draw nothing
+        // Make entire view invisible by default (transparent)
+        alpha = 0f
+        setWillNotDraw(false) // We'll override onDraw if needed
         
         // Listen to system volume changes
         volumeChangeReceiver = object : android.content.BroadcastReceiver() {
@@ -57,6 +80,9 @@ class FloatingVolumeView(context: Context) : LinearLayout(context) {
                     if (streamType == AudioManager.STREAM_MUSIC) {
                         val volume = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_VALUE", 0)
                         updateVolume(volume, updateSystem = false)
+                        // Show view when volume changes via system (hardware buttons, etc.)
+                        showVolumeSlider()
+                        scheduleHideVolumeSlider()
                     }
                 }
             }
@@ -89,10 +115,12 @@ class FloatingVolumeView(context: Context) : LinearLayout(context) {
                 if (abs(dx) > swipeThreshold && abs(dx) > abs(dy)) {
                     isSwipeGesture = true
                     
+                    // Show volume slider (make it fully visible)
+                    showVolumeSlider()
+                    
                     // Determine swipe direction and adjust volume
                     // Swipe right (positive dx) = volume up
                     // Swipe left (negative dx) = volume down
-                    val volumeStep = 1 // Change volume by 1 step per swipe threshold
                     val swipeSteps = (abs(dx) / swipeThreshold).toInt()
                     
                     val volumeChange = if (dx > 0) {
@@ -125,9 +153,16 @@ class FloatingVolumeView(context: Context) : LinearLayout(context) {
                     val volumeChange = if (dx > 0) 1 else -1
                     val newVolume = (currentVolume + volumeChange).coerceIn(0, maxVolume)
                     updateVolume(newVolume, updateSystem = true)
+                    // Hide slider after delay
+                    scheduleHideVolumeSlider()
                 } else if (!isSwipeGesture && clickDuration < clickDelay) {
                     // Single click - lock screen
                     lockScreen()
+                    // Hide slider after delay
+                    scheduleHideVolumeSlider()
+                } else {
+                    // Hide slider after delay
+                    scheduleHideVolumeSlider()
                 }
                 true
             }
@@ -139,8 +174,8 @@ class FloatingVolumeView(context: Context) : LinearLayout(context) {
         val clampedVolume = newVolume.coerceIn(0, maxVolume)
         if (clampedVolume != currentVolume) {
             currentVolume = clampedVolume
-            // Don't update text view since it's invisible
-            // No need to invalidate since we're not drawing anything
+            // Update volume slider
+            volumeSlider.currentVolume = currentVolume
             
             if (updateSystem) {
                 audioManager.setStreamVolume(
@@ -150,6 +185,36 @@ class FloatingVolumeView(context: Context) : LinearLayout(context) {
                 )
             }
         }
+    }
+    
+    private fun showVolumeSlider() {
+        // Cancel any pending hide operation
+        hideSliderRunnable?.let { handler.removeCallbacks(it) }
+        
+        // Animate entire view to full opacity (make it visible)
+        animate()
+            .alpha(1.0f)
+            .setDuration(200)
+            .start()
+    }
+    
+    private fun scheduleHideVolumeSlider() {
+        // Cancel any existing hide operation
+        hideSliderRunnable?.let { handler.removeCallbacks(it) }
+        
+        // Schedule hide after delay
+        hideSliderRunnable = Runnable {
+            hideVolumeSlider()
+        }
+        handler.postDelayed(hideSliderRunnable!!, sliderHideDelay)
+    }
+    
+    private fun hideVolumeSlider() {
+        // Animate entire view back to invisible (completely transparent)
+        animate()
+            .alpha(0f)
+            .setDuration(300)
+            .start()
     }
     
     private fun lockScreen() {
@@ -170,13 +235,15 @@ class FloatingVolumeView(context: Context) : LinearLayout(context) {
     }
     
     override fun onDraw(canvas: Canvas) {
-        // Don't draw anything - view is completely invisible
-        // Touch events still work because the view exists and has size
         super.onDraw(canvas)
+        // Transparent background - no drawing needed
     }
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        // Cancel any pending hide operations
+        hideSliderRunnable?.let { handler.removeCallbacks(it) }
+        
         volumeChangeReceiver?.let {
             try {
                 context.unregisterReceiver(it)

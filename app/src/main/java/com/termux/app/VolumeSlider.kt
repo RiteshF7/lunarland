@@ -2,6 +2,7 @@ package com.termux.app
 
 import android.content.Context
 import android.graphics.Color
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -22,19 +23,30 @@ class VolumeSlider(context: Context) : LinearLayout(context) {
     private val progressView = View(context).apply {
         setBackgroundColor(Color.parseColor("#4CAF50"))
     }
+    
+    // Fixed height in pixels (60 dp)
+    private val fixedHeightPx: Int = TypedValue.applyDimension(
+        TypedValue.COMPLEX_UNIT_DIP,
+        60f,
+        context.resources.displayMetrics
+    ).toInt()
 
     init {
-        orientation = VERTICAL
-        gravity = Gravity.BOTTOM
+        orientation = HORIZONTAL
+        gravity = Gravity.START or Gravity.CENTER_VERTICAL
+        
+        // Set minimum height to enforce the fixed height
+        minimumHeight = fixedHeightPx
+        
         addView(progressView)
 
         setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
-                    val height = this.height
-                    if (height > 0) {
-                        val y = event.y.coerceIn(0f, height.toFloat())
-                        val fraction = 1f - (y / height)
+                    val width = this.width
+                    if (width > 0) {
+                        val x = event.x.coerceIn(0f, width.toFloat())
+                        val fraction = x / width
                         val newVolume = (min + fraction * (max - min)).roundToInt()
                         currentVolume = newVolume
                         onVolumeChanged?.invoke(currentVolume)
@@ -53,17 +65,26 @@ class VolumeSlider(context: Context) : LinearLayout(context) {
             updateProgress()
         }
     }
+    
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        // Enforce fixed height
+        val heightSpec = View.MeasureSpec.makeMeasureSpec(
+            fixedHeightPx,
+            View.MeasureSpec.EXACTLY
+        )
+        super.onMeasure(widthMeasureSpec, heightSpec)
+    }
 
     private fun updateProgress() {
         val range = max - min
         if (range <= 0 || width == 0 || height == 0) return
 
         val fraction = ((currentVolume - min).toFloat() / range).coerceIn(0f, 1f)
-        val progressHeight = (height * fraction).toInt()
+        val progressWidth = (width * fraction).toInt()
 
         progressView.layoutParams = LayoutParams(
-            LayoutParams.MATCH_PARENT,
-            progressHeight
+            progressWidth,
+            LayoutParams.MATCH_PARENT
         )
     }
 }
