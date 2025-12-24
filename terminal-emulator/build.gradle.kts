@@ -40,7 +40,8 @@ android {
         }
 
         ndk {
-            abiFilters += listOf("x86", "x86_64", "armeabi-v7a", "arm64-v8a")
+            // Build for arm64-v8a (and optionally x86_64 for emulator)
+            abiFilters += listOf("arm64-v8a", "x86_64")
         }
     }
 

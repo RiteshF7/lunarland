@@ -27,6 +27,11 @@ android {
         externalNativeBuild {
             ndkBuild { }
         }
+        
+        ndk {
+            // Build for arm64-v8a (and optionally x86_64 for emulator)
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
     }
 
     buildTypes {
