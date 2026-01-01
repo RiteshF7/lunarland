@@ -1,1 +1,1 @@
-include(":app", ":termux-core", ":termux-shared", ":terminal-emulator", ":terminal-view", ":lunar-ui", ":taskexecutor-shared")
+include(":app", ":termux-core", ":termux-shared", ":terminal-emulator", ":terminal-view", ":lunar-ui", ":taskexecutor-agent")

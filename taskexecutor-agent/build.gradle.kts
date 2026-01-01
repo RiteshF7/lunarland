@@ -24,6 +24,7 @@ android {
     
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     
     composeOptions {
@@ -39,6 +40,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.5.1")
     implementation("androidx.activity:activity-compose:1.7.2")
+    implementation("androidx.appcompat:appcompat:1.3.1")
     
     // Compose dependencies
     val composeBom = platform("androidx.compose:compose-bom:2024.09.00")
@@ -55,7 +57,8 @@ dependencies {
     implementation(project(":termux-shared"))
     implementation(project(":terminal-emulator"))
     
-    // Note: BuildConfig.GOOGLE_API_KEY is provided by app module at runtime
+    // Note: lunar-ui is NOT a dependency here to avoid circular dependency
+    // TaskExecutorAgentActivity (which uses lunar-ui) is in the app module
     
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:1.1.5")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")

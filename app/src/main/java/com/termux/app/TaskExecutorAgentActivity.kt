@@ -11,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.termux.BuildConfig
 import com.termux.app.TaskExecutorViewModel
 import com.termux.app.TaskExecutorViewModelFactory
 import lunar.land.ui.core.model.Theme
@@ -25,8 +24,8 @@ class TaskExecutorAgentActivity : ComponentActivity() {
         enableEdgeToEdge()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         
-        // Get Google API key from BuildConfig
-        val googleApiKey = BuildConfig.GOOGLE_API_KEY ?: ""
+        // Get Google API key from intent extras or use empty string
+        val googleApiKey = intent.getStringExtra("GOOGLE_API_KEY") ?: ""
         
         setContent {
             ProvideSystemUiController {

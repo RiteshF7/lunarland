@@ -1,4 +1,4 @@
-package com.termux.app
+package com.termux.app.taskexecutor
 
 import android.content.Context
 import android.content.Intent

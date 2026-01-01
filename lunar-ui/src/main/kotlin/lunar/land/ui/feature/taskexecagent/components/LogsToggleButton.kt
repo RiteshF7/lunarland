@@ -1,4 +1,4 @@
-package com.termux.app.taskexecutor.ui.components
+package lunar.land.ui.feature.taskexecagent.components
 
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth

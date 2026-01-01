@@ -1,4 +1,4 @@
-package com.termux.app.taskexecutor.ui.components
+package lunar.land.ui.feature.taskexecagent.components
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background

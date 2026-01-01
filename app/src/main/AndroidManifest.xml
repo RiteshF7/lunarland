@@ -30,18 +30,6 @@
             android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
 
 
-        <receiver
-            android:name=".app.TaskExecutorNotificationReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.termux.app.STOP_TASK" />
-            </intent-filter>
-        </receiver>
-
-        <service
-            android:name=".app.TaskExecutorOverlayService"
-            android:enabled="true"
-            android:exported="false" />
 
         <service
             android:name=".app.FloatingVolumeService"

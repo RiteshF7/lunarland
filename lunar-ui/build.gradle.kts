@@ -61,6 +61,6 @@ dependencies {
     implementation("com.google.accompanist:accompanist-pager:0.32.0")
     implementation("com.google.accompanist:accompanist-pager-indicators:0.32.0")
     
-    // Task executor shared module
-    implementation(project(":taskexecutor-shared"))
+    // Task executor agent module
+    implementation(project(":taskexecutor-agent"))
 }

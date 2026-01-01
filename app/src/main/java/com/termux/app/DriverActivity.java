@@ -124,9 +124,11 @@ public class DriverActivity extends AppCompatActivity {
             launchTermuxButton.setOnClickListener(view -> launchTermuxActivity());
         }
         if (taskExecutorButton != null) {
-            taskExecutorButton.setOnClickListener(view ->
-                startActivity(new Intent(this, TaskExecutorAgentActivity.class))
-            );
+            taskExecutorButton.setOnClickListener(view -> {
+                Intent intent = new Intent(this, com.termux.app.TaskExecutorAgentActivity.class);
+                intent.putExtra("GOOGLE_API_KEY", com.termux.BuildConfig.GOOGLE_API_KEY);
+                startActivity(intent);
+            });
         }
         if (launchLunarHomeScreenButton != null) {
             launchLunarHomeScreenButton.setOnClickListener(view -> {
@@ -136,7 +138,8 @@ public class DriverActivity extends AppCompatActivity {
         }
         if (previewAgentButton != null) {
             previewAgentButton.setOnClickListener(view -> {
-                Intent intent = new Intent(this, TaskExecutorAgentActivity.class);
+                Intent intent = new Intent(this, com.termux.app.TaskExecutorAgentActivity.class);
+                intent.putExtra("GOOGLE_API_KEY", com.termux.BuildConfig.GOOGLE_API_KEY);
                 startActivity(intent);
             });
         }

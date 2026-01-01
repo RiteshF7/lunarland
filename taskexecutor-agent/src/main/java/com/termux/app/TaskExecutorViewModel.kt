@@ -25,6 +25,8 @@ import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession.TermuxSessionClient
 import com.termux.shared.termux.terminal.TermuxTerminalSessionClientBase
 import com.termux.terminal.TerminalSession
+import com.termux.app.TermuxService
+import com.termux.app.TermuxInstaller
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

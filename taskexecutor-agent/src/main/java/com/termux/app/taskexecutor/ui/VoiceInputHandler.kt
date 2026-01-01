@@ -7,7 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
-import com.termux.app.SpeechRecognitionUtil
+import com.termux.app.taskexecutor.SpeechRecognitionUtil
 import com.termux.shared.logger.Logger
 
 /**
