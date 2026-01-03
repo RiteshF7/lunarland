@@ -22,8 +22,6 @@ import lunar.land.ui.core.theme.LunarTheme
 @Composable
 fun PageFooter(
     aiStatus: String,
-    isTextMode: Boolean = false,
-    onTextModeClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -38,13 +36,9 @@ fun PageFooter(
         //     modifier = Modifier.fillMaxWidth()
         // )
 
-        // Description text - changes based on mode
+        // Description text
         Text(
-            text = if (isTextMode) {
-                "Type your command above and press Execute to run it."
-            } else {
-                "Press and hold the AI sphere to initiate command sequence."
-            },
+            text = "Type your command above and press Execute to run it.",
             style = LunarTheme.Typography.BodySmall,
             color = LunarTheme.TextPrimary.copy(alpha = 0.8f),
             textAlign = TextAlign.Center,

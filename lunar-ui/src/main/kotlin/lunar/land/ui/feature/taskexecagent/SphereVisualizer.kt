@@ -39,7 +39,6 @@ import com.termux.app.taskexecutor.model.TaskStatus
 @Composable
 fun SphereVisualizer(
     modifier: Modifier = Modifier,
-    isListening: Boolean = false,
     taskStatus: TaskStatus = TaskStatus.STOPPED,
     isTaskRunning: Boolean = false,
     stateMessage: String = "",
@@ -365,11 +364,6 @@ fun SphereVisualizer(
                         modifier = Modifier.size(32.dp)
                     )
                 }
-            } else if (isListening) {
-                // Show rotating dots animation when listening
-                RotatingDotsIndicator()
-                Spacer(modifier = Modifier.height(16.dp))
-                StatusText(text = "Listening...")
             } else if (taskStatus == TaskStatus.ERROR && stateMessage.isNotEmpty()) {
                 // Show error message with red color (success message removed - shown at bottom instead)
                 Text(
