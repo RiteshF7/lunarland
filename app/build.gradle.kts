@@ -113,7 +113,7 @@ dependencies {
     implementation(project(":terminal-emulator"))
     implementation(project(":lunar-ui"))
     implementation(project(":taskexecutor-agent"))
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
+        implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     // Compose dependencies for lunar-ui
     val composeBom = platform("androidx.compose:compose-bom:2024.09.00")
