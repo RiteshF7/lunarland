@@ -36,19 +36,15 @@ fun TaskExecutorAgentScreen(
     
     val context = androidx.compose.ui.platform.LocalContext.current
     
-    // Initialize service binding
+    // Initialize service binding - ensure TermuxService is bound for terminal CLI access
     LaunchedEffect(Unit) {
-        if (context is android.app.Activity) {
-            viewModel.bindService(context)
-        }
+        viewModel.bindService(context)
     }
     
-    // Cleanup on dispose
+    // Cleanup on dispose - properly unbind service to prevent leaks
     androidx.compose.runtime.DisposableEffect(Unit) {
         onDispose {
-            if (context is android.app.Activity) {
-                viewModel.unbindService(context)
-            }
+            viewModel.unbindService(context)
         }
     }
     
