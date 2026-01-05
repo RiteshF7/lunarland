@@ -37,6 +37,8 @@ android {
         buildConfigField("int", "TERMUX_APP_VERSION_CODE", libraryVersionCode.toString())
         buildConfigField("String", "TERMUX_APP_VERSION_NAME", "\"$libraryVersionName\"")
 
+        manifestPlaceholders["TERMUX_PACKAGE_NAME"] = "com.termux"
+
         consumerProguardFiles("proguard-rules.pro")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
