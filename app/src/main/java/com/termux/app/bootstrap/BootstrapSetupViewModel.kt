@@ -53,7 +53,6 @@ class BootstrapSetupViewModel(application: Application) : AndroidViewModel(appli
     private val LOG_TAG = "BootstrapSetupViewModel"
     
     private var setupJob: Job? = null
-    private var droidrunDownloadJob: Job? = null
     private var isCancelled = false
     
     // Throttling for progress updates
@@ -285,9 +284,6 @@ class BootstrapSetupViewModel(application: Application) : AndroidViewModel(appli
         isCancelled = true
         setupJob?.cancel()
         
-        // Also cancel droidrun download if in progress
-        droidrunDownloadJob?.cancel()
-        
         appendLog("Setup stopped by user")
         _uiState.update {
             it.copy(
@@ -378,70 +374,6 @@ class BootstrapSetupViewModel(application: Application) : AndroidViewModel(appli
             )
         }
         appendLog("Agent environment installed successfully.")
-        
-        // Download droidrun dependency after bootstrap installation
-        downloadDroidrunDependency()
-    }
-    
-    /**
-     * Downloads droidrun dependency from GitHub releases after bootstrap installation.
-     */
-    fun downloadDroidrunDependency() {
-        val arch = _uiState.value.detectedArch
-        if (arch == null) {
-            appendLog("Warning: Cannot download droidrun dependency - architecture not detected")
-            return
-        }
-        
-        appendLog("Starting droidrun dependency download for architecture: $arch")
-        
-        droidrunDownloadJob = viewModelScope.launch(Dispatchers.IO) {
-            try {
-                var lastProgressUpdate = 0L
-                val progressCallback: (Long, Long) -> Unit = { downloaded, total ->
-                    if (total > 0) {
-                        val percent = ((downloaded * 100) / total).toInt()
-                        val now = System.currentTimeMillis()
-                        // Throttle progress updates to avoid too many UI updates
-                        if (now - lastProgressUpdate > 500) {
-                            lastProgressUpdate = now
-                            // Post log message to main thread
-                            android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                appendLog("Downloading droidrun dependency: $percent%")
-                            }
-                        }
-                    }
-                }
-                
-                val error = DroidrunDownloader.downloadAndExtractDroidrun(
-                    getApplication(),
-                    arch,
-                    progressCallback,
-                    onLogMessage = { message ->
-                        // Post log message to main thread
-                        android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            appendLog(message)
-                        }
-                    },
-                    isCancelled = { isCancelled }
-                )
-                
-                withContext(Dispatchers.Main) {
-                    if (error != null) {
-                        val errorMsg = "Failed to download droidrun dependency: ${error.message}"
-                        Logger.logError(LOG_TAG, errorMsg)
-                        appendLog(errorMsg)
-                        // Don't fail the entire setup if droidrun download fails
-                    } else {
-                        appendLog("Droidrun dependency downloaded and extracted successfully to ~/wheels")
-                    }
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                withContext(Dispatchers.Main) {
-                    appendLog("Droidrun dependency download cancelled")
-                }
-            }
-        }
     }
     
     /**

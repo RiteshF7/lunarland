@@ -150,14 +150,6 @@ fun BootstrapSetupScreen(
                                 modifier = Modifier.weight(1f)
                             )
                         }
-                        
-                        // Temporary test button for droidrun dependency
-                        Spacer(modifier = Modifier.height(8.dp))
-                        AgentButton(
-                            text = "Install Droid Dep",
-                            onClick = { viewModel.downloadDroidrunDependency() },
-                            modifier = Modifier.fillMaxWidth()
-                        )
                     }
                 }
             }
