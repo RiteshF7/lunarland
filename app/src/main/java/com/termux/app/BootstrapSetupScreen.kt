@@ -123,32 +123,43 @@ fun BootstrapSetupScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            // Stop Button (only show when in progress)
-                            if (uiState.isSetupInProgress) {
+                            // Proceed Button (only show when completed)
+                            if (uiState.status == BootstrapStatus.Completed) {
                                 AgentButton(
-                                    text = "Stop",
-                                    onClick = { viewModel.stopSetup() },
+                                    text = "Proceed",
+                                    onClick = { onNavigateToHome() },
                                     modifier = Modifier.weight(1f)
                                 )
+                            } else {
+                                // Stop Button (only show when in progress)
+                                if (uiState.isSetupInProgress) {
+                                    AgentButton(
+                                        text = "Stop",
+                                        onClick = { viewModel.stopSetup() },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                
+                                // Reinstall Button
+                                AgentButton(
+                                    text = "Reinstall",
+                                    onClick = { viewModel.reinstallBootstrap() },
+                                    modifier = Modifier.weight(1f),
+                                    enabled = !uiState.isSetupInProgress
+                                )
+                                
+                                // Skip Button (hide when completed)
+                                if (uiState.status != BootstrapStatus.Completed) {
+                                    AgentButton(
+                                        text = "Skip",
+                                        onClick = { 
+                                            viewModel.skipSetup()
+                                            onNavigateToHome()
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
                             }
-                            
-                            // Reinstall Button
-                            AgentButton(
-                                text = "Reinstall",
-                                onClick = { viewModel.reinstallBootstrap() },
-                                modifier = Modifier.weight(1f),
-                                enabled = !uiState.isSetupInProgress
-                            )
-                            
-                            // Skip Button
-                            AgentButton(
-                                text = "Skip",
-                                onClick = { 
-                                    viewModel.skipSetup()
-                                    onNavigateToHome()
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
                         }
                     }
                 }
@@ -345,7 +356,8 @@ private fun StatusText(status: BootstrapStatus) {
         BootstrapStatus.Detecting -> "Detecting agent environment..."
         BootstrapStatus.Downloading -> "Downloading agent environment..."
         BootstrapStatus.Installing -> "Setting up agent environment..."
-        BootstrapStatus.Completed -> "Agent environment setup completed!"
+        BootstrapStatus.Configuring -> "Configuring environment for agent..."
+        BootstrapStatus.Completed -> "Installation completed successfully!"
         BootstrapStatus.Failed -> "Agent environment setup failed"
         BootstrapStatus.Cancelled -> "Agent environment setup cancelled"
     }

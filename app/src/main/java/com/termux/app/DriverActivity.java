@@ -58,6 +58,7 @@ public class DriverActivity extends AppCompatActivity {
     private Button launchLunarHomeScreenButton;
     private Button previewAgentButton;
     private Button testAppDrawerButton;
+    private Button testBackupButton;
     private NestedScrollView logsContainer;
     private TextView logsView;
     private final StringBuilder logBuffer = new StringBuilder();
@@ -102,6 +103,7 @@ public class DriverActivity extends AppCompatActivity {
         launchLunarHomeScreenButton = findViewById(R.id.driver_launch_lunar_homescreen_button);
         previewAgentButton = findViewById(R.id.driver_preview_agent_button);
         testAppDrawerButton = findViewById(R.id.driver_test_app_drawer_button);
+        testBackupButton = findViewById(R.id.driver_test_backup_button);
         logsContainer = findViewById(R.id.driver_logs_container);
         logsView = findViewById(R.id.driver_logs_view);
 
@@ -146,6 +148,12 @@ public class DriverActivity extends AppCompatActivity {
         if (testAppDrawerButton != null) {
             testAppDrawerButton.setOnClickListener(view -> {
                 Intent intent = new Intent(this, AppDrawerActivity.class);
+                startActivity(intent);
+            });
+        }
+        if (testBackupButton != null) {
+            testBackupButton.setOnClickListener(view -> {
+                Intent intent = new Intent(this, BackupTestActivity.class);
                 startActivity(intent);
             });
         }

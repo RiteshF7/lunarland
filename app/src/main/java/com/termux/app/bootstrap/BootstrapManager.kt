@@ -6,6 +6,8 @@ import com.termux.shared.logger.Logger
 import com.termux.shared.termux.file.TermuxFileUtils
 import com.termux.shared.file.FileUtils
 import com.termux.shared.termux.TermuxConstants
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -94,13 +96,16 @@ object BootstrapManager {
      * @param progressCallback Optional callback for download progress
      * @return Error if download failed, null on success
      */
-    fun downloadBootstrap(
+    suspend fun downloadBootstrap(
         context: Context,
         architecture: String,
         progressCallback: BootstrapDownloader.ProgressCallback?
     ): Error? {
         Logger.logInfo(LOG_TAG, "Starting bootstrap download for architecture: $architecture")
-        return BootstrapDownloader.downloadBootstrap(context, architecture, progressCallback)
+        // BootstrapDownloader.downloadBootstrap is a blocking Java method, call it from IO dispatcher
+        return withContext(Dispatchers.IO) {
+            BootstrapDownloader.downloadBootstrap(context, architecture, progressCallback)
+        }
     }
     
     /**

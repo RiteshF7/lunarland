@@ -1,9 +1,12 @@
 package com.termux.app
 
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -14,8 +17,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.termux.app.bootstrap.BootstrapSetupViewModel
 import com.termux.app.bootstrap.BootstrapStatus
+import com.termux.app.bootstrap.BootstrapManager
 import com.termux.shared.logger.Logger
 import com.termux.app.TermuxInstaller
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.File
 
 /**
  * Activity responsible for downloading and installing bootstrap packages.
@@ -108,6 +116,16 @@ class BootstrapSetupActivity : ComponentActivity() {
                 val successMsg = "Agent environment installation completed successfully"
                 Logger.logInfo(LOG_TAG, successMsg)
                 viewModel.appendLog(successMsg)
+                
+                // Delete bootstrap zip file after installation
+                deleteBootstrapZipFile(viewModel)
+                
+                // Mark bootstrap installation as complete (triggers Configuring status)
+                viewModel.onBootstrapInstallComplete()
+                
+                // Backup download/restore is now handled in a separate activity
+                // User can test it from DriverActivity after bootstrap installation
+                
                 onComplete()
             } catch (e: Exception) {
                 val errorMsg = e.message ?: "Unknown error"
@@ -116,6 +134,33 @@ class BootstrapSetupActivity : ComponentActivity() {
                 onError(errorMsg)
             }
         }, logCallback)
+    }
+    
+    /**
+     * Deletes the bootstrap zip file after successful installation.
+     */
+    private fun deleteBootstrapZipFile(viewModel: BootstrapSetupViewModel) {
+        try {
+            // Get architecture from ViewModel state or detect it
+            val arch = viewModel.uiState.value.detectedArch 
+                ?: BootstrapManager.detectBootstrap(this).architecture
+                ?: return
+            
+            val bootstrapDir = File(filesDir, "bootstraps")
+            val bootstrapFile = File(bootstrapDir, "bootstrap-$arch.zip")
+            
+            if (bootstrapFile.exists()) {
+                val deleted = bootstrapFile.delete()
+                if (deleted) {
+                    Logger.logInfo(LOG_TAG, "Deleted bootstrap zip file: ${bootstrapFile.absolutePath}")
+                    viewModel.appendLog("Cleaned up bootstrap installation files")
+                } else {
+                    Logger.logWarn(LOG_TAG, "Failed to delete bootstrap zip file")
+                }
+            }
+        } catch (e: Exception) {
+            Logger.logError(LOG_TAG, "Error deleting bootstrap zip file: ${e.message}")
+        }
     }
     
     private fun navigateToHome() {
