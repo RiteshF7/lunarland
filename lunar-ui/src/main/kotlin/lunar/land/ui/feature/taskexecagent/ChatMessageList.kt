@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun ChatMessageList(
     messages: List<ChatMessage>,
-    isTaskRunning: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -42,13 +41,11 @@ fun ChatMessageList(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        items(messages.size) { index ->
-            val message = messages[index]
-            val isLastMessage = index == messages.size - 1
-            ChatMessageItem(
-                message = message,
-                showProgress = isLastMessage && isTaskRunning
-            )
+        items(
+            count = messages.size,
+            key = { index -> index } // Use index as key to ensure uniqueness
+        ) { index ->
+            ChatMessageItem(message = messages[index])
         }
         
         if (messages.isEmpty()) {
@@ -67,7 +64,6 @@ fun ChatMessageList(
 @Composable
 private fun ChatMessageItem(
     message: ChatMessage,
-    showProgress: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val backgroundColor = when (message.type) {
@@ -83,8 +79,7 @@ private fun ChatMessageItem(
             .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
             .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.Start,
-        verticalAlignment = Alignment.CenterVertically
+        horizontalArrangement = Arrangement.Start
     ) {
         Text(
             text = message.text,
@@ -97,12 +92,6 @@ private fun ChatMessageItem(
             },
             modifier = Modifier.weight(1f)
         )
-        
-        // Show progress indicator if this is the last message and task is running
-        if (showProgress) {
-            Spacer(modifier = Modifier.width(8.dp))
-            TaskProgressIndicator()
-        }
     }
 }
 

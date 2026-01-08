@@ -215,7 +215,6 @@ fun TaskExecutorAgentScreen(
             if (filteredMessages.isNotEmpty()) {
                 ChatMessageList(
                     messages = filteredMessages,
-                    isTaskRunning = uiState.isTaskRunning,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()

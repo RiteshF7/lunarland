@@ -11,6 +11,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.sin
@@ -93,12 +94,26 @@ private fun DrawScope.drawAISphere(
     val center = Offset(size / 2f, size / 2f)
     val radius = size * config.radiusMultiplier
     
-    // Draw static glowing green sphere
-    drawGlowingSphere(
-        center = center,
-        radius = radius,
-        config = config
-    )
+    // Apply rotation transform if rotation angle is set
+    if (config.rotationAngle != 0f) {
+        rotate(
+            degrees = config.rotationAngle * (180f / kotlin.math.PI.toFloat()),
+            pivot = center
+        ) {
+            drawGlowingSphere(
+                center = center,
+                radius = radius,
+                config = config
+            )
+        }
+    } else {
+        // Draw static glowing green sphere
+        drawGlowingSphere(
+            center = center,
+            radius = radius,
+            config = config
+        )
+    }
 }
 
 private fun DrawScope.drawGlowingSphere(
