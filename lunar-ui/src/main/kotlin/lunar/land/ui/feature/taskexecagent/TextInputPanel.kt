@@ -120,17 +120,19 @@ fun TextInputPanel(
         )
         
         // Send/Stop icon button on the right
+        // Show stop button only when task is actively running
+        // Show send button when task is not running (even if text is blank, to allow sending)
         IconButton(
             onClick = {
                 if (isTaskRunning && onStop != null) {
                     onStop()
-                } else if (text.isNotBlank()) {
+                } else if (text.isNotBlank() && !isTaskRunning) {
                     onExecute(text.trim())
                     text = ""
                 }
             },
             modifier = Modifier.size(40.dp),
-            enabled = text.isNotBlank() || (isTaskRunning && onStop != null)
+            enabled = isTaskRunning || text.isNotBlank()
         ) {
             Icon(
                 imageVector = if (isTaskRunning && onStop != null) {
@@ -139,7 +141,7 @@ fun TextInputPanel(
                     Icons.AutoMirrored.Filled.Send
                 },
                 contentDescription = if (isTaskRunning && onStop != null) "Stop" else "Send",
-                tint = if (text.isNotBlank() || (isTaskRunning && onStop != null)) {
+                tint = if (isTaskRunning || text.isNotBlank()) {
                     Color.White
                 } else {
                     Color(0xFF666666)

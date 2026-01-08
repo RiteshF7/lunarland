@@ -137,23 +137,29 @@ fun TaskExecutorAgentScreen(
         }
     }
     
-    // Track task status changes
-    LaunchedEffect(uiState.taskStatus) {
+    // Track task status changes and cleanup
+    LaunchedEffect(uiState.taskStatus, uiState.isTaskRunning) {
         when (uiState.taskStatus) {
             TaskStatus.SUCCESS -> {
-                chatMessages = chatMessages + ChatMessage(
-                    text = "✓ Task completed successfully",
-                    type = MessageType.SYSTEM
-                )
+                if (!uiState.isTaskRunning) {
+                    // Task completed - add success message
+                    chatMessages = chatMessages + ChatMessage(
+                        text = "✓ Task completed successfully",
+                        type = MessageType.SYSTEM
+                    )
+                }
             }
             TaskStatus.ERROR -> {
-                chatMessages = chatMessages + ChatMessage(
-                    text = "✗ Task failed or error occurred",
-                    type = MessageType.ERROR
-                )
+                if (!uiState.isTaskRunning) {
+                    // Task failed - add error message
+                    chatMessages = chatMessages + ChatMessage(
+                        text = "✗ Task failed or error occurred",
+                        type = MessageType.ERROR
+                    )
+                }
             }
             TaskStatus.STOPPED -> {
-                if (uiState.isTaskRunning) {
+                if (!uiState.isTaskRunning) {
                     chatMessages = chatMessages + ChatMessage(
                         text = "Task stopped",
                         type = MessageType.SYSTEM
@@ -209,6 +215,7 @@ fun TaskExecutorAgentScreen(
             if (filteredMessages.isNotEmpty()) {
                 ChatMessageList(
                     messages = filteredMessages,
+                    isTaskRunning = uiState.isTaskRunning,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()

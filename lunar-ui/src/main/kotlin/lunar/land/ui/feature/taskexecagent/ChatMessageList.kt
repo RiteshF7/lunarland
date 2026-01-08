@@ -3,19 +3,18 @@ package lunar.land.ui.feature.taskexecagent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import lunar.land.ui.core.theme.LunarTheme
 
 /**
  * Chat message list component showing user commands, system messages, and output.
@@ -23,6 +22,7 @@ import lunar.land.ui.core.theme.LunarTheme
 @Composable
 fun ChatMessageList(
     messages: List<ChatMessage>,
+    isTaskRunning: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -42,8 +42,13 @@ fun ChatMessageList(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        items(messages) { message ->
-            ChatMessageItem(message = message)
+        items(messages.size) { index ->
+            val message = messages[index]
+            val isLastMessage = index == messages.size - 1
+            ChatMessageItem(
+                message = message,
+                showProgress = isLastMessage && isTaskRunning
+            )
         }
         
         if (messages.isEmpty()) {
@@ -62,6 +67,7 @@ fun ChatMessageList(
 @Composable
 private fun ChatMessageItem(
     message: ChatMessage,
+    showProgress: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val backgroundColor = when (message.type) {
@@ -77,7 +83,8 @@ private fun ChatMessageItem(
             .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
             .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.Start
+        horizontalArrangement = Arrangement.Start,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = message.text,
@@ -90,6 +97,12 @@ private fun ChatMessageItem(
             },
             modifier = Modifier.weight(1f)
         )
+        
+        // Show progress indicator if this is the last message and task is running
+        if (showProgress) {
+            Spacer(modifier = Modifier.width(8.dp))
+            TaskProgressIndicator()
+        }
     }
 }
 
