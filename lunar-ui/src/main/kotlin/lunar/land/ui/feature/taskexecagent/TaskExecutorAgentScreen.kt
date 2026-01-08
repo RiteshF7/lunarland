@@ -1,9 +1,15 @@
 package lunar.land.ui.feature.taskexecagent
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -36,11 +42,25 @@ fun TaskExecutorAgentScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     
+    // Toggle for showing all logs vs filtered logs
+    var showAllLogs by remember { mutableStateOf(false) }
+    
     // Chat message state
     var chatMessages by remember { mutableStateOf<List<ChatMessage>>(emptyList()) }
     var lastOutputText by remember { mutableStateOf("") }
     var lastStatusText by remember { mutableStateOf("") }
     var lastCurrentTask by remember { mutableStateOf<String?>(null) }
+    
+    // Filter messages based on toggle state
+    val filteredMessages = remember(chatMessages, showAllLogs) {
+        if (showAllLogs) {
+            chatMessages
+        } else {
+            chatMessages.filter { message ->
+                LogFilter.shouldShowMessage(message, showAllLogs)
+            }
+        }
+    }
     
     // Initialize service binding
     LaunchedEffect(Unit) {
@@ -93,10 +113,24 @@ fun TaskExecutorAgentScreen(
             if (newOutput.isNotBlank()) {
                 val trimmedOutput = newOutput.trim()
                 if (trimmedOutput.isNotBlank()) {
-                    chatMessages = chatMessages + ChatMessage(
-                        text = trimmedOutput,
-                        type = MessageType.OUTPUT
-                    )
+                    // Try to extract user-friendly messages from output
+                    val friendlyMessages = LogFilter.extractUserFriendlyMessages(trimmedOutput)
+                    
+                    if (friendlyMessages.isNotEmpty()) {
+                        // Add each friendly message as a separate system message
+                        friendlyMessages.forEach { friendlyMsg ->
+                            chatMessages = chatMessages + ChatMessage(
+                                text = friendlyMsg,
+                                type = MessageType.SYSTEM
+                            )
+                        }
+                    } else {
+                        // If no friendly messages found, add as output (will be filtered if not friendly)
+                        chatMessages = chatMessages + ChatMessage(
+                            text = trimmedOutput,
+                            type = MessageType.OUTPUT
+                        )
+                    }
                 }
             }
             lastOutputText = uiState.outputText
@@ -143,10 +177,38 @@ fun TaskExecutorAgentScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Chat messages area
+            // Toggle button at the top
             if (chatMessages.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(
+                        onClick = { showAllLogs = !showAllLogs },
+                        modifier = Modifier.padding(0.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (showAllLogs) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (showAllLogs) "Hide technical logs" else "Show all logs",
+                            tint = Color(0xFF999999),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (showAllLogs) "Hide technical logs" else "Show all logs",
+                            color = Color(0xFF999999),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+            
+            // Chat messages area
+            if (filteredMessages.isNotEmpty()) {
                 ChatMessageList(
-                    messages = chatMessages,
+                    messages = filteredMessages,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
