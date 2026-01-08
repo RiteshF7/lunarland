@@ -81,7 +81,7 @@ private fun FavoritesListUiComponent(
                             if (favoriteAppWithColor.app.displayName == "Driver" && 
                                 favoriteAppWithColor.app.packageName == context.packageName) {
                                 // Launch DriverActivity directly
-                                val intent = Intent(context, Class.forName("com.termux.app.DriverActivity"))
+                                val intent = Intent(context, Class.forName("com.termux.app.driver.DriverActivity"))
                                 context.startActivity(intent)
                             } else if (favoriteAppWithColor.app.displayName == "Floating Volume" && 
                                 favoriteAppWithColor.app.packageName == context.packageName) {
@@ -118,7 +118,7 @@ private fun AppWithColor.toAppItemData(context: android.content.Context): AppIte
             // Try to get DriverActivity icon or use app icon
             try {
                 val driverActivityInfo = packageManager.getActivityInfo(
-                    android.content.ComponentName(context.packageName, "com.termux.app.DriverActivity"),
+                    android.content.ComponentName(context.packageName, "com.termux.app.driver.DriverActivity"),
                     PackageManager.GET_META_DATA
                 )
                 driverActivityInfo.loadIcon(packageManager)

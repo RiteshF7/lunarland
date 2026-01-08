@@ -15,16 +15,19 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.termux.app.backup.BackupDownloader
 import com.termux.app.bootstrap.BootstrapManager
+import com.termux.shared.errors.Error
+import com.termux.shared.file.FileUtils
 import com.termux.shared.logger.Logger
 import com.termux.shared.shell.command.ExecutionCommand
 import com.termux.shared.shell.command.ExecutionCommand.Runner
 import com.termux.shared.termux.TermuxConstants
 import com.termux.shared.termux.TermuxConstants.TERMUX_APP.TERMUX_SERVICE
+import java.io.File
+import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 
 /**
  * Activity for testing backup download and restore functionality.
@@ -195,6 +198,8 @@ class BackupTestActivity : ComponentActivity() {
                     Logger.logInfo(LOG_TAG, "Backup file still exists after restore: $backupFileStillExists at ${backupFile.absolutePath}")
                     
                     if (success) {
+                        // After successful restore, export GOOGLE_API_KEY
+                        exportGoogleApiKey(viewModel)
                         CoroutineScope(Dispatchers.Main).launch {
                             viewModel.appendLog("Backup restore command executed successfully")
                             viewModel.appendLog("Backup file path: ${backupFile.absolutePath}")
@@ -341,6 +346,8 @@ class BackupTestActivity : ComponentActivity() {
                     }
                     
                     if (success) {
+                        // After successful restore, export GOOGLE_API_KEY
+                        exportGoogleApiKey(viewModel)
                         CoroutineScope(Dispatchers.Main).launch {
                             viewModel.appendLog("Backup restore command executed successfully")
                             viewModel.appendLog("Backup file path: ${backupFile.absolutePath}")
@@ -360,6 +367,185 @@ class BackupTestActivity : ComponentActivity() {
                 Logger.logStackTraceWithMessage(LOG_TAG, errorMsg, e)
                 CoroutineScope(Dispatchers.Main).launch {
                     viewModel.onError(errorMsg)
+                }
+            }
+        }
+    }
+    
+    /**
+     * Exports GOOGLE_API_KEY by adding it directly to .bashrc file for persistence.
+     */
+    fun exportGoogleApiKey(viewModel: BackupTestViewModel) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val apiKey = com.termux.BuildConfig.GOOGLE_API_KEY
+                if (apiKey.isBlank()) {
+                    Logger.logWarn(LOG_TAG, "GOOGLE_API_KEY is not set in BuildConfig")
+                    CoroutineScope(Dispatchers.Main).launch {
+                        viewModel.appendLog("Warning: GOOGLE_API_KEY not found in BuildConfig")
+                    }
+                    return@launch
+                }
+                
+                val bashrcPath = "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc"
+                val bashrcFile = File(bashrcPath)
+                val exportLine = "export GOOGLE_API_KEY=\"$apiKey\""
+                
+                Logger.logInfo(LOG_TAG, "Adding GOOGLE_API_KEY to .bashrc at: $bashrcPath")
+                
+                CoroutineScope(Dispatchers.Main).launch {
+                    viewModel.appendLog("Adding GOOGLE_API_KEY to .bashrc...")
+                }
+                
+                // Check if .bashrc exists, create if not
+                if (!bashrcFile.exists()) {
+                    val parentDir = bashrcFile.parentFile
+                    if (parentDir != null && !parentDir.exists()) {
+                        parentDir.mkdirs()
+                    }
+                    bashrcFile.createNewFile()
+                    Logger.logInfo(LOG_TAG, "Created .bashrc file")
+                }
+                
+                // Read existing content to check if API key already exists
+                val existingContent = if (bashrcFile.exists() && bashrcFile.canRead()) {
+                    bashrcFile.readText(StandardCharsets.UTF_8)
+                } else {
+                    ""
+                }
+                
+                // Check if export line already exists
+                if (existingContent.contains("export GOOGLE_API_KEY")) {
+                    Logger.logInfo(LOG_TAG, "GOOGLE_API_KEY already exists in .bashrc, updating...")
+                    CoroutineScope(Dispatchers.Main).launch {
+                        viewModel.appendLog("GOOGLE_API_KEY already exists, updating...")
+                    }
+                    
+                    // Remove old export line and add new one
+                    val updatedContent = existingContent.lines()
+                        .filterNot { it.trim().startsWith("export GOOGLE_API_KEY") }
+                        .joinToString("\n")
+                    
+                    val newContent = if (updatedContent.isBlank()) {
+                        exportLine
+                    } else {
+                        "$updatedContent\n$exportLine"
+                    }
+                    
+                    val error = FileUtils.writeTextToFile(
+                        "bashrc",
+                        bashrcPath,
+                        StandardCharsets.UTF_8,
+                        newContent,
+                        false
+                    )
+                    
+                    if (error != null) {
+                        Logger.logError(LOG_TAG, "Failed to update .bashrc: ${error.getMessage()}")
+                        CoroutineScope(Dispatchers.Main).launch {
+                            viewModel.appendLog("Error: Failed to update .bashrc: ${error.getMessage()}")
+                        }
+                        return@launch
+                    }
+                } else {
+                    // Append export line to .bashrc
+                    val newContent = if (existingContent.isBlank()) {
+                        exportLine
+                    } else {
+                        "$existingContent\n$exportLine"
+                    }
+                    
+                    val error = FileUtils.writeTextToFile(
+                        "bashrc",
+                        bashrcPath,
+                        StandardCharsets.UTF_8,
+                        newContent,
+                        false
+                    )
+                    
+                    if (error != null) {
+                        Logger.logError(LOG_TAG, "Failed to write to .bashrc: ${error.getMessage()}")
+                        CoroutineScope(Dispatchers.Main).launch {
+                            viewModel.appendLog("Error: Failed to write to .bashrc: ${error.getMessage()}")
+                        }
+                        return@launch
+                    }
+                }
+                
+                Logger.logInfo(LOG_TAG, "GOOGLE_API_KEY successfully added to .bashrc")
+                CoroutineScope(Dispatchers.Main).launch {
+                    viewModel.appendLog("✓ GOOGLE_API_KEY added to .bashrc successfully")
+                }
+                
+                // Test if it was written correctly
+                testApiKeyExport(viewModel)
+                
+            } catch (e: Exception) {
+                Logger.logError(LOG_TAG, "Error exporting GOOGLE_API_KEY: ${e.message}")
+                Logger.logStackTraceWithMessage(LOG_TAG, "Exception details", e)
+                CoroutineScope(Dispatchers.Main).launch {
+                    viewModel.appendLog("Error: ${e.message}")
+                }
+            }
+        }
+    }
+    
+    /**
+     * Tests if GOOGLE_API_KEY is exported in .bashrc and prints it in logs.
+     */
+    fun testApiKeyExport(viewModel: BackupTestViewModel) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val bashrcPath = "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc"
+                val bashrcFile = File(bashrcPath)
+                
+                if (!bashrcFile.exists()) {
+                    Logger.logWarn(LOG_TAG, ".bashrc file does not exist")
+                    CoroutineScope(Dispatchers.Main).launch {
+                        viewModel.appendLog("Warning: .bashrc file does not exist")
+                    }
+                    return@launch
+                }
+                
+                val content = bashrcFile.readText(StandardCharsets.UTF_8)
+                val apiKeyLines = content.lines()
+                    .filter { it.trim().startsWith("export GOOGLE_API_KEY") }
+                
+                if (apiKeyLines.isEmpty()) {
+                    Logger.logWarn(LOG_TAG, "GOOGLE_API_KEY not found in .bashrc")
+                    CoroutineScope(Dispatchers.Main).launch {
+                        viewModel.appendLog("✗ GOOGLE_API_KEY not found in .bashrc")
+                    }
+                } else {
+                    apiKeyLines.forEach { line ->
+                        Logger.logInfo(LOG_TAG, "Found in .bashrc: $line")
+                        // Extract and mask the API key for logging (show first 10 chars)
+                        val apiKeyMatch = Regex("export GOOGLE_API_KEY=\"([^\"]+)\"").find(line)
+                        if (apiKeyMatch != null) {
+                            val apiKey = apiKeyMatch.groupValues[1]
+                            val maskedKey = if (apiKey.length > 10) {
+                                "${apiKey.take(10)}...${apiKey.takeLast(4)}"
+                            } else {
+                                "***"
+                            }
+                            Logger.logInfo(LOG_TAG, "API Key (masked): $maskedKey")
+                            CoroutineScope(Dispatchers.Main).launch {
+                                viewModel.appendLog("✓ GOOGLE_API_KEY found in .bashrc")
+                                viewModel.appendLog("  Key (masked): $maskedKey")
+                            }
+                        } else {
+                            CoroutineScope(Dispatchers.Main).launch {
+                                viewModel.appendLog("✓ GOOGLE_API_KEY found in .bashrc")
+                                viewModel.appendLog("  Line: $line")
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Logger.logError(LOG_TAG, "Error testing API key export: ${e.message}")
+                Logger.logStackTraceWithMessage(LOG_TAG, "Exception details", e)
+                CoroutineScope(Dispatchers.Main).launch {
+                    viewModel.appendLog("Error testing export: ${e.message}")
                 }
             }
         }
@@ -513,6 +699,38 @@ fun BackupTestScreen(
                 )
             ) {
                 Text("Redownload & Reinstall")
+            }
+            
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            
+            Button(
+                onClick = {
+                    viewModel.reset()
+                    viewModel.startTest()
+                    activity.exportGoogleApiKey(viewModel)
+                },
+                enabled = !uiState.isInProgress,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Text("Export API Key to .bashrc")
+            }
+            
+            Button(
+                onClick = {
+                    viewModel.reset()
+                    viewModel.startTest()
+                    activity.testApiKeyExport(viewModel)
+                },
+                enabled = !uiState.isInProgress,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                )
+            ) {
+                Text("Test API Key Export")
             }
         }
         
