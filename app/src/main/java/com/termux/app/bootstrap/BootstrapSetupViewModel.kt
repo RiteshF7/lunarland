@@ -37,7 +37,6 @@ enum class BootstrapStatus {
     Detecting,
     Downloading,
     Installing,
-    Configuring,
     Completed,
     Failed,
     Cancelled
@@ -364,52 +363,18 @@ class BootstrapSetupViewModel(application: Application) : AndroidViewModel(appli
     
     /**
      * Called when agent environment installation completes successfully.
-     * This triggers the backup download and restore process.
      */
     fun onBootstrapInstallComplete() {
         _uiState.update {
             it.copy(
-                status = BootstrapStatus.Configuring,
-                progress = 90,
-                isSetupInProgress = true, // Keep in progress during backup restore
+                status = BootstrapStatus.Completed,
+                progress = 100,
+                isSetupInProgress = false,
                 bootstrapAlreadyInstalled = true
             )
         }
-        appendLog("Agent environment installed successfully.")
-        appendLog("Configuring environment for agent...")
-    }
-    
-    /**
-     * Called when backup download and restore completes successfully.
-     */
-    fun onBackupRestoreComplete() {
-        _uiState.update {
-            it.copy(
-                status = BootstrapStatus.Completed,
-                progress = 100,
-                isSetupInProgress = false
-            )
-        }
-        appendLog("Environment configuration completed successfully.")
-    }
-    
-    /**
-     * Called when backup download or restore fails.
-     */
-    fun onBackupRestoreError(error: String) {
-        // Don't fail the whole setup if backup restore fails, just log it
-        Logger.logError(LOG_TAG, "Backup restore failed: $error")
-        appendLog("Warning: Backup restore failed: $error")
-        appendLog("Continuing with basic environment setup...")
-        
-        // Still mark as completed since bootstrap is installed
-        _uiState.update {
-            it.copy(
-                status = BootstrapStatus.Completed,
-                progress = 100,
-                isSetupInProgress = false
-            )
-        }
+        appendLog("Bootstrap installation completed successfully.")
+        appendLog("Setup completed. You can now use the terminal.")
     }
     
     /**

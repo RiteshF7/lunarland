@@ -356,7 +356,6 @@ private fun StatusText(status: BootstrapStatus) {
         BootstrapStatus.Detecting -> "Detecting agent environment..."
         BootstrapStatus.Downloading -> "Downloading agent environment..."
         BootstrapStatus.Installing -> "Setting up agent environment..."
-        BootstrapStatus.Configuring -> "Configuring environment for agent..."
         BootstrapStatus.Completed -> "Installation completed successfully!"
         BootstrapStatus.Failed -> "Agent environment setup failed"
         BootstrapStatus.Cancelled -> "Agent environment setup cancelled"

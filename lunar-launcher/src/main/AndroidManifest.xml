@@ -4,25 +4,13 @@
     <application>
         <activity
             android:name="lunar.land.launcher.activity.LunarHomeScreenActivity"
-            android:exported="true"
+            android:exported="false"
             android:label="@string/application_name"
             android:launchMode="singleTask"
             android:clearTaskOnLaunch="true"
             android:stateNotNeeded="true"
             android:windowSoftInputMode="adjustResize"
-            android:resizeableActivity="true">
-            <!-- Launcher intent filter - allows app to be set as default launcher -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.HOME" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            <!-- Regular launcher intent filter - shows in app drawer -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:resizeableActivity="true" />
 
         <activity
             android:name="lunar.land.launcher.activity.AppDrawerActivity"

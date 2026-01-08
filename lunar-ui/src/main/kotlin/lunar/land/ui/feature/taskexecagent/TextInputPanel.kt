@@ -1,15 +1,16 @@
 package lunar.land.ui.feature.taskexecagent
 
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -18,24 +19,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import lunar.land.ui.R
-import lunar.land.ui.core.theme.LunarTheme
 
 /**
- * Text input panel component with input field and execute button.
- * Features a modern, subtle design matching the screen's aesthetic.
+ * Text input panel component matching the chatbot UI design.
+ * Features a light grey input field with plus icon on left and send icon on right.
  */
 @Composable
 fun TextInputPanel(
@@ -43,65 +37,70 @@ fun TextInputPanel(
     onFocusChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    // Note: onFocusChange is kept for API compatibility but not currently used
     var text by remember { mutableStateOf("") }
-    var isFocused by remember { mutableStateOf(false) }
-    val interactionSource = remember { MutableInteractionSource() }
     
-    Column(
+    // Light grey background matching the image
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(LunarTheme.CornerRadius.Large))
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        LunarTheme.InactiveBackgroundColor.copy(alpha = 0.8f),
-                        LunarTheme.InactiveBackgroundColor.copy(alpha = 0.6f)
-                    )
-                )
-            )
-            .border(
-                width = LunarTheme.BorderWidth,
-                color = LunarTheme.BorderColor,
-                shape = RoundedCornerShape(LunarTheme.CornerRadius.Large)
-            )
-            .padding(LunarTheme.Spacing.Large),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF3A3A3A))
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Input field
+        // Plus icon button on the left (circular white)
+        IconButton(
+            onClick = { /* Handle attachment/add action */ },
+            modifier = Modifier.size(40.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add",
+                    tint = Color(0xFF3A3A3A),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+        
+        // Text field in the middle
         TextField(
             value = text,
             onValueChange = { text = it },
             modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .onFocusChanged { focusState ->
-                    val wasFocused = isFocused
-                    isFocused = focusState.isFocused
-                    if (wasFocused != isFocused) {
-                        onFocusChange(isFocused)
-                    }
-                },
-            interactionSource = interactionSource,
+                .weight(1f)
+                .height(48.dp),
             placeholder = {
                 Text(
-                    text = "Enter your command...",
-                    style = LunarTheme.Typography.Placeholder
+                    text = "Send a message...",
+                    color = Color(0xFF999999),
+                    fontSize = 14.sp
                 )
             },
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,
                 disabledContainerColor = Color.Transparent,
-                focusedIndicatorColor = LunarTheme.AccentColor.copy(alpha = 0.5f),
-                unfocusedIndicatorColor = LunarTheme.BorderColor,
-                disabledIndicatorColor = LunarTheme.BorderColor,
-                cursorColor = LunarTheme.AccentColor,
-                focusedTextColor = LunarTheme.TextPrimary,
-                unfocusedTextColor = LunarTheme.TextPrimary.copy(alpha = 0.9f)
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
+                cursorColor = Color.White,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White
             ),
-            textStyle = LunarTheme.Typography.Input,
-            singleLine = false,
-            maxLines = 3,
+            textStyle = androidx.compose.ui.text.TextStyle(
+                fontSize = 14.sp,
+                color = Color.White
+            ),
+            singleLine = true,
             keyboardOptions = KeyboardOptions(
                 imeAction = ImeAction.Send
             ),
@@ -113,84 +112,27 @@ fun TextInputPanel(
                     }
                 }
             ),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(0.dp)
         )
         
-        // Execute button - hidden for now
-        // ExecuteButton(
-        //     onClick = {
-        //         if (text.isNotBlank()) {
-        //             onExecute(text.trim())
-        //             text = ""
-        //         }
-        //     },
-        //     isEnabled = text.isNotBlank(),
-        //     modifier = Modifier.fillMaxWidth()
-        // )
-    }
-}
-
-@Composable
-private fun ExecuteButton(
-    onClick: () -> Unit,
-    isEnabled: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val animatedAlpha by animateFloatAsState(
-        targetValue = if (isEnabled) 1f else 0.5f,
-        animationSpec = tween(
-            durationMillis = 200,
-            easing = FastOutSlowInEasing
-        ),
-        label = "button_alpha"
-    )
-    
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(LunarTheme.CornerRadius.Medium))
-            .background(
-                brush = if (isEnabled) {
-                    Brush.horizontalGradient(
-                        colors = listOf(
-                            LunarTheme.AccentColor.copy(alpha = 0.2f * animatedAlpha),
-                            LunarTheme.AccentColor.copy(alpha = LunarTheme.Alpha.Medium * animatedAlpha)
-                        )
-                    )
-                } else {
-                    Brush.horizontalGradient(
-                        colors = listOf(LunarTheme.InactiveBackgroundColor, LunarTheme.InactiveBackgroundColor)
-                    )
+        // Send icon button on the right
+        IconButton(
+            onClick = {
+                if (text.isNotBlank()) {
+                    onExecute(text.trim())
+                    text = ""
                 }
+            },
+            modifier = Modifier.size(40.dp),
+            enabled = text.isNotBlank()
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Send,
+                contentDescription = "Send",
+                tint = if (text.isNotBlank()) Color.White else Color(0xFF666666),
+                modifier = Modifier.size(24.dp)
             )
-            .border(
-                width = LunarTheme.BorderWidth,
-                color = if (isEnabled) {
-                    LunarTheme.AccentColor.copy(alpha = 0.4f * animatedAlpha)
-                } else {
-                    LunarTheme.BorderColor
-                },
-                shape = RoundedCornerShape(LunarTheme.CornerRadius.Medium)
-            )
-            .then(
-                if (isEnabled) {
-                    Modifier.clickable { onClick() }
-                } else {
-                    Modifier
-                }
-            )
-            .padding(vertical = 14.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "Execute",
-            style = LunarTheme.Typography.Button.copy(
-                color = if (isEnabled) {
-                    LunarTheme.AccentColor.copy(alpha = animatedAlpha)
-                } else {
-                    LunarTheme.TextDisabled
-                }
-            )
-        )
+        }
     }
 }
 

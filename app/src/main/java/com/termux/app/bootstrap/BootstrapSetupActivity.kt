@@ -120,11 +120,8 @@ class BootstrapSetupActivity : ComponentActivity() {
                 // Delete bootstrap zip file after installation
                 deleteBootstrapZipFile(viewModel)
                 
-                // Mark bootstrap installation as complete (triggers Configuring status)
+                // Mark bootstrap installation as complete
                 viewModel.onBootstrapInstallComplete()
-                
-                // Backup download/restore is now handled in a separate activity
-                // User can test it from DriverActivity after bootstrap installation
                 
                 onComplete()
             } catch (e: Exception) {
