@@ -27,18 +27,14 @@
         tools:targetApi="m">
 
         <activity
-            android:name=".app.DriverActivity"
+            android:name=".app.driver.DriverActivity"
             android:exported="true"
             android:label="@string/application_name"
             android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
 
 
 
-        <service
-            android:name=".app.FloatingVolumeService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
+        
 
         <activity
             android:name=".app.BootstrapSetupActivity"
@@ -48,42 +44,13 @@
             android:screenOrientation="portrait" />
 
         <activity
-            android:name=".app.LunarHomeScreenActivity"
-            android:exported="true"
-            android:label="@string/application_name"
-            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar"
-            android:launchMode="singleTask"
-            android:clearTaskOnLaunch="true"
-            android:stateNotNeeded="true"
-            android:windowSoftInputMode="adjustResize"
-            android:resizeableActivity="true">
-            <!-- Launcher intent filter - allows app to be set as default launcher -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.HOME" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            <!-- Regular launcher intent filter - shows in app drawer -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-
-        <activity
-            android:name=".app.TaskExecutorAgentActivity"
+            android:name=".app.agent.TaskExecutorAgentActivity"
             android:exported="false"
             android:label="AI Agent Interaction Sphere"
             android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
 
         <activity
-            android:name=".app.AppDrawerActivity"
-            android:exported="false"
-            android:label="App Drawer UI"
-            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
-
-        <activity
-            android:name=".app.BackupTestActivity"
+            android:name=".app.backup.BackupTestActivity"
             android:exported="false"
             android:label="Backup Test"
             android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />

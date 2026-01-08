@@ -1,4 +1,4 @@
-package com.termux.app
+package lunar.land.launcher.activity
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -11,7 +11,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import lunar.land.ui.core.model.Theme
 import lunar.land.ui.core.theme.LauncherTheme
 import lunar.land.ui.core.ui.providers.ProvideSystemUiController
-import lunar.land.ui.feature.appdrawer.AppDrawerScreen
+import lunar.land.launcher.feature.appdrawer.AppDrawerScreen
 import lunar.land.ui.manager.AppStateManager
 
 class AppDrawerActivity : ComponentActivity() {
@@ -29,7 +29,7 @@ class AppDrawerActivity : ComponentActivity() {
                             factory = object : androidx.lifecycle.ViewModelProvider.Factory {
                                 @Suppress("UNCHECKED_CAST")
                                 override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                                    return lunar.land.ui.feature.appdrawer.AppDrawerViewModel(
+                                    return lunar.land.launcher.feature.appdrawer.AppDrawerViewModel(
                                         this@AppDrawerActivity.application,
                                         appStateManager
                                     ) as T

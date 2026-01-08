@@ -1,6 +1,7 @@
-package com.termux.app.bootstrap
+package com.termux.app.backup
 
 import android.content.Context
+import android.os.Build
 import com.termux.shared.errors.Error
 import com.termux.shared.errors.Errno
 import com.termux.shared.file.FileUtils
@@ -28,7 +29,7 @@ object BackupDownloader {
      * Gets the download URL for backup file for the given architecture.
      */
     private fun getBackupUrl(arch: String): String {
-        val version = BootstrapConfig.getBootstrapVersion()
+        val version = com.termux.app.bootstrap.BootstrapConfig.getBootstrapVersion()
         return "https://github.com/RiteshF7/termux-packages/releases/download/$version/termux-backup-$arch.tar.gz"
     }
 
@@ -126,12 +127,16 @@ object BackupDownloader {
                     continue // Retry on HTTP errors
                 }
 
-                var contentLength = connection.contentLengthLong
+                var contentLength = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    connection.contentLengthLong
+                } else {
+                    connection.contentLength.toLong()
+                }
                 // If resuming, adjust content length to total file size
                 if (startByte > 0 && responseCode == HttpURLConnection.HTTP_PARTIAL) {
                     contentLength = startByte + contentLength
                 }
-                Logger.logInfo(LOG_TAG, "Content length: $contentLength bytes" + 
+                Logger.logInfo(LOG_TAG, "Content length: $contentLength bytes" +
                     if (startByte > 0) " (resuming from $startByte)" else "")
 
                 connection.inputStream.use { inputStream ->
@@ -157,9 +162,9 @@ object BackupDownloader {
 
                             // Update progress more frequently for better UX
                             val currentTime = System.currentTimeMillis()
-                            if (currentTime - lastProgressUpdate >= PROGRESS_UPDATE_INTERVAL_MS || 
+                            if (currentTime - lastProgressUpdate >= PROGRESS_UPDATE_INTERVAL_MS ||
                                 totalDownloaded - lastLogBytes >= PROGRESS_UPDATE_BYTES) {
-                                
+
                                 if (progressCallback != null && contentLength > 0) {
                                     progressCallback.onProgress(totalDownloaded, contentLength)
                                 }
@@ -260,3 +265,4 @@ object BackupDownloader {
         fun onProgress(downloaded: Long, total: Long)
     }
 }
+

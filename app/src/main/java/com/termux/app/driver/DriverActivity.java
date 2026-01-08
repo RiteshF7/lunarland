@@ -1,4 +1,4 @@
-package com.termux.app;
+package com.termux.app.driver;
 
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -23,10 +23,14 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.termux.R;
 import com.termux.shared.errors.Errno;
+import com.termux.app.TermuxService;
+import com.termux.app.TermuxActivity;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.shell.command.ExecutionCommand;
 import com.termux.shared.shell.command.ExecutionCommand.Runner;
 import com.termux.shared.termux.TermuxConstants;
+import lunar.land.launcher.activity.AppDrawerActivity;
+import lunar.land.launcher.activity.LunarHomeScreenActivity;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -127,7 +131,7 @@ public class DriverActivity extends AppCompatActivity {
         }
         if (taskExecutorButton != null) {
             taskExecutorButton.setOnClickListener(view -> {
-                Intent intent = new Intent(this, com.termux.app.TaskExecutorAgentActivity.class);
+                Intent intent = new Intent(this, com.termux.app.agent.TaskExecutorAgentActivity.class);
                 intent.putExtra("GOOGLE_API_KEY", com.termux.BuildConfig.GOOGLE_API_KEY);
                 startActivity(intent);
             });
@@ -140,7 +144,7 @@ public class DriverActivity extends AppCompatActivity {
         }
         if (previewAgentButton != null) {
             previewAgentButton.setOnClickListener(view -> {
-                Intent intent = new Intent(this, com.termux.app.TaskExecutorAgentActivity.class);
+                Intent intent = new Intent(this, com.termux.app.agent.TaskExecutorAgentActivity.class);
                 intent.putExtra("GOOGLE_API_KEY", com.termux.BuildConfig.GOOGLE_API_KEY);
                 startActivity(intent);
             });
@@ -153,7 +157,7 @@ public class DriverActivity extends AppCompatActivity {
         }
         if (testBackupButton != null) {
             testBackupButton.setOnClickListener(view -> {
-                Intent intent = new Intent(this, BackupTestActivity.class);
+                Intent intent = new Intent(this, com.termux.app.backup.BackupTestActivity.class);
                 startActivity(intent);
             });
         }
@@ -269,7 +273,7 @@ public class DriverActivity extends AppCompatActivity {
         }
         
         // Bootstrap not installed - redirect to BootstrapSetupActivity
-        Intent intent = new Intent(this, BootstrapSetupActivity.class);
+        Intent intent = new Intent(this, com.termux.app.BootstrapSetupActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();

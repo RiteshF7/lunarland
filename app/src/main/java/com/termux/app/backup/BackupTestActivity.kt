@@ -1,4 +1,4 @@
-package com.termux.app
+package com.termux.app.backup
 
 import android.content.Intent
 import android.os.Bundle
@@ -13,7 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.termux.app.bootstrap.BackupDownloader
+import com.termux.app.backup.BackupDownloader
 import com.termux.app.bootstrap.BootstrapManager
 import com.termux.shared.logger.Logger
 import com.termux.shared.shell.command.ExecutionCommand

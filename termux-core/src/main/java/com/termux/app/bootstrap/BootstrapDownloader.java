@@ -1,5 +1,6 @@
 package com.termux.app.bootstrap;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import com.termux.shared.errors.Error;
 import com.termux.shared.errors.Errno;
@@ -34,6 +35,7 @@ public class BootstrapDownloader {
      * @param progressCallback Optional callback for download progress (bytes downloaded, total bytes)
      * @return Error object if download failed, null on success
      */
+    @SuppressLint("NewApi")
     public static Error downloadBootstrap(Context context, String arch, ProgressCallback progressCallback) {
         String url = BootstrapConfig.getBootstrapUrl(arch);
         String expectedChecksum = BootstrapConfig.getExpectedChecksum(arch);

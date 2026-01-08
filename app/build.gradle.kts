@@ -113,6 +113,7 @@ dependencies {
     implementation(project(":terminal-emulator"))
     implementation(project(":lunar-ui"))
     implementation(project(":taskexecutor-agent"))
+    implementation(project(":lunar-launcher"))
         implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     // Compose dependencies for lunar-ui

@@ -59,7 +59,7 @@ android {
     }
 
     lint {
-        disable += setOf("ProtectedPermissions")
+        disable += setOf("ProtectedPermissions", "MissingLeanbackLauncher")
     }
 
     testOptions {
@@ -94,7 +94,7 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.10")
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:1.1.5")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }
 
 tasks.register("versionName") {

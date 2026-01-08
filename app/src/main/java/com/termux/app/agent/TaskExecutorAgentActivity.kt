@@ -1,4 +1,4 @@
-package com.termux.app
+package com.termux.app.agent
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

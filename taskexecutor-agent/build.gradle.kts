@@ -60,7 +60,7 @@ dependencies {
     // Note: lunar-ui is NOT a dependency here to avoid circular dependency
     // TaskExecutorAgentActivity (which uses lunar-ui) is in the app module
     
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:1.1.5")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
 }
 

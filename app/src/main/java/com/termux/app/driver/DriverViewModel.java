@@ -1,4 +1,4 @@
-package com.termux.app;
+package com.termux.app.driver;
 
 import androidx.lifecycle.ViewModel;
 

@@ -164,7 +164,7 @@ class BootstrapSetupActivity : ComponentActivity() {
     }
     
     private fun navigateToHome() {
-        val intent = Intent(this, DriverActivity::class.java)
+        val intent = Intent(this, com.termux.app.driver.DriverActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
         finish()

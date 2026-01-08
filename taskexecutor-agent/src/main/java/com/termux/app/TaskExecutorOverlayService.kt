@@ -32,6 +32,7 @@ import com.termux.shared.logger.Logger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import androidx.core.app.NotificationCompat
 
 /**
  * Service that displays a floating overlay window showing task logs and stop button
@@ -90,13 +91,19 @@ class TaskExecutorOverlayService : Service(), LifecycleOwner {
             )
             val notificationManager = getSystemService(android.app.NotificationManager::class.java)
             notificationManager.createNotificationChannel(channel)
+            return android.app.Notification.Builder(this, channelId)
+                .setContentTitle("Task Executor")
+                .setContentText("Showing task logs overlay")
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .build()
+        } else {
+            return NotificationCompat.Builder(this)
+                .setContentTitle("Task Executor")
+                .setContentText("Showing task logs overlay")
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .build()
         }
-        
-        return android.app.Notification.Builder(this, channelId)
-            .setContentTitle("Task Executor")
-            .setContentText("Showing task logs overlay")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .build()
     }
     
     override fun onBind(intent: Intent?): IBinder? = null
