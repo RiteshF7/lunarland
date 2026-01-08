@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -34,6 +35,8 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun TextInputPanel(
     onExecute: (String) -> Unit,
+    onStop: (() -> Unit)? = null,
+    isTaskRunning: Boolean = false,
     onFocusChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -74,13 +77,14 @@ fun TextInputPanel(
         // Text field in the middle
         TextField(
             value = text,
-            onValueChange = { text = it },
+            onValueChange = { if (!isTaskRunning) text = it },
+            enabled = !isTaskRunning,
             modifier = Modifier
                 .weight(1f)
                 .height(48.dp),
             placeholder = {
                 Text(
-                    text = "Send a message...",
+                    text = if (isTaskRunning) "Task running..." else "Send a message...",
                     color = Color(0xFF999999),
                     fontSize = 14.sp
                 )
@@ -106,7 +110,7 @@ fun TextInputPanel(
             ),
             keyboardActions = KeyboardActions(
                 onSend = {
-                    if (text.isNotBlank()) {
+                    if (text.isNotBlank() && !isTaskRunning) {
                         onExecute(text.trim())
                         text = ""
                     }
@@ -115,21 +119,31 @@ fun TextInputPanel(
             shape = RoundedCornerShape(0.dp)
         )
         
-        // Send icon button on the right
+        // Send/Stop icon button on the right
         IconButton(
             onClick = {
-                if (text.isNotBlank()) {
+                if (isTaskRunning && onStop != null) {
+                    onStop()
+                } else if (text.isNotBlank()) {
                     onExecute(text.trim())
                     text = ""
                 }
             },
             modifier = Modifier.size(40.dp),
-            enabled = text.isNotBlank()
+            enabled = text.isNotBlank() || (isTaskRunning && onStop != null)
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.Send,
-                contentDescription = "Send",
-                tint = if (text.isNotBlank()) Color.White else Color(0xFF666666),
+                imageVector = if (isTaskRunning && onStop != null) {
+                    Icons.Default.Stop
+                } else {
+                    Icons.AutoMirrored.Filled.Send
+                },
+                contentDescription = if (isTaskRunning && onStop != null) "Stop" else "Send",
+                tint = if (text.isNotBlank() || (isTaskRunning && onStop != null)) {
+                    Color.White
+                } else {
+                    Color(0xFF666666)
+                },
                 modifier = Modifier.size(24.dp)
             )
         }
