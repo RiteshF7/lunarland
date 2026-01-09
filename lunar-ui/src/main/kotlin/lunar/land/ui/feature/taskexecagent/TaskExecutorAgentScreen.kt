@@ -179,9 +179,7 @@ fun TaskExecutorAgentScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+                .padding(horizontal = 16.dp, vertical = 24.dp)
         ) {
             // Toggle button at the top
             if (chatMessages.isNotEmpty()) {
@@ -211,50 +209,54 @@ fun TaskExecutorAgentScreen(
                 }
             }
             
-            // Chat messages area
-            if (filteredMessages.isNotEmpty()) {
-                ChatMessageList(
-                    messages = filteredMessages,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                )
-            } else {
-                // Empty state - Icon and text in center
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    // Speech bubble icon with "UI" text
-                    Box(
+            // Content area - messages or empty state
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                if (filteredMessages.isNotEmpty()) {
+                    ChatMessageList(
+                        messages = filteredMessages,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    // Empty state - Icon and text centered vertically and horizontally
+                    Column(
                         modifier = Modifier
-                            .size(80.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color.White),
-                        contentAlignment = Alignment.Center
+                            .fillMaxSize()
+                            .wrapContentHeight(Alignment.CenterVertically),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
+                        // Speech bubble icon with "UI" text
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color.White),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "UI",
+                                color = Color(0xFF2A2A2A),
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // "Chatbot UI" text
                         Text(
-                            text = "UI",
-                            color = Color(0xFF2A2A2A),
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
+                            text = "Chatbot UI",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
                             textAlign = TextAlign.Center
                         )
                     }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // "Chatbot UI" text
-                    Text(
-                        text = "Chatbot UI",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                        textAlign = TextAlign.Center
-                    )
                 }
             }
             
@@ -273,7 +275,6 @@ fun TaskExecutorAgentScreen(
                 isTaskRunning = uiState.isTaskRunning,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp)
             )
         }
     }

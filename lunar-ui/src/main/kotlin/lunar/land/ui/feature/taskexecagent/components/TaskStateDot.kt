@@ -30,6 +30,7 @@ fun TaskStateDot(
         TaskStatus.STOPPED -> Color(0xFF90EE90) // Light green
         TaskStatus.ERROR -> Color.Red
         TaskStatus.RUNNING -> Color.Green
+        TaskStatus.PAUSED -> Color(0xFFFFA500) // Orange for paused
         TaskStatus.SUCCESS -> Color.Green
     }
     

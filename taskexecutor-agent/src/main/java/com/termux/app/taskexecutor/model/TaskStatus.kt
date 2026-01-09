@@ -6,6 +6,7 @@ package com.termux.app.taskexecutor.model
 enum class TaskStatus {
     STOPPED,
     RUNNING,
+    PAUSED,
     SUCCESS,
     ERROR
 }

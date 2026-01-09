@@ -29,6 +29,7 @@ import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.compose.ui.unit.dp
 import com.termux.shared.logger.Logger
+import com.termux.app.taskexecutor.model.TaskStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,15 +50,26 @@ class TaskExecutorOverlayService : Service(), LifecycleOwner {
     companion object {
         private val _logTextState = MutableStateFlow("")
         val logTextState: StateFlow<String> = _logTextState.asStateFlow()
+        private val _taskStatusState = MutableStateFlow(TaskStatus.STOPPED)
+        val taskStatusState: StateFlow<TaskStatus> = _taskStatusState.asStateFlow()
         private var onStopClick: (() -> Unit)? = null
+        private var onPauseClick: (() -> Unit)? = null
         private var isVisible: Boolean = false
         
         fun updateLogs(text: String) {
             _logTextState.value = text
         }
         
+        fun updateTaskStatus(status: TaskStatus) {
+            _taskStatusState.value = status
+        }
+        
         fun setStopCallback(callback: (() -> Unit)?) {
             onStopClick = callback
+        }
+        
+        fun setPauseCallback(callback: (() -> Unit)?) {
+            onPauseClick = callback
         }
         
         fun isOverlayVisible(): Boolean = isVisible
@@ -157,6 +169,9 @@ class TaskExecutorOverlayService : Service(), LifecycleOwner {
                     onStopClick = {
                         onStopClick?.invoke()
                     },
+                    onPauseClick = {
+                        onPauseClick?.invoke()
+                    },
                     onCloseClick = {
                         hideOverlay()
                     }
@@ -211,12 +226,16 @@ class TaskExecutorOverlayService : Service(), LifecycleOwner {
 @Composable
 fun OverlayContent(
     onStopClick: () -> Unit,
+    onPauseClick: () -> Unit,
     onCloseClick: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     
     // Observe log text state changes using StateFlow
     val logText by TaskExecutorOverlayService.logTextState.collectAsState()
+    
+    // Observe task status to determine button states
+    val taskStatus by TaskExecutorOverlayService.taskStatusState.collectAsState()
     
     // Auto-scroll to bottom when log text changes
     LaunchedEffect(logText) {
@@ -272,28 +291,64 @@ fun OverlayContent(
                 )
             }
             
-            // Stop button - always visible when overlay is shown
-            // Make it more prominent and ensure it's clickable
-            Button(
-                onClick = {
-                    Logger.logInfo("OverlayContent", "Stop button clicked")
-                    onStopClick()
-                },
+            // Control buttons - Pause/Resume and Stop
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
                     .padding(horizontal = 8.dp, vertical = 8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = Color.White
-                ),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    "Stop Task", 
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White
-                )
+                // Pause/Resume button
+                Button(
+                    onClick = {
+                        Logger.logInfo("OverlayContent", "Pause/Resume button clicked")
+                        onPauseClick()
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp),
+                    enabled = taskStatus == TaskStatus.RUNNING || 
+                             taskStatus == TaskStatus.PAUSED,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (taskStatus == TaskStatus.PAUSED) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.secondary
+                        },
+                        contentColor = Color.White
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                ) {
+                    Text(
+                        if (taskStatus == TaskStatus.PAUSED) "Resume" else "Pause",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White
+                    )
+                }
+                
+                // Stop button
+                Button(
+                    onClick = {
+                        Logger.logInfo("OverlayContent", "Stop button clicked")
+                        onStopClick()
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp),
+                    enabled = taskStatus == TaskStatus.RUNNING || 
+                             taskStatus == TaskStatus.PAUSED,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = Color.White
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                ) {
+                    Text(
+                        "Stop Task",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White
+                    )
+                }
             }
         }
     }

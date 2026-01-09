@@ -21,17 +21,18 @@ class TaskExecutorStateManager {
     enum class AgentState {
         IDLE,      // No task running, ready for new task
         RUNNING,   // Task is actively executing
+        PAUSED,    // Task is paused (can be resumed)
         SUCCESS,   // Task completed successfully
         ERROR      // Task failed or error occurred
     }
     
     /**
      * Transition to running state when a task starts
-     * Can transition from IDLE, SUCCESS, or ERROR states
+     * Can transition from IDLE, SUCCESS, ERROR, or PAUSED states
      */
     fun transitionToRunning(task: String): StateTransitionResult {
         return when (currentState) {
-            AgentState.IDLE, AgentState.SUCCESS, AgentState.ERROR -> {
+            AgentState.IDLE, AgentState.SUCCESS, AgentState.ERROR, AgentState.PAUSED -> {
                 Logger.logInfo(LOG_TAG, "Transitioning to RUNNING state for task: $task (from $currentState)")
                 currentState = AgentState.RUNNING
                 currentTask = task
@@ -122,9 +123,10 @@ class TaskExecutorStateManager {
     
     /**
      * Force stop current task (used when user stops task)
+     * Can work from both RUNNING and PAUSED states
      */
     fun forceStop(): StateTransitionResult {
-        Logger.logInfo(LOG_TAG, "Force stopping task: $currentTask")
+        Logger.logInfo(LOG_TAG, "Force stopping task: $currentTask (from state: $currentState)")
         currentState = AgentState.IDLE
         val task = currentTask
         currentTask = null
@@ -134,6 +136,48 @@ class TaskExecutorStateManager {
             message = "Task stopped",
             isRunning = false
         )
+    }
+    
+    /**
+     * Transition to paused state when task is paused
+     */
+    fun transitionToPaused(): StateTransitionResult {
+        return when (currentState) {
+            AgentState.RUNNING -> {
+                Logger.logInfo(LOG_TAG, "Transitioning to PAUSED state for task: $currentTask")
+                currentState = AgentState.PAUSED
+                StateTransitionResult.Success(
+                    status = TaskStatus.PAUSED,
+                    message = "Task paused",
+                    isRunning = false
+                )
+            }
+            else -> {
+                Logger.logWarn(LOG_TAG, "Cannot transition to PAUSED: current state is $currentState")
+                StateTransitionResult.Error("Invalid state transition: cannot go to PAUSED from $currentState")
+            }
+        }
+    }
+    
+    /**
+     * Transition from paused back to running state
+     */
+    fun transitionToResume(): StateTransitionResult {
+        return when (currentState) {
+            AgentState.PAUSED -> {
+                Logger.logInfo(LOG_TAG, "Transitioning from PAUSED to RUNNING state for task: $currentTask")
+                currentState = AgentState.RUNNING
+                StateTransitionResult.Success(
+                    status = TaskStatus.RUNNING,
+                    message = "Task resumed",
+                    isRunning = true
+                )
+            }
+            else -> {
+                Logger.logWarn(LOG_TAG, "Cannot transition to RUNNING from PAUSED: current state is $currentState")
+                StateTransitionResult.Error("Invalid state transition: cannot resume from $currentState")
+            }
+        }
     }
     
     /**
@@ -150,6 +194,11 @@ class TaskExecutorStateManager {
      * Check if a task is currently running
      */
     fun isTaskRunning(): Boolean = currentState == AgentState.RUNNING
+    
+    /**
+     * Check if a task is currently paused
+     */
+    fun isTaskPaused(): Boolean = currentState == AgentState.PAUSED
     
     /**
      * Result of a state transition

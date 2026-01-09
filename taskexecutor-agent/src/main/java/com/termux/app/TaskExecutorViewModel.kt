@@ -27,6 +27,7 @@ import com.termux.shared.termux.terminal.TermuxTerminalSessionClientBase
 import com.termux.terminal.TerminalSession
 import com.termux.app.TermuxService
 import com.termux.app.TermuxInstaller
+import com.termux.app.TaskExecutorOverlayService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -275,12 +276,59 @@ class TaskExecutorViewModel(
         }
         client.refreshTranscript(terminalSession!!)
         
+        // Set up overlay service callbacks
+        setupOverlayCallbacks()
+        
         setupAdbEnvironment()
         setupGoogleApiKey()
         
         // Prepare droidrun environment once per app lifecycle
         if (!isDroidrunPrepared) {
             prepareDroidrunEnvironment()
+        }
+    }
+    
+    /**
+     * Set up callbacks for overlay service
+     */
+    private fun setupOverlayCallbacks() {
+        TaskExecutorOverlayService.setStopCallback {
+            stopCurrentTask()
+        }
+        TaskExecutorOverlayService.setPauseCallback {
+            togglePauseResume()
+        }
+        Logger.logInfo(LOG_TAG, "Overlay service callbacks set up")
+    }
+    
+    /**
+     * Start the overlay service to show task logs and controls
+     */
+    private fun startOverlayService() {
+        try {
+            val intent = Intent(activity, TaskExecutorOverlayService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                activity.startForegroundService(intent)
+            } else {
+                activity.startService(intent)
+            }
+            Logger.logInfo(LOG_TAG, "Started overlay service")
+        } catch (e: Exception) {
+            Logger.logError(LOG_TAG, "Failed to start overlay service: ${e.message}")
+            Logger.logStackTraceWithMessage(LOG_TAG, "Error starting overlay", e)
+        }
+    }
+    
+    /**
+     * Stop the overlay service
+     */
+    private fun stopOverlayService() {
+        try {
+            val intent = Intent(activity, TaskExecutorOverlayService::class.java)
+            activity.stopService(intent)
+            Logger.logInfo(LOG_TAG, "Stopped overlay service")
+        } catch (e: Exception) {
+            Logger.logError(LOG_TAG, "Failed to stop overlay service: ${e.message}")
         }
     }
     
@@ -626,6 +674,9 @@ class TaskExecutorViewModel(
                     _uiState.update { it.copy(agentStateMessage = stateResult.message) }
                     updateStatus(stateResult.message)
                     updateNotification()
+                    
+                    // Start overlay service when task begins
+                    startOverlayService()
                 }
                 is TaskExecutorStateManager.StateTransitionResult.Error -> {
                     Logger.logWarn(LOG_TAG, "State transition failed: ${stateResult.message}")
@@ -694,7 +745,7 @@ class TaskExecutorViewModel(
     }
     
     fun stopCurrentTask() {
-        if (terminalSession != null && !sessionFinished && stateManager.isTaskRunning()) {
+        if (terminalSession != null && !sessionFinished && (stateManager.isTaskRunning() || stateManager.isTaskPaused())) {
             try {
                 val task = stateManager.getCurrentTask()
                 Logger.logInfo(LOG_TAG, "Stopping task: $task")
@@ -719,6 +770,9 @@ class TaskExecutorViewModel(
                     _uiState.update { it.copy(agentStateMessage = stopResult.message) }
                     updateStatus(stopResult.message)
                     updateNotification()
+                    
+                    // Stop overlay service when task stops
+                    stopOverlayService()
                 }
                 
                 // Clear output after a brief delay to show the stop message
@@ -735,7 +789,92 @@ class TaskExecutorViewModel(
                 updateStatus("Error stopping task: ${e.message}")
             }
         } else {
-            Logger.logWarn(LOG_TAG, "Cannot stop task: terminalSession=${terminalSession != null}, sessionFinished=$sessionFinished, isTaskRunning=${stateManager.isTaskRunning()}")
+            Logger.logWarn(LOG_TAG, "Cannot stop task: terminalSession=${terminalSession != null}, sessionFinished=$sessionFinished, isTaskRunning=${stateManager.isTaskRunning()}, isTaskPaused=${stateManager.isTaskPaused()}")
+        }
+    }
+    
+    fun pauseCurrentTask() {
+        if (terminalSession != null && !sessionFinished && stateManager.isTaskRunning()) {
+            try {
+                val task = stateManager.getCurrentTask()
+                Logger.logInfo(LOG_TAG, "Pausing task: $task")
+                
+                // Send Ctrl+Z to suspend the process (SIGTSTP)
+                terminalSession!!.write("\u001A")
+                Thread.sleep(100)
+                
+                Logger.logInfo(LOG_TAG, "Sent pause signal (Ctrl+Z) to terminal")
+                
+                // Update state through state manager
+                val pauseResult = stateManager.transitionToPaused()
+                if (pauseResult is TaskExecutorStateManager.StateTransitionResult.Success) {
+                    updateTaskState(
+                        task = stateManager.getCurrentTask(),
+                        progress = _uiState.value.taskProgress,
+                        isRunning = pauseResult.isRunning,
+                        status = pauseResult.status
+                    )
+                    _uiState.update { it.copy(agentStateMessage = pauseResult.message) }
+                    updateStatus(pauseResult.message)
+                    updateNotification()
+                } else if (pauseResult is TaskExecutorStateManager.StateTransitionResult.Error) {
+                    Logger.logWarn(LOG_TAG, "Failed to pause task: ${pauseResult.message}")
+                    updateStatus("Failed to pause: ${pauseResult.message}")
+                }
+            } catch (e: Exception) {
+                Logger.logStackTraceWithMessage(LOG_TAG, "Error pausing task", e)
+                updateStatus("Error pausing task: ${e.message}")
+            }
+        } else {
+            Logger.logWarn(LOG_TAG, "Cannot pause task: terminalSession=${terminalSession != null}, sessionFinished=$sessionFinished, isTaskRunning=${stateManager.isTaskRunning()}")
+        }
+    }
+    
+    /**
+     * Toggle pause/resume - if paused, resume; if running, pause
+     */
+    fun togglePauseResume() {
+        when {
+            stateManager.isTaskPaused() -> resumeCurrentTask()
+            stateManager.isTaskRunning() -> pauseCurrentTask()
+            else -> Logger.logWarn(LOG_TAG, "Cannot toggle pause/resume: task is not running or paused")
+        }
+    }
+    
+    fun resumeCurrentTask() {
+        if (terminalSession != null && !sessionFinished && stateManager.isTaskPaused()) {
+            try {
+                val task = stateManager.getCurrentTask()
+                Logger.logInfo(LOG_TAG, "Resuming task: $task")
+                
+                // Send 'fg' command to bring the paused process back to foreground
+                terminalSession!!.write("fg\n")
+                Thread.sleep(100)
+                
+                Logger.logInfo(LOG_TAG, "Sent resume command (fg) to terminal")
+                
+                // Update state through state manager
+                val resumeResult = stateManager.transitionToResume()
+                if (resumeResult is TaskExecutorStateManager.StateTransitionResult.Success) {
+                    updateTaskState(
+                        task = stateManager.getCurrentTask(),
+                        progress = _uiState.value.taskProgress,
+                        isRunning = resumeResult.isRunning,
+                        status = resumeResult.status
+                    )
+                    _uiState.update { it.copy(agentStateMessage = resumeResult.message) }
+                    updateStatus(resumeResult.message)
+                    updateNotification()
+                } else if (resumeResult is TaskExecutorStateManager.StateTransitionResult.Error) {
+                    Logger.logWarn(LOG_TAG, "Failed to resume task: ${resumeResult.message}")
+                    updateStatus("Failed to resume: ${resumeResult.message}")
+                }
+            } catch (e: Exception) {
+                Logger.logStackTraceWithMessage(LOG_TAG, "Error resuming task", e)
+                updateStatus("Error resuming task: ${e.message}")
+            }
+        } else {
+            Logger.logWarn(LOG_TAG, "Cannot resume task: terminalSession=${terminalSession != null}, sessionFinished=$sessionFinished, isTaskPaused=${stateManager.isTaskPaused()}")
         }
     }
     
@@ -898,6 +1037,9 @@ class TaskExecutorViewModel(
                         _uiState.update { it.copy(agentStateMessage = result.message) }
                         updateStatus(result.message)
                         updateNotification()
+                        
+                        // Stop overlay service when task completes
+                        stopOverlayService()
                     }
                 }
             }
@@ -915,6 +1057,9 @@ class TaskExecutorViewModel(
                         _uiState.update { it.copy(agentStateMessage = result.message) }
                         updateStatus(result.message)
                         updateNotification()
+                        
+                        // Stop overlay service when task fails
+                        stopOverlayService()
                     }
                 } else {
                     Logger.logDebug(LOG_TAG, "Failure pattern found but task still active, keeping RUNNING state")
@@ -958,6 +1103,8 @@ class TaskExecutorViewModel(
     
     fun updateOutput(output: String) {
         _uiState.update { it.copy(outputText = output) }
+        // Update overlay service with output logs
+        TaskExecutorOverlayService.updateLogs(output)
         if (output.isNotEmpty()) {
             updateTaskProgress(output)
         }
@@ -1024,6 +1171,8 @@ class TaskExecutorViewModel(
                 taskStatus = status
             )
         }
+        // Update overlay service with current task status
+        TaskExecutorOverlayService.updateTaskStatus(status)
     }
     
     private inner class TaskExecutorSessionClient(

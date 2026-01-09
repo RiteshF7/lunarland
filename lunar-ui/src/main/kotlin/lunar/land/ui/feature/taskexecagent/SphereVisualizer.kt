@@ -53,6 +53,7 @@ fun SphereVisualizer(
         TaskStatus.ERROR -> lightRedColor // Light red for error
         TaskStatus.SUCCESS -> LunarTheme.AccentColor // Default accent for success
         TaskStatus.RUNNING -> LunarTheme.AccentColor // Default accent for running
+        TaskStatus.PAUSED -> LunarTheme.AccentColor // Default accent for paused
         TaskStatus.STOPPED -> LunarTheme.AccentColor // Default accent for idle
     }
     

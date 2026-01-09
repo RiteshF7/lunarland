@@ -104,6 +104,7 @@ fun VoiceOnlyUI(
                     when (taskStatus) {
                         TaskStatus.STOPPED -> "Ready"
                         TaskStatus.RUNNING -> "Running..."
+                        TaskStatus.PAUSED -> "Paused"
                         TaskStatus.SUCCESS -> "Success"
                         TaskStatus.ERROR -> "Error"
                     }
