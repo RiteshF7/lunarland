@@ -81,7 +81,7 @@ fun TextInputPanel(
             enabled = !isTaskRunning,
             modifier = Modifier
                 .weight(1f)
-                .height(48.dp),
+                .height(58.dp),
             placeholder = {
                 Text(
                     text = if (isTaskRunning) "Task running..." else "Send a message...",
