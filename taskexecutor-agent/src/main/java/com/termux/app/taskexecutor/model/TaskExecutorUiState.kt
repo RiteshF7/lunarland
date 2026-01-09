@@ -17,6 +17,26 @@ data class TaskExecutorUiState(
     val showLogs: Boolean = false,
     val taskStatus: TaskStatus = TaskStatus.STOPPED,
     val agentStateMessage: String = "Ready",
-    val maxSteps: Int = 0
+    val maxSteps: Int = 0,
+    val chatMessages: List<ChatMessage> = emptyList()
 )
+
+/**
+ * Represents a message in the chat interface.
+ */
+data class ChatMessage(
+    val text: String,
+    val type: MessageType,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+/**
+ * Type of chat message.
+ */
+enum class MessageType {
+    USER,      // User command
+    SYSTEM,    // System status/progress messages
+    OUTPUT,    // Command output
+    ERROR      // Error messages
+}
 

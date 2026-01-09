@@ -491,16 +491,96 @@ class TaskExecutorViewModel(
     
     /**
      * Prepare droidrun environment once per app lifecycle.
-     * Droidrun handles ADB connection automatically, so we just mark it as prepared.
-     * ADB connection is handled lazily in dispatchCommand when needed.
+     * Sets up ADB server, TCP/IP mode, and connection to localhost:5558.
      */
     private fun prepareDroidrunEnvironment() {
-        if (isDroidrunPrepared) {
+        if (terminalSession == null || sessionFinished || isDroidrunPrepared) {
             return
         }
-        // Droidrun handles ADB connection automatically, no setup needed
-        isDroidrunPrepared = true
-        Logger.logInfo(LOG_TAG, "Droidrun environment ready (droidrun will handle ADB connection)")
+        
+        Thread {
+            try {
+                Logger.logInfo(LOG_TAG, "Preparing droidrun environment (one-time setup)")
+                
+                val droidrunSetupCommand = """
+                    export ANDROID_SERIAL="127.0.0.1:5558"
+                    # Kill and restart ADB server
+                    echo "Preparing ADB environment for droidrun..."
+                    adb kill-server 2>&1 || true
+                    sleep 0.5
+                    adb start-server 2>&1 || true
+                    sleep 1
+                    # Enable TCP/IP mode on port 5558
+                    echo "Enabling ADB TCP/IP mode on port 5558..."
+                    adb tcpip 5558 2>&1 || {
+                        echo "⚠ Failed to enable TCP/IP mode, trying alternative method..."
+                        # Try with USB device first if available
+                        USB_DEVICE=$(adb devices | grep -v "List" | grep "device" | head -1 | awk '{print ${'$'}1}')
+                        if [ -n "${'$'}USB_DEVICE" ]; then
+                            adb -s ${'$'}USB_DEVICE tcpip 5558 2>&1 || true
+                        fi
+                    }
+                    sleep 1
+                    # Kill any existing connection to avoid conflicts
+                    adb disconnect 127.0.0.1:5558 2>&1 || true
+                    sleep 0.5
+                    # Connect ADB to localhost with multiple retries
+                    MAX_RETRIES=5
+                    RETRY_COUNT=0
+                    CONNECTED=false
+                    while [ ${'$'}RETRY_COUNT -lt ${'$'}MAX_RETRIES ] && [ "${'$'}CONNECTED" = "false" ]; do
+                        echo "Attempting ADB connection (attempt ${'$'}((RETRY_COUNT + 1))/${'$'}MAX_RETRIES)..."
+                        adb connect 127.0.0.1:5558 2>&1
+                        sleep 1.5
+                        if adb devices 2>&1 | grep -q "127.0.0.1:5558.*device"; then
+                            CONNECTED=true
+                            echo "✓ ADB connected to localhost:5558"
+                            break
+                        else
+                            RETRY_COUNT=${'$'}((RETRY_COUNT + 1))
+                            if [ ${'$'}RETRY_COUNT -lt ${'$'}MAX_RETRIES ]; then
+                                sleep 1
+                            fi
+                        fi
+                    done
+                    # Final verification
+                    if [ "${'$'}CONNECTED" = "false" ]; then
+                        echo "⚠ ADB connection failed after ${'$'}MAX_RETRIES attempts"
+                        echo "ADB devices status:"
+                        adb devices 2>&1
+                        echo "⚠ Attempting to continue anyway..."
+                        # Try one more time with longer wait
+                        adb connect 127.0.0.1:5558 2>&1
+                        sleep 2
+                        if adb devices 2>&1 | grep -q "127.0.0.1:5558.*device"; then
+                            echo "✓ ADB connected on final attempt"
+                            CONNECTED=true
+                        fi
+                    fi
+                    if [ "${'$'}CONNECTED" = "true" ]; then
+                        echo "✓ Droidrun environment prepared successfully"
+                    else
+                        echo "⚠ Droidrun environment preparation completed with warnings"
+                    fi
+                """.trimIndent()
+                
+                mainHandler.post {
+                    if (terminalSession != null && !sessionFinished) {
+                        terminalSession!!.write(droidrunSetupCommand)
+                        terminalSession!!.write("\n")
+                        Logger.logInfo(LOG_TAG, "Droidrun environment preparation started")
+                        // Mark as prepared after a delay to allow command to execute
+                        Thread {
+                            Thread.sleep(10000) // Wait for setup to complete
+                            isDroidrunPrepared = true
+                            Logger.logInfo(LOG_TAG, "Droidrun environment marked as prepared")
+                        }.start()
+                    }
+                }
+            } catch (e: Exception) {
+                Logger.logStackTraceWithMessage(LOG_TAG, "Error preparing droidrun environment", e)
+            }
+        }.start()
     }
     
     fun dispatchCommand(command: String) {
@@ -563,23 +643,26 @@ class TaskExecutorViewModel(
                 // The command below will handle reconnection if needed
             }
             
-            // Simplified command: set ANDROID_SERIAL, ensure API key is set, and run droidrun
-            // ADB setup should already be done by prepareDroidrunEnvironment()
-            // Only connect if no device is connected (simple check)
+            // Build droidrun command with all configured flags
+            // CRITICAL: All commands must be chained with && to ensure they execute in the same shell session
+            // This ensures environment variables persist between commands
+            val droidrunFlags = droidRunConfig.buildFlagsString()
+            val deviceSerial = droidRunConfig.device ?: "127.0.0.1:5558"
+            
+            // Ensure API key is exported in the same shell session
             val apiKeyExport = if (googleApiKey.isNotBlank()) {
                 "export GOOGLE_API_KEY=\"$googleApiKey\" && "
             } else {
                 ""
             }
             
-            // Build droidrun command with all configured flags
-            val droidrunFlags = droidRunConfig.buildFlagsString()
-            val deviceSerial = droidRunConfig.device ?: "127.0.0.1:5558"
-            
+            // Chain all commands with && to ensure they execute sequentially in the same shell session
+            // This is critical for environment variable persistence
             val droidrunCommand = """
-                export ANDROID_SERIAL="$deviceSerial"
-                adb devices 2>&1 | grep -q "$deviceSerial.*device" || adb connect $deviceSerial 2>&1 || true
-                ${apiKeyExport}droidrun run $droidrunFlags "$command"
+                export ANDROID_SERIAL="$deviceSerial" && \
+                (adb devices 2>&1 | grep -q "$deviceSerial.*device" || adb connect $deviceSerial 2>&1 || true) && \
+                $apiKeyExport \
+                droidrun run $droidrunFlags "$command"
             """.trimIndent()
             
             Logger.logInfo(LOG_TAG, "DroidRun command flags: $droidrunFlags")

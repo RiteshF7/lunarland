@@ -235,7 +235,7 @@ fun TaskExecutorAgentScreen(
                     TextButton(
                         onClick = { showAllLogs = !showAllLogs },
                         modifier = Modifier.padding(0.dp)
-                    ) {
+            ) {
                         Icon(
                             imageVector = if (showAllLogs) Icons.Default.Visibility else Icons.Default.VisibilityOff,
                             contentDescription = if (showAllLogs) "Hide technical logs" else "Show all logs",
@@ -254,24 +254,24 @@ fun TaskExecutorAgentScreen(
             
             // Content area - messages or empty state
             Box(
-                modifier = Modifier
+                    modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth()
+                        .fillMaxWidth()
             ) {
                 if (filteredMessages.isNotEmpty()) {
                     ChatMessageList(
                         messages = filteredMessages,
                         modifier = Modifier.fillMaxSize()
-                    )
+                )
                 } else {
                     // Empty state - Icon and text centered vertically and horizontally
-                    Column(
-                        modifier = Modifier
+            Column(
+                modifier = Modifier
                             .fillMaxSize()
                             .wrapContentHeight(Alignment.CenterVertically),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
                         // Speech bubble icon with "UI" text
                         Box(
                             modifier = Modifier
@@ -304,20 +304,20 @@ fun TaskExecutorAgentScreen(
             }
             
             // Input field at the bottom - always visible
-            TextInputPanel(
-                onExecute = { command ->
-                    if (command.isNotBlank() && !uiState.isTaskRunning) {
+                    TextInputPanel(
+                        onExecute = { command ->
+                            if (command.isNotBlank() && !uiState.isTaskRunning) {
                         chatMessages = chatMessages + ChatMessage(
                             text = command,
                             type = MessageType.USER
                         )
-                        viewModel.dispatchCommand(command)
-                    }
-                },
+                                viewModel.dispatchCommand(command)
+                            }
+                        },
                 onStop = { viewModel.stopCurrentTask() },
                 isTaskRunning = uiState.isTaskRunning,
-                modifier = Modifier
-                    .fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
             )
         }
     }
