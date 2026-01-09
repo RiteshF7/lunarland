@@ -13,10 +13,6 @@
             </intent-filter>
         </receiver>
 
-        <service
-            android:name="com.termux.app.TaskExecutorOverlayService"
-            android:enabled="true"
-            android:exported="false" />
     </application>
 
 </manifest>

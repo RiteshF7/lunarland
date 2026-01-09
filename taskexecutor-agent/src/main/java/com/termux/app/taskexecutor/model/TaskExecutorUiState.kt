@@ -16,6 +16,7 @@ data class TaskExecutorUiState(
     val isTaskRunning: Boolean = false,
     val showLogs: Boolean = false,
     val taskStatus: TaskStatus = TaskStatus.STOPPED,
-    val agentStateMessage: String = "Ready"
+    val agentStateMessage: String = "Ready",
+    val maxSteps: Int = 0
 )
 

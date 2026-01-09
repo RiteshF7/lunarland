@@ -70,6 +70,41 @@ object LogFilter {
     fun isUserFriendly(message: String): Boolean {
         val lowerMessage = message.lowercase().trim()
         
+        // Filter out droidrun-related logs
+        if (lowerMessage.contains("droidrun", ignoreCase = true)) {
+            return false
+        }
+        
+        // Filter out ADB connection logs and TCP/IP logs
+        val adbPatterns = listOf(
+            "adb",
+            "device connected",
+            "device disconnected",
+            "adb connection",
+            "adb server",
+            "adb daemon",
+            "adb devices",
+            "emulator-",
+            "connected to device",
+            "disconnected from device",
+            "adb shell",
+            "adb command",
+            "tcp/ip",
+            "tcp ip",
+            "enable tcp",
+            "failed to enable tcp",
+            "tcp mode",
+            "port 555",
+            "trying alternative",
+            "alternative method",
+            "alternative.."
+        )
+        if (adbPatterns.any { pattern ->
+            lowerMessage.contains(pattern, ignoreCase = true)
+        }) {
+            return false
+        }
+        
         // Always show essential completion/failure messages
         if (lowerMessage.contains("task completed successfully") ||
             lowerMessage.contains("task failed") ||
@@ -143,12 +178,64 @@ object LogFilter {
         val messages = mutableListOf<String>()
         val lines = output.split("\n", "\r\n")
         
+        // ADB patterns to filter out
+        val adbPatterns = listOf(
+            "adb",
+            "device connected",
+            "device disconnected",
+            "adb connection",
+            "adb server",
+            "adb daemon",
+            "adb devices",
+            "emulator-",
+            "connected to device",
+            "disconnected from device",
+            "adb shell",
+            "adb command"
+        )
+        
         for (line in lines) {
             val trimmed = line.trim()
             if (trimmed.isBlank()) continue
             
-            // Check if line contains user-friendly keywords
             val lowerLine = trimmed.lowercase()
+            
+            // Skip droidrun-related logs
+            if (lowerLine.contains("droidrun", ignoreCase = true)) {
+                continue
+            }
+            
+            // Skip ADB connection logs and TCP/IP logs
+            val adbAndTcpPatterns = listOf(
+                "adb",
+                "device connected",
+                "device disconnected",
+                "adb connection",
+                "adb server",
+                "adb daemon",
+                "adb devices",
+                "emulator-",
+                "connected to device",
+                "disconnected from device",
+                "adb shell",
+                "adb command",
+                "tcp/ip",
+                "tcp ip",
+                "enable tcp",
+                "failed to enable tcp",
+                "tcp mode",
+                "port 555",
+                "trying alternative",
+                "alternative method",
+                "alternative.."
+            )
+            if (adbAndTcpPatterns.any { pattern ->
+                lowerLine.contains(pattern, ignoreCase = true)
+            }) {
+                continue
+            }
+            
+            // Check if line contains user-friendly keywords
             val hasFriendlyKeyword = userFriendlyKeywords.any { keyword ->
                 lowerLine.contains(keyword, ignoreCase = true)
             }
@@ -200,6 +287,43 @@ object LogFilter {
      * Check if message should be shown based on filter mode.
      */
     fun shouldShowMessage(message: ChatMessage, showAllLogs: Boolean): Boolean {
+        val lowerMessage = message.text.lowercase()
+        
+        // Always filter out droidrun-related logs, regardless of showAllLogs setting
+        if (lowerMessage.contains("droidrun", ignoreCase = true)) {
+            return false
+        }
+        
+        // Always filter out ADB connection logs and TCP/IP logs, regardless of showAllLogs setting
+        val adbPatterns = listOf(
+            "adb",
+            "device connected",
+            "device disconnected",
+            "adb connection",
+            "adb server",
+            "adb daemon",
+            "adb devices",
+            "emulator-",
+            "connected to device",
+            "disconnected from device",
+            "adb shell",
+            "adb command",
+            "tcp/ip",
+            "tcp ip",
+            "enable tcp",
+            "failed to enable tcp",
+            "tcp mode",
+            "port 555",
+            "trying alternative",
+            "alternative method",
+            "alternative.."
+        )
+        if (adbPatterns.any { pattern ->
+            lowerMessage.contains(pattern, ignoreCase = true)
+        }) {
+            return false
+        }
+        
         // Always show user messages
         if (message.type == MessageType.USER) {
             return true
@@ -210,7 +334,7 @@ object LogFilter {
             return true
         }
         
-        // If showing all logs, show everything
+        // If showing all logs, show everything (except filtered items above)
         if (showAllLogs) {
             return true
         }

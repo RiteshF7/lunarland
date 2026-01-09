@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Termux Driver</string>
+    <string name="application_name">lunarLand</string>
+    <string name="app_name">lunarLand</string>
     <string name="driver_hint">Enter a command</string>
     <string name="driver_execute">Execute</string>
     <string name="driver_status_idle">Awaiting command</string>

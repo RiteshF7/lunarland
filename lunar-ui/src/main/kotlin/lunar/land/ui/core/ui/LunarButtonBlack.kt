@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.sp
  * - Press state feedback with darker background
  */
 @Composable
-fun ChatButton(
+fun LunarButtonBlack(
     text: String,
     onClick: () -> Unit,
     enabled: Boolean = true,
@@ -75,19 +75,19 @@ fun ChatButton(
 
 @Preview
 @Composable
-private fun PreviewChatButton() {
+private fun PreviewLunarButtonBlack() {
     Column(
         modifier = Modifier
             .background(Color(0xFF2A2A2A))
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        ChatButton(
+        LunarButtonBlack(
             text = "Enabled Button",
             onClick = {},
             enabled = true
         )
-        ChatButton(
+        LunarButtonBlack(
             text = "Disabled Button",
             onClick = {},
             enabled = false

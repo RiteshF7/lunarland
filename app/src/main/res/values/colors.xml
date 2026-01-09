@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Light orange background matching appicon.png -->
+    <color name="ic_launcher_background">#FFA366</color>
+</resources>
+

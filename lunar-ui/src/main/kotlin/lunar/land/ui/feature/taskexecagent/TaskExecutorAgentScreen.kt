@@ -75,11 +75,16 @@ fun TaskExecutorAgentScreen(
     }
     
     // Track status changes and add as system messages
-    LaunchedEffect(uiState.statusText) {
+    LaunchedEffect(uiState.statusText, uiState.maxSteps) {
         if (uiState.statusText.isNotBlank() && uiState.statusText != lastStatusText && uiState.statusText != "Ready") {
             lastStatusText = uiState.statusText
+            val statusMessage = if (uiState.isTaskRunning && uiState.maxSteps > 0) {
+                "${uiState.statusText} [Max steps: ${uiState.maxSteps}]"
+            } else {
+                uiState.statusText
+            }
             chatMessages = chatMessages + ChatMessage(
-                text = uiState.statusText,
+                text = statusMessage,
                 type = MessageType.SYSTEM
             )
         }
@@ -89,8 +94,13 @@ fun TaskExecutorAgentScreen(
     LaunchedEffect(uiState.currentTask) {
         if (uiState.currentTask != null && uiState.currentTask != lastCurrentTask) {
             lastCurrentTask = uiState.currentTask
+            val maxStepsText = if (uiState.maxSteps > 0) {
+                " (Max steps: ${uiState.maxSteps})"
+            } else {
+                ""
+            }
             chatMessages = chatMessages + ChatMessage(
-                text = "Executing: ${uiState.currentTask}",
+                text = "Executing: ${uiState.currentTask}$maxStepsText",
                 type = MessageType.SYSTEM
             )
         } else if (uiState.currentTask == null) {
@@ -113,23 +123,48 @@ fun TaskExecutorAgentScreen(
             if (newOutput.isNotBlank()) {
                 val trimmedOutput = newOutput.trim()
                 if (trimmedOutput.isNotBlank()) {
-                    // Try to extract user-friendly messages from output
-                    val friendlyMessages = LogFilter.extractUserFriendlyMessages(trimmedOutput)
+                    val lowerOutput = trimmedOutput.lowercase()
                     
-                    if (friendlyMessages.isNotEmpty()) {
-                        // Add each friendly message as a separate system message
-                        friendlyMessages.forEach { friendlyMsg ->
+                    // Check if this is an ADB/TCP connection message and replace it
+                    val adbTcpPatterns = listOf(
+                        "tcp/ip", "tcp ip", "enable tcp", "failed to enable tcp",
+                        "tcp mode", "port 555", "trying alternative", "alternative method",
+                        "adb", "device connected", "device disconnected", "adb connection"
+                    )
+                    
+                    val isAdbTcpMessage = adbTcpPatterns.any { pattern ->
+                        lowerOutput.contains(pattern, ignoreCase = true)
+                    }
+                    
+                    if (isAdbTcpMessage) {
+                        // Replace with user-friendly message (only add once)
+                        val connectingMessage = "Connecting to device..."
+                        val lastMessage = chatMessages.lastOrNull()
+                        if (lastMessage?.text != connectingMessage) {
                             chatMessages = chatMessages + ChatMessage(
-                                text = friendlyMsg,
+                                text = connectingMessage,
                                 type = MessageType.SYSTEM
                             )
                         }
                     } else {
-                        // If no friendly messages found, add as output (will be filtered if not friendly)
-                        chatMessages = chatMessages + ChatMessage(
-                            text = trimmedOutput,
-                            type = MessageType.OUTPUT
-                        )
+                        // Try to extract user-friendly messages from output
+                        val friendlyMessages = LogFilter.extractUserFriendlyMessages(trimmedOutput)
+                        
+                        if (friendlyMessages.isNotEmpty()) {
+                            // Add each friendly message as a separate system message
+                            friendlyMessages.forEach { friendlyMsg ->
+                                chatMessages = chatMessages + ChatMessage(
+                                    text = friendlyMsg,
+                                    type = MessageType.SYSTEM
+                                )
+                            }
+                        } else {
+                            // If no friendly messages found, add as output (will be filtered if not friendly)
+                            chatMessages = chatMessages + ChatMessage(
+                                text = trimmedOutput,
+                                type = MessageType.OUTPUT
+                            )
+                        }
                     }
                 }
             }

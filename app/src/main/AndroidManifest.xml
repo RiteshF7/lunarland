@@ -35,14 +35,9 @@
 
         <activity
             android:name=".app.driver.DriverActivity"
-            android:exported="true"
+            android:exported="false"
             android:label="@string/application_name"
-            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
 
         
 
@@ -54,10 +49,15 @@
             android:screenOrientation="portrait" />
 
         <activity
-            android:name=".app.agent.TaskExecutorAgentActivity"
-            android:exported="false"
-            android:label="AI Agent Interaction Sphere"
-            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
+            android:name="com.termux.app.agent.TaskExecutorAgentActivity"
+            android:exported="true"
+            android:label="@string/application_name"
+            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
 
         <activity
             android:name=".app.backup.BackupTestActivity"
