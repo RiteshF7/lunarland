@@ -62,6 +62,14 @@ fun TaskExecutorAgentScreen(
         }
     }
     
+    // Clear logs when screen is reopened/composed
+    LaunchedEffect(Unit) {
+        chatMessages = emptyList()
+        lastOutputText = ""
+        lastStatusText = ""
+        lastCurrentTask = null
+    }
+    
     // Initialize service binding
     LaunchedEffect(Unit) {
         viewModel.bindService(context)

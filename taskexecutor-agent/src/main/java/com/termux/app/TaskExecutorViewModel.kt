@@ -382,11 +382,6 @@ class TaskExecutorViewModel(
             return
         }
         
-        if (command.isBlank()) {
-            Logger.logWarn(LOG_TAG, "Cannot dispatch empty command")
-            return
-        }
-        
         try {
             Logger.logInfo(LOG_TAG, "Dispatching command: $command")
             
@@ -426,21 +421,65 @@ class TaskExecutorViewModel(
                 prepareDroidrunEnvironment()
             }
             
-            // Simple command: droidrun handles ADB connection automatically via ANDROID_SERIAL
-            val apiKeyExport = if (googleApiKey.isNotBlank()) {
-                "export GOOGLE_API_KEY=\"$googleApiKey\" && "
-            } else {
-                ""
-            }
-            
             // Build droidrun command with all configured flags
             val droidrunFlags = droidRunConfig.buildFlagsString()
             val deviceSerial = droidRunConfig.device ?: "127.0.0.1:5558"
             
-            // Droidrun will automatically connect via ANDROID_SERIAL - no manual ADB commands needed
+            // Check portal installation and help droidrun detect it properly
+            // Droidrun sometimes fails to detect installed portal, causing unnecessary reinstallation
+            val portalDetectionCommand = """
+                if command -v pm >/dev/null 2>&1; then
+                    # Try to find portal package (common names: portal, droidrun.portal, com.portal, etc.)
+                    PORTAL_PKG=$$(pm list packages 2>/dev/null | grep -iE "portal" | head -1 | sed 's/package://' || echo "")
+                    if [ -n "${'$'}PORTAL_PKG" ]; then
+                        # Get portal version using dumpsys
+                        PORTAL_VERSION=$$(pm dump "${'$'}PORTAL_PKG" 2>/dev/null | grep -m1 "versionName" | sed 's/.*versionName=//' | tr -d '\r\n' || echo "")
+                        if [ -n "${'$'}PORTAL_VERSION" ]; then
+                            echo "Portal detected: ${'$'}PORTAL_PKG v${'$'}PORTAL_VERSION"
+                            # Export portal info - droidrun might use these
+                            export PORTAL_PACKAGE="${'$'}PORTAL_PKG"
+                            export PORTAL_VERSION="${'$'}PORTAL_VERSION"
+                        else
+                            echo "Portal package found but version unknown: ${'$'}PORTAL_PKG"
+                            export PORTAL_PACKAGE="${'$'}PORTAL_PKG"
+                        fi
+                    fi
+                fi
+            """.trimIndent()
+            
+            // Ensure API key is exported and available for droidrun
+            // Source .bashrc to load any existing API key, then export it explicitly
+            val apiKeySetup = if (googleApiKey.isNotBlank()) {
+                """
+                # Load API key from .bashrc if present, then ensure it's set
+                source "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null || true
+                export GOOGLE_API_KEY="$googleApiKey"
+                # Verify API key is set
+                if [ -n "${'$'}GOOGLE_API_KEY" ]; then
+                    echo "GOOGLE_API_KEY is set (length: ${'$'}{#GOOGLE_API_KEY})"
+                else
+                    echo "Warning: GOOGLE_API_KEY is not set"
+                fi
+                """.trimIndent()
+            } else {
+                """
+                # Try to load API key from .bashrc
+                source "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null || true
+                if [ -z "${'$'}GOOGLE_API_KEY" ]; then
+                    echo "Warning: GOOGLE_API_KEY not found in environment or .bashrc"
+                else
+                    echo "GOOGLE_API_KEY loaded from .bashrc (length: ${'$'}{#GOOGLE_API_KEY})"
+                fi
+                """.trimIndent()
+            }
+            
+            // Droidrun handles portal app detection and installation internally
+            // We help it detect the portal by setting environment variables
             val droidrunCommand = """
                 export ANDROID_SERIAL="$deviceSerial"
-                ${apiKeyExport}droidrun run $droidrunFlags "$command"
+                $apiKeySetup
+                $portalDetectionCommand
+                droidrun run $droidrunFlags "$command"
             """.trimIndent()
             
             Logger.logInfo(LOG_TAG, "DroidRun command flags: $droidrunFlags")
