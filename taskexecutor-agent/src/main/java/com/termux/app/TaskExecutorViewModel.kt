@@ -275,16 +275,13 @@ class TaskExecutorViewModel(
         }
         client.refreshTranscript(terminalSession!!)
         
-        // Don't run ADB setup on startup - it interferes with host ADB connections
-        // ADB setup will be done lazily when actually needed for droidrun
-        // setupAdbEnvironment()  // Disabled to prevent breaking host ADB connections
+        setupAdbEnvironment()
         setupGoogleApiKey()
         
-        // Prepare droidrun environment only when actually needed (lazy initialization)
-        // Don't prepare on startup to avoid interfering with host ADB connections
-        // if (!isDroidrunPrepared) {
-        //     prepareDroidrunEnvironment()
-        // }
+        // Prepare droidrun environment once per app lifecycle
+        if (!isDroidrunPrepared) {
+            prepareDroidrunEnvironment()
+        }
     }
     
     /**
@@ -298,8 +295,148 @@ class TaskExecutorViewModel(
                termuxService != null
     }
     
-    // Removed setupAdbEnvironment() - droidrun handles ADB connection automatically
-    // No manual ADB setup needed as it interferes with host ADB connections
+    private fun setupAdbEnvironment() {
+        if (terminalSession == null || sessionFinished) return
+        
+        Thread {
+            try {
+                val adbSetupCommand = """
+                    export TMPDIR="${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"
+                    mkdir -p "${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"
+                    # Ensure system ADB is in PATH (use system binaries)
+                    export PATH="/system/bin:/system/xbin:${'$'}PATH"
+                    # Check if ADB is available
+                    ADB_CMD=""
+                    if command -v adb >/dev/null 2>&1; then
+                        ADB_CMD="adb"
+                    elif [ -f /data/data/com.termux/files/usr/bin/adb ]; then
+                        ADB_CMD="/data/data/com.termux/files/usr/bin/adb"
+                    else
+                        echo "⚠ ADB not found in Termux!"
+                        echo "⚠ Please install ADB by running: pkg install android-tools"
+                        echo "⚠ After installation, restart Termux or run: source ~/.bashrc"
+                        echo ""
+                        echo "Skipping ADB setup - ADB not installed"
+                        ADB_CMD=""
+                    fi
+                    if [ -n "${'$'}ADB_CMD" ]; then
+                        echo "Using ADB: ${'$'}ADB_CMD"
+                        # Start ADB server if not running
+                        echo "Starting ADB server..."
+                        ${'$'}ADB_CMD start-server 2>&1 || true
+                        sleep 2
+                        # Get device serial from system properties
+                        DEVICE_SERIAL=$(getprop ro.serialno 2>/dev/null || echo "")
+                        echo "Device serial: ${'$'}DEVICE_SERIAL"
+                        # Check current devices
+                        echo ""
+                        echo "=== Current ADB devices ==="
+                        ${'$'}ADB_CMD devices -l 2>&1
+                        echo "=========================="
+                        # When running ADB inside the device, it might not show the device itself
+                        # We need to enable TCP/IP mode first, then connect via localhost
+                        DEVICE_COUNT=$(${'$'}ADB_CMD devices 2>&1 | grep -v "List" | grep -cE "device|unauthorized|offline" || echo "0")
+                        if [ "${'$'}DEVICE_COUNT" -eq 0 ]; then
+                            echo ""
+                            echo "No devices found in ADB list."
+                            echo "This is normal when running ADB inside the device itself."
+                            echo "Attempting to enable TCP/IP mode and connect..."
+                            # First, try to enable TCP/IP mode (this might fail if no device is connected)
+                            # We'll try port 5555 first
+                            echo "Enabling TCP/IP mode on port 5555..."
+                            ${'$'}ADB_CMD tcpip 5555 2>&1 || {
+                                echo "⚠ Could not enable TCP/IP mode (device may need to be connected via USB first)"
+                                echo "⚠ If you're connected via USB from a computer, run: adb tcpip 5555"
+                            }
+                            sleep 2
+                            # Try connecting to localhost on port 5555
+                            echo "Connecting to localhost:5555..."
+                            ${'$'}ADB_CMD connect 127.0.0.1:5555 2>&1 || true
+                            sleep 2
+                            # Check connection status
+                            CONNECTION_STATUS=$(${'$'}ADB_CMD devices 2>&1 | grep "127.0.0.1:5555" || echo "")
+                            if echo "${'$'}CONNECTION_STATUS" | grep -q "device"; then
+                                echo "✓ Successfully connected to device via localhost:5555"
+                            elif echo "${'$'}CONNECTION_STATUS" | grep -q "unauthorized"; then
+                                echo "⚠ Device connected but unauthorized. Please authorize on device screen."
+                                echo "⚠ After authorization, device will appear in 'adb devices'"
+                                # Try to reconnect to trigger authorization prompt
+                                ${'$'}ADB_CMD reconnect 2>&1 || true
+                                sleep 2
+                            elif echo "${'$'}CONNECTION_STATUS" | grep -q "offline"; then
+                                echo "⚠ Device is offline. Trying to reconnect..."
+                                ${'$'}ADB_CMD reconnect 2>&1 || true
+                                sleep 2
+                            else
+                                echo "⚠ Could not connect to device. TCP/IP mode may need to be enabled externally."
+                                echo "⚠ To fix: Connect device via USB from computer and run: adb tcpip 5555"
+                            fi
+                            # Count devices again after reconnection attempt
+                            DEVICE_COUNT=$(${'$'}ADB_CMD devices 2>&1 | grep -v "List" | grep -cE "device|unauthorized|offline" || echo "0")
+                            # Show current device list
+                            echo ""
+                            echo "=== ADB devices after connection attempt ==="
+                            ${'$'}ADB_CMD devices -l 2>&1
+                            echo "==========================================="
+                        else
+                            echo ""
+                            echo "✓ Found ${'$'}DEVICE_COUNT device(s) in ADB list"
+                        fi
+                        # Enable TCP/IP mode on port 5558 for droidrun
+                        echo ""
+                        echo "Setting up TCP/IP mode on port 5558 for droidrun..."
+                        # Try to find any connected device
+                        CONNECTED_DEVICE=$(${'$'}ADB_CMD devices 2>&1 | grep -v "List" | grep "device" | head -1 | awk '{print ${'$'}1}')
+                        if [ -n "${'$'}CONNECTED_DEVICE" ]; then
+                            echo "Found device: ${'$'}CONNECTED_DEVICE, enabling TCP/IP mode on port 5558..."
+                            ${'$'}ADB_CMD -s ${'$'}CONNECTED_DEVICE tcpip 5558 2>&1 || {
+                                echo "⚠ Failed to enable TCP/IP on port 5558, trying alternative..."
+                                ${'$'}ADB_CMD tcpip 5558 2>&1 || true
+                            }
+                            sleep 1
+                            # Connect to localhost:5558
+                            ${'$'}ADB_CMD disconnect 127.0.0.1:5558 2>&1 || true
+                            sleep 0.5
+                            ${'$'}ADB_CMD connect 127.0.0.1:5558 2>&1 || true
+                            sleep 1.5
+                        else
+                            echo "⚠ No device found to enable TCP/IP mode"
+                        fi
+                        # Final device list
+                        echo ""
+                        echo "=== Final ADB devices list ==="
+                        ${'$'}ADB_CMD devices 2>&1
+                        echo "=============================="
+                    fi
+                    # Setup TMPDIR in .bashrc
+                    if ! grep -q "export TMPDIR" "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null; then
+                        echo 'export TMPDIR="${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"' >> "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc"
+                        mkdir -p "${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"
+                    fi
+                    # Ensure PATH includes system binaries in .bashrc
+                    if ! grep -q "export PATH.*system" "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null; then
+                        echo 'export PATH="/system/bin:/system/xbin:${'$'}PATH"' >> "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc"
+                    fi
+                    # Remove ANDROID_SERIAL from .bashrc if it exists (to allow all devices to show)
+                    if grep -q "export ANDROID_SERIAL" "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null; then
+                        sed -i '/export ANDROID_SERIAL/d' "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc"
+                        echo "Removed global ANDROID_SERIAL to allow all devices to be visible"
+                    fi
+                    echo "ADB environment configured"
+                """.trimIndent()
+                
+                mainHandler.post {
+                    if (terminalSession != null && !sessionFinished) {
+                        terminalSession!!.write(adbSetupCommand)
+                        terminalSession!!.write("\n")
+                        Logger.logInfo(LOG_TAG, "Setting up ADB environment")
+                    }
+                }
+            } catch (e: Exception) {
+                Logger.logStackTraceWithMessage(LOG_TAG, "Error setting up ADB environment", e)
+            }
+        }.start()
+    }
     
     private fun setupGoogleApiKey() {
         if (terminalSession == null || sessionFinished) return
@@ -353,8 +490,9 @@ class TaskExecutorViewModel(
     }
     
     /**
-     * Prepare droidrun environment - simplified.
-     * Droidrun has built-in ADB connection, so we just mark it as prepared.
+     * Prepare droidrun environment once per app lifecycle.
+     * Droidrun handles ADB connection automatically, so we just mark it as prepared.
+     * ADB connection is handled lazily in dispatchCommand when needed.
      */
     private fun prepareDroidrunEnvironment() {
         if (isDroidrunPrepared) {
@@ -382,6 +520,11 @@ class TaskExecutorViewModel(
             return
         }
         
+        if (command.isBlank()) {
+            Logger.logWarn(LOG_TAG, "Cannot dispatch empty command")
+            return
+        }
+        
         try {
             Logger.logInfo(LOG_TAG, "Dispatching command: $command")
             
@@ -400,12 +543,7 @@ class TaskExecutorViewModel(
                         isRunning = stateResult.isRunning,
                         status = stateResult.status
                     )
-                    _uiState.update { 
-                        it.copy(
-                            agentStateMessage = stateResult.message,
-                            maxSteps = droidRunConfig.steps
-                        )
-                    }
+                    _uiState.update { it.copy(agentStateMessage = stateResult.message) }
                     updateStatus(stateResult.message)
                     updateNotification()
                 }
@@ -416,70 +554,32 @@ class TaskExecutorViewModel(
                 }
             }
             
-            // Mark droidrun as prepared (it handles ADB connection automatically)
+            // Quick verification that ADB is still connected (non-blocking check)
+            // If droidrun environment wasn't prepared, prepare it now (async, non-blocking)
             if (!isDroidrunPrepared) {
+                Logger.logWarn(LOG_TAG, "Droidrun environment not prepared, preparing now...")
                 prepareDroidrunEnvironment()
+                // Note: prepareDroidrunEnvironment() runs asynchronously
+                // The command below will handle reconnection if needed
+            }
+            
+            // Simplified command: set ANDROID_SERIAL, ensure API key is set, and run droidrun
+            // ADB setup should already be done by prepareDroidrunEnvironment()
+            // Only connect if no device is connected (simple check)
+            val apiKeyExport = if (googleApiKey.isNotBlank()) {
+                "export GOOGLE_API_KEY=\"$googleApiKey\" && "
+            } else {
+                ""
             }
             
             // Build droidrun command with all configured flags
             val droidrunFlags = droidRunConfig.buildFlagsString()
             val deviceSerial = droidRunConfig.device ?: "127.0.0.1:5558"
             
-            // Check portal installation and help droidrun detect it properly
-            // Droidrun sometimes fails to detect installed portal, causing unnecessary reinstallation
-            val portalDetectionCommand = """
-                if command -v pm >/dev/null 2>&1; then
-                    # Try to find portal package (common names: portal, droidrun.portal, com.portal, etc.)
-                    PORTAL_PKG=$$(pm list packages 2>/dev/null | grep -iE "portal" | head -1 | sed 's/package://' || echo "")
-                    if [ -n "${'$'}PORTAL_PKG" ]; then
-                        # Get portal version using dumpsys
-                        PORTAL_VERSION=$$(pm dump "${'$'}PORTAL_PKG" 2>/dev/null | grep -m1 "versionName" | sed 's/.*versionName=//' | tr -d '\r\n' || echo "")
-                        if [ -n "${'$'}PORTAL_VERSION" ]; then
-                            echo "Portal detected: ${'$'}PORTAL_PKG v${'$'}PORTAL_VERSION"
-                            # Export portal info - droidrun might use these
-                            export PORTAL_PACKAGE="${'$'}PORTAL_PKG"
-                            export PORTAL_VERSION="${'$'}PORTAL_VERSION"
-                        else
-                            echo "Portal package found but version unknown: ${'$'}PORTAL_PKG"
-                            export PORTAL_PACKAGE="${'$'}PORTAL_PKG"
-                        fi
-                    fi
-                fi
-            """.trimIndent()
-            
-            // Ensure API key is exported and available for droidrun
-            // Source .bashrc to load any existing API key, then export it explicitly
-            val apiKeySetup = if (googleApiKey.isNotBlank()) {
-                """
-                # Load API key from .bashrc if present, then ensure it's set
-                source "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null || true
-                export GOOGLE_API_KEY="$googleApiKey"
-                # Verify API key is set
-                if [ -n "${'$'}GOOGLE_API_KEY" ]; then
-                    echo "GOOGLE_API_KEY is set (length: ${'$'}{#GOOGLE_API_KEY})"
-                else
-                    echo "Warning: GOOGLE_API_KEY is not set"
-                fi
-                """.trimIndent()
-            } else {
-                """
-                # Try to load API key from .bashrc
-                source "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null || true
-                if [ -z "${'$'}GOOGLE_API_KEY" ]; then
-                    echo "Warning: GOOGLE_API_KEY not found in environment or .bashrc"
-                else
-                    echo "GOOGLE_API_KEY loaded from .bashrc (length: ${'$'}{#GOOGLE_API_KEY})"
-                fi
-                """.trimIndent()
-            }
-            
-            // Droidrun handles portal app detection and installation internally
-            // We help it detect the portal by setting environment variables
             val droidrunCommand = """
                 export ANDROID_SERIAL="$deviceSerial"
-                $apiKeySetup
-                $portalDetectionCommand
-                droidrun run $droidrunFlags "$command"
+                adb devices 2>&1 | grep -q "$deviceSerial.*device" || adb connect $deviceSerial 2>&1 || true
+                ${apiKeyExport}droidrun run $droidrunFlags "$command"
             """.trimIndent()
             
             Logger.logInfo(LOG_TAG, "DroidRun command flags: $droidrunFlags")
@@ -514,7 +614,7 @@ class TaskExecutorViewModel(
     }
     
     fun stopCurrentTask() {
-        if (terminalSession != null && !sessionFinished && (stateManager.isTaskRunning() || stateManager.isTaskPaused())) {
+        if (terminalSession != null && !sessionFinished && stateManager.isTaskRunning()) {
             try {
                 val task = stateManager.getCurrentTask()
                 Logger.logInfo(LOG_TAG, "Stopping task: $task")
@@ -555,92 +655,7 @@ class TaskExecutorViewModel(
                 updateStatus("Error stopping task: ${e.message}")
             }
         } else {
-            Logger.logWarn(LOG_TAG, "Cannot stop task: terminalSession=${terminalSession != null}, sessionFinished=$sessionFinished, isTaskRunning=${stateManager.isTaskRunning()}, isTaskPaused=${stateManager.isTaskPaused()}")
-        }
-    }
-    
-    fun pauseCurrentTask() {
-        if (terminalSession != null && !sessionFinished && stateManager.isTaskRunning()) {
-            try {
-                val task = stateManager.getCurrentTask()
-                Logger.logInfo(LOG_TAG, "Pausing task: $task")
-                
-                // Send Ctrl+Z to suspend the process (SIGTSTP)
-                terminalSession!!.write("\u001A")
-                Thread.sleep(100)
-                
-                Logger.logInfo(LOG_TAG, "Sent pause signal (Ctrl+Z) to terminal")
-                
-                // Update state through state manager
-                val pauseResult = stateManager.transitionToPaused()
-                if (pauseResult is TaskExecutorStateManager.StateTransitionResult.Success) {
-                    updateTaskState(
-                        task = stateManager.getCurrentTask(),
-                        progress = _uiState.value.taskProgress,
-                        isRunning = pauseResult.isRunning,
-                        status = pauseResult.status
-                    )
-                    _uiState.update { it.copy(agentStateMessage = pauseResult.message) }
-                    updateStatus(pauseResult.message)
-                    updateNotification()
-                } else if (pauseResult is TaskExecutorStateManager.StateTransitionResult.Error) {
-                    Logger.logWarn(LOG_TAG, "Failed to pause task: ${pauseResult.message}")
-                    updateStatus("Failed to pause: ${pauseResult.message}")
-                }
-            } catch (e: Exception) {
-                Logger.logStackTraceWithMessage(LOG_TAG, "Error pausing task", e)
-                updateStatus("Error pausing task: ${e.message}")
-            }
-        } else {
-            Logger.logWarn(LOG_TAG, "Cannot pause task: terminalSession=${terminalSession != null}, sessionFinished=$sessionFinished, isTaskRunning=${stateManager.isTaskRunning()}")
-        }
-    }
-    
-    /**
-     * Toggle pause/resume - if paused, resume; if running, pause
-     */
-    fun togglePauseResume() {
-        when {
-            stateManager.isTaskPaused() -> resumeCurrentTask()
-            stateManager.isTaskRunning() -> pauseCurrentTask()
-            else -> Logger.logWarn(LOG_TAG, "Cannot toggle pause/resume: task is not running or paused")
-        }
-    }
-    
-    fun resumeCurrentTask() {
-        if (terminalSession != null && !sessionFinished && stateManager.isTaskPaused()) {
-            try {
-                val task = stateManager.getCurrentTask()
-                Logger.logInfo(LOG_TAG, "Resuming task: $task")
-                
-                // Send 'fg' command to bring the paused process back to foreground
-                terminalSession!!.write("fg\n")
-                Thread.sleep(100)
-                
-                Logger.logInfo(LOG_TAG, "Sent resume command (fg) to terminal")
-                
-                // Update state through state manager
-                val resumeResult = stateManager.transitionToResume()
-                if (resumeResult is TaskExecutorStateManager.StateTransitionResult.Success) {
-                    updateTaskState(
-                        task = stateManager.getCurrentTask(),
-                        progress = _uiState.value.taskProgress,
-                        isRunning = resumeResult.isRunning,
-                        status = resumeResult.status
-                    )
-                    _uiState.update { it.copy(agentStateMessage = resumeResult.message) }
-                    updateStatus(resumeResult.message)
-                    updateNotification()
-                } else if (resumeResult is TaskExecutorStateManager.StateTransitionResult.Error) {
-                    Logger.logWarn(LOG_TAG, "Failed to resume task: ${resumeResult.message}")
-                    updateStatus("Failed to resume: ${resumeResult.message}")
-                }
-            } catch (e: Exception) {
-                Logger.logStackTraceWithMessage(LOG_TAG, "Error resuming task", e)
-                updateStatus("Error resuming task: ${e.message}")
-            }
-        } else {
-            Logger.logWarn(LOG_TAG, "Cannot resume task: terminalSession=${terminalSession != null}, sessionFinished=$sessionFinished, isTaskPaused=${stateManager.isTaskPaused()}")
+            Logger.logWarn(LOG_TAG, "Cannot stop task: terminalSession=${terminalSession != null}, sessionFinished=$sessionFinished, isTaskRunning=${stateManager.isTaskRunning()}")
         }
     }
     
