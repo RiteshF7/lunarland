@@ -40,3 +40,6 @@ github.token
 .swp
 ehthumbs.db
 Thumbs.db
+
+# Separate repository
+droidrun/

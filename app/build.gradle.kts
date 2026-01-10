@@ -91,6 +91,7 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        viewBinding = true
     }
     
     composeOptions {
@@ -114,6 +115,13 @@ dependencies {
     implementation(project(":lunar-ui"))
     implementation(project(":taskexecutor-agent"))
     implementation(project(":lunar-launcher"))
+    implementation(project(":directionsdk"))
+    
+    // Portal driver dependencies
+    implementation("org.java-websocket:Java-WebSocket:1.6.0")
+    implementation("com.dafruits:webrtc:113.0.0")
+    implementation("org.json:json:20240303")
+    implementation("com.google.android.material:material:1.10.0")
         implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     // Compose dependencies for lunar-ui

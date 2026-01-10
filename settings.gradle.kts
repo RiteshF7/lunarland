@@ -16,4 +16,4 @@ dependencyResolutionManagement {
     }
 }
 
-include(":app", ":termux-core", ":termux-shared", ":terminal-emulator", ":terminal-view", ":lunar-ui", ":taskexecutor-agent", ":lunar-launcher")
+include(":app", ":termux-core", ":termux-shared", ":terminal-emulator", ":terminal-view", ":lunar-ui", ":taskexecutor-agent", ":lunar-launcher", ":directionsdk")

@@ -45,7 +45,9 @@ class DriverActivity : ComponentActivity() {
                 onPreviewAgent = { launchTaskExecutorActivity() },
                 onTestAppDrawer = { launchAppDrawerActivity() },
                 onTestBackup = { launchBackupTestActivity() },
-                onBootstrapSetup = { launchBootstrapSetupActivity() }
+                onBootstrapSetup = { launchBootstrapSetupActivity() },
+                onOpenPortalConfig = { launchPortalSettingsActivity() },
+                onTestPortalEndpoints = { launchPortalEndpointTestActivity() }
             )
         }
     }
@@ -80,6 +82,16 @@ class DriverActivity : ComponentActivity() {
         val intent = Intent(this, BootstrapSetupActivity::class.java)
         startActivity(intent)
     }
+
+    private fun launchPortalSettingsActivity() {
+        val intent = Intent(this, com.droidrun.portal.ui.MainActivity::class.java)
+        startActivity(intent)
+    }
+
+    private fun launchPortalEndpointTestActivity() {
+        val intent = Intent(this, PortalEndpointTestActivity::class.java)
+        startActivity(intent)
+    }
 }
 
 @Composable
@@ -91,7 +103,9 @@ private fun DriverScreen(
     onPreviewAgent: () -> Unit,
     onTestAppDrawer: () -> Unit,
     onTestBackup: () -> Unit,
-    onBootstrapSetup: () -> Unit
+    onBootstrapSetup: () -> Unit,
+    onOpenPortalConfig: () -> Unit,
+    onTestPortalEndpoints: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -158,6 +172,16 @@ private fun DriverScreen(
             NavigationButton(
                 text = "Bootstrap Setup",
                 onClick = onBootstrapSetup
+            )
+
+            NavigationButton(
+                text = "Portal Dashboard",
+                onClick = onOpenPortalConfig
+            )
+
+            NavigationButton(
+                text = "Test Portal Endpoints",
+                onClick = onTestPortalEndpoints
             )
         }
     }
