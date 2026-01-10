@@ -20,16 +20,6 @@ class ChatMessageManager {
     private var lastTaskStatus: TaskStatus? = null
     private var lastIsTaskRunning: Boolean = false
     
-    // ADB/TCP patterns to filter out
-    private val adbTcpPatterns = listOf(
-        "tcp/ip", "tcp ip", "enable tcp", "failed to enable tcp",
-        "tcp mode", "port 555", "trying alternative", "alternative method",
-        "adb", "device connected", "device disconnected", "adb connection",
-        "adb server", "adb daemon", "adb devices", "emulator-",
-        "connected to device", "disconnected from device", "adb shell",
-        "adb command", "alternative.."
-    )
-    
     // Google API key patterns to filter out
     private val googleApiKeyPatterns = listOf(
         "google_api_key", "goog_api_key", "api_key", "api key",
@@ -78,27 +68,12 @@ class ChatMessageManager {
             if (trimmedOutput.isNotBlank()) {
                 val lowerOutput = trimmedOutput.lowercase()
                 
-                // Check if this is an ADB/TCP connection message
-                val isAdbTcpMessage = adbTcpPatterns.any { pattern ->
-                    lowerOutput.contains(pattern, ignoreCase = true)
-                }
-                
                 // Check if this is a Google API key message
                 val isGoogleApiKeyMessage = googleApiKeyPatterns.any { pattern ->
                     lowerOutput.contains(pattern, ignoreCase = true)
                 }
                 
-                if (isAdbTcpMessage) {
-                    // Replace with user-friendly message (only add once)
-                    val connectingMessage = "Connecting to device..."
-                    val lastMessage = messages.lastOrNull()
-                    if (lastMessage?.text != connectingMessage) {
-                        messages.add(ChatMessage(
-                            text = connectingMessage,
-                            type = MessageType.SYSTEM
-                        ))
-                    }
-                } else if (isGoogleApiKeyMessage) {
+                if (isGoogleApiKeyMessage) {
                     // Filter out Google API key messages - they're handled separately
                     // Don't add anything, just skip this output
                 } else {
@@ -277,13 +252,6 @@ class ChatMessageManager {
             
             // Skip droidrun-related logs
             if (lowerLine.contains("droidrun", ignoreCase = true)) {
-                continue
-            }
-            
-            // Skip ADB connection logs and TCP/IP logs
-            if (adbTcpPatterns.any { pattern ->
-                lowerLine.contains(pattern, ignoreCase = true)
-            }) {
                 continue
             }
             

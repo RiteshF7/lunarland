@@ -629,27 +629,6 @@
                         </LinearLayout>
                     </LinearLayout>
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/adb_forward_command_header"
-                        android:textColor="@color/text_white"
-                        android:textSize="16sp"
-                        android:textStyle="normal"
-                        android:layout_marginBottom="10dp" />
-
-                    <TextView
-                        android:id="@+id/adb_forward_command"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/adb_forward_command_placeholder"
-                        android:textColor="@color/text_gray_light"
-                        android:textSize="13sp"
-                        android:fontFamily="monospace"
-                        android:background="@color/background_code"
-                        android:padding="12dp"
-                        android:layout_marginBottom="16dp" />
-
                     <!-- Collapsible Endpoints Section -->
                     <LinearLayout
                         android:id="@+id/endpoints_header"

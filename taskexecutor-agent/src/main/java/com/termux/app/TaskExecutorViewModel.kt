@@ -66,9 +66,6 @@ class TaskExecutorViewModel(
     var currentTaskCommand: String? = null
     var taskStartTime: Long = 0
     
-    // Track droidrun preparation state
-    private var isDroidrunPrepared = false
-    
     /**
      * DroidRun configuration with all CLI flags and options.
      * Easily configurable - modify this object to change droidrun behavior.
@@ -178,10 +175,6 @@ class TaskExecutorViewModel(
                 updateTaskState(null, 0, false, TaskStatus.STOPPED)
                 updateStatus("Ready")
             }
-            // Ensure droidrun is prepared
-            if (!isDroidrunPrepared) {
-                prepareDroidrunEnvironment()
-            }
             return
         }
         
@@ -275,13 +268,7 @@ class TaskExecutorViewModel(
         }
         client.refreshTranscript(terminalSession!!)
         
-        setupAdbEnvironment()
         setupGoogleApiKey()
-        
-        // Prepare droidrun environment once per app lifecycle
-        if (!isDroidrunPrepared) {
-            prepareDroidrunEnvironment()
-        }
     }
     
     /**
@@ -293,149 +280,6 @@ class TaskExecutorViewModel(
                !sessionFinished &&
                terminalSession!!.isRunning() &&
                termuxService != null
-    }
-    
-    private fun setupAdbEnvironment() {
-        if (terminalSession == null || sessionFinished) return
-        
-        Thread {
-            try {
-                val adbSetupCommand = """
-                    export TMPDIR="${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"
-                    mkdir -p "${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"
-                    # Ensure system ADB is in PATH (use system binaries)
-                    export PATH="/system/bin:/system/xbin:${'$'}PATH"
-                    # Check if ADB is available
-                    ADB_CMD=""
-                    if command -v adb >/dev/null 2>&1; then
-                        ADB_CMD="adb"
-                    elif [ -f /data/data/com.termux/files/usr/bin/adb ]; then
-                        ADB_CMD="/data/data/com.termux/files/usr/bin/adb"
-                    else
-                        echo "⚠ ADB not found in Termux!"
-                        echo "⚠ Please install ADB by running: pkg install android-tools"
-                        echo "⚠ After installation, restart Termux or run: source ~/.bashrc"
-                        echo ""
-                        echo "Skipping ADB setup - ADB not installed"
-                        ADB_CMD=""
-                    fi
-                    if [ -n "${'$'}ADB_CMD" ]; then
-                        echo "Using ADB: ${'$'}ADB_CMD"
-                        # Start ADB server if not running
-                        echo "Starting ADB server..."
-                        ${'$'}ADB_CMD start-server 2>&1 || true
-                        sleep 2
-                        # Get device serial from system properties
-                        DEVICE_SERIAL=$(getprop ro.serialno 2>/dev/null || echo "")
-                        echo "Device serial: ${'$'}DEVICE_SERIAL"
-                        # Check current devices
-                        echo ""
-                        echo "=== Current ADB devices ==="
-                        ${'$'}ADB_CMD devices -l 2>&1
-                        echo "=========================="
-                        # When running ADB inside the device, it might not show the device itself
-                        # We need to enable TCP/IP mode first, then connect via localhost
-                        DEVICE_COUNT=$(${'$'}ADB_CMD devices 2>&1 | grep -v "List" | grep -cE "device|unauthorized|offline" || echo "0")
-                        if [ "${'$'}DEVICE_COUNT" -eq 0 ]; then
-                            echo ""
-                            echo "No devices found in ADB list."
-                            echo "This is normal when running ADB inside the device itself."
-                            echo "Attempting to enable TCP/IP mode and connect..."
-                            # First, try to enable TCP/IP mode (this might fail if no device is connected)
-                            # We'll try port 5555 first
-                            echo "Enabling TCP/IP mode on port 5555..."
-                            ${'$'}ADB_CMD tcpip 5555 2>&1 || {
-                                echo "⚠ Could not enable TCP/IP mode (device may need to be connected via USB first)"
-                                echo "⚠ If you're connected via USB from a computer, run: adb tcpip 5555"
-                            }
-                            sleep 2
-                            # Try connecting to localhost on port 5555
-                            echo "Connecting to localhost:5555..."
-                            ${'$'}ADB_CMD connect 127.0.0.1:5555 2>&1 || true
-                            sleep 2
-                            # Check connection status
-                            CONNECTION_STATUS=$(${'$'}ADB_CMD devices 2>&1 | grep "127.0.0.1:5555" || echo "")
-                            if echo "${'$'}CONNECTION_STATUS" | grep -q "device"; then
-                                echo "✓ Successfully connected to device via localhost:5555"
-                            elif echo "${'$'}CONNECTION_STATUS" | grep -q "unauthorized"; then
-                                echo "⚠ Device connected but unauthorized. Please authorize on device screen."
-                                echo "⚠ After authorization, device will appear in 'adb devices'"
-                                # Try to reconnect to trigger authorization prompt
-                                ${'$'}ADB_CMD reconnect 2>&1 || true
-                                sleep 2
-                            elif echo "${'$'}CONNECTION_STATUS" | grep -q "offline"; then
-                                echo "⚠ Device is offline. Trying to reconnect..."
-                                ${'$'}ADB_CMD reconnect 2>&1 || true
-                                sleep 2
-                            else
-                                echo "⚠ Could not connect to device. TCP/IP mode may need to be enabled externally."
-                                echo "⚠ To fix: Connect device via USB from computer and run: adb tcpip 5555"
-                            fi
-                            # Count devices again after reconnection attempt
-                            DEVICE_COUNT=$(${'$'}ADB_CMD devices 2>&1 | grep -v "List" | grep -cE "device|unauthorized|offline" || echo "0")
-                            # Show current device list
-                            echo ""
-                            echo "=== ADB devices after connection attempt ==="
-                            ${'$'}ADB_CMD devices -l 2>&1
-                            echo "==========================================="
-                        else
-                            echo ""
-                            echo "✓ Found ${'$'}DEVICE_COUNT device(s) in ADB list"
-                        fi
-                        # Enable TCP/IP mode on port 5558 for droidrun
-                        echo ""
-                        echo "Setting up TCP/IP mode on port 5558 for droidrun..."
-                        # Try to find any connected device
-                        CONNECTED_DEVICE=$(${'$'}ADB_CMD devices 2>&1 | grep -v "List" | grep "device" | head -1 | awk '{print ${'$'}1}')
-                        if [ -n "${'$'}CONNECTED_DEVICE" ]; then
-                            echo "Found device: ${'$'}CONNECTED_DEVICE, enabling TCP/IP mode on port 5558..."
-                            ${'$'}ADB_CMD -s ${'$'}CONNECTED_DEVICE tcpip 5558 2>&1 || {
-                                echo "⚠ Failed to enable TCP/IP on port 5558, trying alternative..."
-                                ${'$'}ADB_CMD tcpip 5558 2>&1 || true
-                            }
-                            sleep 1
-                            # Connect to localhost:5558
-                            ${'$'}ADB_CMD disconnect 127.0.0.1:5558 2>&1 || true
-                            sleep 0.5
-                            ${'$'}ADB_CMD connect 127.0.0.1:5558 2>&1 || true
-                            sleep 1.5
-                        else
-                            echo "⚠ No device found to enable TCP/IP mode"
-                        fi
-                        # Final device list
-                        echo ""
-                        echo "=== Final ADB devices list ==="
-                        ${'$'}ADB_CMD devices 2>&1
-                        echo "=============================="
-                    fi
-                    # Setup TMPDIR in .bashrc
-                    if ! grep -q "export TMPDIR" "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null; then
-                        echo 'export TMPDIR="${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"' >> "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc"
-                        mkdir -p "${TermuxConstants.TERMUX_HOME_DIR_PATH}/usr/tmp"
-                    fi
-                    # Ensure PATH includes system binaries in .bashrc
-                    if ! grep -q "export PATH.*system" "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null; then
-                        echo 'export PATH="/system/bin:/system/xbin:${'$'}PATH"' >> "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc"
-                    fi
-                    # Remove ANDROID_SERIAL from .bashrc if it exists (to allow all devices to show)
-                    if grep -q "export ANDROID_SERIAL" "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc" 2>/dev/null; then
-                        sed -i '/export ANDROID_SERIAL/d' "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.bashrc"
-                        echo "Removed global ANDROID_SERIAL to allow all devices to be visible"
-                    fi
-                    echo "ADB environment configured"
-                """.trimIndent()
-                
-                mainHandler.post {
-                    if (terminalSession != null && !sessionFinished) {
-                        terminalSession!!.write(adbSetupCommand)
-                        terminalSession!!.write("\n")
-                        Logger.logInfo(LOG_TAG, "Setting up ADB environment")
-                    }
-                }
-            } catch (e: Exception) {
-                Logger.logStackTraceWithMessage(LOG_TAG, "Error setting up ADB environment", e)
-            }
-        }.start()
     }
     
     private fun setupGoogleApiKey() {
@@ -485,100 +329,6 @@ class TaskExecutorViewModel(
                 }
             } catch (e: Exception) {
                 Logger.logStackTraceWithMessage(LOG_TAG, "Error setting up Google API Key", e)
-            }
-        }.start()
-    }
-    
-    /**
-     * Prepare droidrun environment once per app lifecycle.
-     * Sets up ADB server, TCP/IP mode, and connection to localhost:5558.
-     */
-    private fun prepareDroidrunEnvironment() {
-        if (terminalSession == null || sessionFinished || isDroidrunPrepared) {
-            return
-        }
-        
-        Thread {
-            try {
-                Logger.logInfo(LOG_TAG, "Preparing droidrun environment (one-time setup)")
-                
-                val droidrunSetupCommand = """
-                    export ANDROID_SERIAL="127.0.0.1:5558"
-                    # Kill and restart ADB server
-                    echo "Preparing ADB environment for droidrun..."
-                    adb kill-server 2>&1 || true
-                    sleep 0.5
-                    adb start-server 2>&1 || true
-                    sleep 1
-                    # Enable TCP/IP mode on port 5558
-                    echo "Enabling ADB TCP/IP mode on port 5558..."
-                    adb tcpip 5558 2>&1 || {
-                        echo "⚠ Failed to enable TCP/IP mode, trying alternative method..."
-                        # Try with USB device first if available
-                        USB_DEVICE=$(adb devices | grep -v "List" | grep "device" | head -1 | awk '{print ${'$'}1}')
-                        if [ -n "${'$'}USB_DEVICE" ]; then
-                            adb -s ${'$'}USB_DEVICE tcpip 5558 2>&1 || true
-                        fi
-                    }
-                    sleep 1
-                    # Kill any existing connection to avoid conflicts
-                    adb disconnect 127.0.0.1:5558 2>&1 || true
-                    sleep 0.5
-                    # Connect ADB to localhost with multiple retries
-                    MAX_RETRIES=5
-                    RETRY_COUNT=0
-                    CONNECTED=false
-                    while [ ${'$'}RETRY_COUNT -lt ${'$'}MAX_RETRIES ] && [ "${'$'}CONNECTED" = "false" ]; do
-                        echo "Attempting ADB connection (attempt ${'$'}((RETRY_COUNT + 1))/${'$'}MAX_RETRIES)..."
-                        adb connect 127.0.0.1:5558 2>&1
-                        sleep 1.5
-                        if adb devices 2>&1 | grep -q "127.0.0.1:5558.*device"; then
-                            CONNECTED=true
-                            echo "✓ ADB connected to localhost:5558"
-                            break
-                        else
-                            RETRY_COUNT=${'$'}((RETRY_COUNT + 1))
-                            if [ ${'$'}RETRY_COUNT -lt ${'$'}MAX_RETRIES ]; then
-                                sleep 1
-                            fi
-                        fi
-                    done
-                    # Final verification
-                    if [ "${'$'}CONNECTED" = "false" ]; then
-                        echo "⚠ ADB connection failed after ${'$'}MAX_RETRIES attempts"
-                        echo "ADB devices status:"
-                        adb devices 2>&1
-                        echo "⚠ Attempting to continue anyway..."
-                        # Try one more time with longer wait
-                        adb connect 127.0.0.1:5558 2>&1
-                        sleep 2
-                        if adb devices 2>&1 | grep -q "127.0.0.1:5558.*device"; then
-                            echo "✓ ADB connected on final attempt"
-                            CONNECTED=true
-                        fi
-                    fi
-                    if [ "${'$'}CONNECTED" = "true" ]; then
-                        echo "✓ Droidrun environment prepared successfully"
-                    else
-                        echo "⚠ Droidrun environment preparation completed with warnings"
-                    fi
-                """.trimIndent()
-                
-                mainHandler.post {
-                    if (terminalSession != null && !sessionFinished) {
-                        terminalSession!!.write(droidrunSetupCommand)
-                        terminalSession!!.write("\n")
-                        Logger.logInfo(LOG_TAG, "Droidrun environment preparation started")
-                        // Mark as prepared after a delay to allow command to execute
-                        Thread {
-                            Thread.sleep(10000) // Wait for setup to complete
-                            isDroidrunPrepared = true
-                            Logger.logInfo(LOG_TAG, "Droidrun environment marked as prepared")
-                        }.start()
-                    }
-                }
-            } catch (e: Exception) {
-                Logger.logStackTraceWithMessage(LOG_TAG, "Error preparing droidrun environment", e)
             }
         }.start()
     }
@@ -634,20 +384,10 @@ class TaskExecutorViewModel(
                 }
             }
             
-            // Quick verification that ADB is still connected (non-blocking check)
-            // If droidrun environment wasn't prepared, prepare it now (async, non-blocking)
-            if (!isDroidrunPrepared) {
-                Logger.logWarn(LOG_TAG, "Droidrun environment not prepared, preparing now...")
-                prepareDroidrunEnvironment()
-                // Note: prepareDroidrunEnvironment() runs asynchronously
-                // The command below will handle reconnection if needed
-            }
-            
             // Build droidrun command with all configured flags
             // CRITICAL: All commands must be chained with && to ensure they execute in the same shell session
             // This ensures environment variables persist between commands
             val droidrunFlags = droidRunConfig.buildFlagsString()
-            val deviceSerial = droidRunConfig.device ?: "127.0.0.1:5558"
             
             // Ensure API key is exported in the same shell session
             val apiKeyExport = if (googleApiKey.isNotBlank()) {
@@ -659,8 +399,6 @@ class TaskExecutorViewModel(
             // Chain all commands with && to ensure they execute sequentially in the same shell session
             // This is critical for environment variable persistence
             val droidrunCommand = """
-                export ANDROID_SERIAL="$deviceSerial" && \
-                (adb devices 2>&1 | grep -q "$deviceSerial.*device" || adb connect $deviceSerial 2>&1 || true) && \
                 $apiKeyExport \
                 droidrun run $droidrunFlags "$command"
             """.trimIndent()
@@ -783,7 +521,6 @@ class TaskExecutorViewModel(
         currentSession = null
         sessionClient = null
         sessionFinished = false
-        isDroidrunPrepared = false // Reset droidrun preparation state
         mainHandler.post {
             resetSessionState()
             clearOutput()

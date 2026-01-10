@@ -64,8 +64,6 @@
     <string name="unavailable">Unavailable</string>
     <string name="token_label">"Token: "</string>
     <string name="copy_token_content_description">Copy token</string>
-    <string name="adb_forward_command_header">ADB Forward Command</string>
-    <string name="adb_forward_command_placeholder">adb forward tcp:8080 tcp:8080</string>
     <string name="endpoints_header">Endpoints</string>
     <string name="http_method_get">GET</string>
     <string name="endpoint_a11y_tree">/a11y_tree</string>
